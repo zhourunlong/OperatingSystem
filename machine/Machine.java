@@ -18,8 +18,6 @@ public final class Machine {
 	 * @param	args	the command line arguments.
 	 */
 	public static void main(final String[] args) {
-		int huy = 0;
-		int zrl = 0;
 		System.out.print("nachos 5.0j initializing...");
 
 		Lib.assertTrue(Machine.args == null);
