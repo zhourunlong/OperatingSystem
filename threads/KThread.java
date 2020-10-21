@@ -37,7 +37,7 @@ public class KThread {
         Lib.assertTrue(currentThread != null);
         return currentThread;
     }
-
+    
     /**
      * Allocate a new <tt>KThread</tt>. If this is the first <tt>KThread</tt>,
      * create an idle thread as well.
@@ -45,8 +45,7 @@ public class KThread {
     public KThread() {
         if (currentThread != null) {
             tcb = new TCB();
-        }
-        else {
+        } else {
             readyQueue = ThreadedKernel.scheduler.newThreadQueue(false);
             readyQueue.acquire(this);
 
@@ -99,7 +98,7 @@ public class KThread {
      * only.
      *
      * @return	the name given to this thread.
-     */
+     */     
     public String getName() {
         return name;
     }
@@ -140,7 +139,7 @@ public class KThread {
         Lib.assertTrue(target != null);
 
         Lib.debug(dbgThread,
-                "Forking thread: " + toString() + " Runnable: " + target);
+        	  "Forking thread: " + toString() + " Runnable: " + target);
 
         boolean intStatus = Machine.interrupt().disable();
 
@@ -148,7 +147,7 @@ public class KThread {
             public void run() {
                 runThread();
             }
-        });
+            });
 
         ready();
 
@@ -191,8 +190,11 @@ public class KThread {
         Lib.assertTrue(toBeDestroyed == null);
         toBeDestroyed = currentThread;
 
-
         currentThread.status = statusFinished;
+
+        KThread nxtThread = joinQueue.nextThread();
+        if (nxtThread != null)
+            nxtThread.ready();
 
         sleep();
     }
@@ -277,6 +279,13 @@ public class KThread {
 
         Lib.assertTrue(this != currentThread);
 
+        if (status == statusFinished)
+            return;
+
+        boolean tmp = Machine.interrupt().disable();
+        joinQueue.waitForAccess(currentThread);
+        sleep();
+        Machine.interrupt().setStatus(tmp);
     }
 
     /**
@@ -300,7 +309,7 @@ public class KThread {
 
         idleThread.fork();
     }
-
+    
     /**
      * Determine the next thread to run, then dispatch the CPU to the thread
      * using <tt>run()</tt>.
@@ -330,8 +339,8 @@ public class KThread {
      * thread is sleeping or yielding).
      *
      * @param	finishing	<tt>true</tt> if the current thread is
-     *				finished, and should be destroyed by the new
-     *				thread.
+     *              finished, and should be destroyed by the new
+     *              thread.
      */
     private void run() {
         Lib.assertTrue(Machine.interrupt().disabled());
@@ -341,7 +350,7 @@ public class KThread {
         currentThread.saveState();
 
         Lib.debug(dbgThread, "Switching from: " + currentThread.toString()
-                + " to: " + toString());
+            + " to: " + toString());
 
         currentThread = this;
 
@@ -389,7 +398,7 @@ public class KThread {
         public void run() {
             for (int i=0; i<5; i++) {
                 System.out.println("*** thread " + which + " looped "
-                        + i + " times");
+                                   + i + " times");
                 currentThread.yield();
             }
         }
@@ -444,4 +453,6 @@ public class KThread {
     private static KThread currentThread = null;
     private static KThread toBeDestroyed = null;
     private static KThread idleThread = null;
+
+    private static ThreadQueue joinQueue = ThreadedKernel.scheduler.newThreadQueue(true);
 }
