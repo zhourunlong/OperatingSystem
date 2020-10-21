@@ -1,6 +1,4 @@
-// comment by vector zhou
 // PART OF THE MACHINE SIMULATION. DO NOT CHANGE.
-// HuyangHuyangHuyangHuyang
 
 package nachos.machine;
 
@@ -20,7 +18,6 @@ public final class Machine {
 	 * @param	args	the command line arguments.
 	 */
 	public static void main(final String[] args) {
-		int zrl = 0;
 		System.out.print("nachos 5.0j initializing...");
 
 		Lib.assertTrue(Machine.args == null);
