@@ -37,7 +37,7 @@ public class KThread {
         Lib.assertTrue(currentThread != null);
         return currentThread;
     }
-    
+
     /**
      * Allocate a new <tt>KThread</tt>. If this is the first <tt>KThread</tt>,
      * create an idle thread as well.
@@ -98,7 +98,7 @@ public class KThread {
      * only.
      *
      * @return	the name given to this thread.
-     */     
+     */
     public String getName() {
         return name;
     }
@@ -139,7 +139,7 @@ public class KThread {
         Lib.assertTrue(target != null);
 
         Lib.debug(dbgThread,
-        	  "Forking thread: " + toString() + " Runnable: " + target);
+                "Forking thread: " + toString() + " Runnable: " + target);
 
         boolean intStatus = Machine.interrupt().disable();
 
@@ -147,7 +147,7 @@ public class KThread {
             public void run() {
                 runThread();
             }
-            });
+        });
 
         ready();
 
@@ -309,7 +309,7 @@ public class KThread {
 
         idleThread.fork();
     }
-    
+
     /**
      * Determine the next thread to run, then dispatch the CPU to the thread
      * using <tt>run()</tt>.
@@ -350,7 +350,7 @@ public class KThread {
         currentThread.saveState();
 
         Lib.debug(dbgThread, "Switching from: " + currentThread.toString()
-            + " to: " + toString());
+                + " to: " + toString());
 
         currentThread = this;
 
@@ -398,7 +398,7 @@ public class KThread {
         public void run() {
             for (int i=0; i<5; i++) {
                 System.out.println("*** thread " + which + " looped "
-                                   + i + " times");
+                        + i + " times");
                 currentThread.yield();
             }
         }
