@@ -17,7 +17,7 @@ public class Alarm {
     public Alarm() {
         Machine.timer().setInterruptHandler(new Runnable() {
             public void run() { timerInterrupt(); }
-            });
+        });
     }
 
     /**
