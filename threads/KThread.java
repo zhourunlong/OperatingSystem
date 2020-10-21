@@ -191,10 +191,8 @@ public class KThread {
         toBeDestroyed = currentThread;
 
         currentThread.status = statusFinished;
-
-        KThread nxtThread = joinQueue.nextThread();
-        if (nxtThread != null)
-            nxtThread.ready();
+        if (currentThread.swap != null)
+            currentThread.swap.ready();
 
         sleep();
     }
@@ -284,8 +282,8 @@ public class KThread {
 
         boolean intStatus = Machine.interrupt().disable();
 
-        joinQueue.waitForAccess(currentThread);
-        sleep();
+        this.swap = currentThread;
+        currentThread.sleep();
         
         Machine.interrupt().restore(intStatus);
     }
@@ -456,5 +454,5 @@ public class KThread {
     private static KThread toBeDestroyed = null;
     private static KThread idleThread = null;
 
-    private static ThreadQueue joinQueue = ThreadedKernel.scheduler.newThreadQueue(true);
+    private KThread swap = null;
 }
