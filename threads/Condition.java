@@ -19,7 +19,7 @@ import java.util.LinkedList;
  * <li><tt>wake()</tt>: wake up a single thread sleeping in this condition
  * variable, if possible.
  *
- * <li><tt>wakeAll()</tt>: wake up all threads sleeping inn this condition
+ * <li><tt>wakeAll()</tt>: wake up all threads sleeping in this condition
  * variable.
  *
  * </ul>
@@ -30,12 +30,12 @@ import java.util.LinkedList;
  * operations can only be used while holding the associated lock.
  *
  * <p>
- * In Nachos, condition variables are summed to obey <i>Mesa-style</i>
+ * In Nachos, condition variables are assummed to obey <i>Mesa-style</i>
  * semantics. When a <tt>wake()</tt> or <tt>wakeAll()</tt> wakes up another
  * thread, the woken thread is simply put on the ready list, and it is the
  * responsibility of the woken thread to reacquire the lock (this reacquire is
  * taken core of in <tt>sleep()</tt>).
- *
+ *k
  * <p>
  * By contrast, some implementations of condition variables obey
  * <i>Hoare-style</i> semantics, where the thread that calls <tt>wake()</tt>
@@ -59,9 +59,9 @@ public class Condition {
      *				<tt>wake()</tt>, or <tt>wakeAll()</tt>.
      */
     public Condition(Lock conditionLock) {
-	this.conditionLock = conditionLock;
+        this.conditionLock = conditionLock;
 
-	waitQueue = new LinkedList<Semaphore>();
+        waitQueue = new LinkedList<Semaphore>();
     }
 
     /**
@@ -77,14 +77,14 @@ public class Condition {
      * though the lock is released before caling <tt>P()</tt>.
      */
     public void sleep() {
-	Lib.assertTrue(conditionLock.isHeldByCurrentThread());
+        Lib.assertTrue(conditionLock.isHeldByCurrentThread());
 
-	Semaphore waiter = new Semaphore(0);
-	waitQueue.add(waiter);
+        Semaphore waiter = new Semaphore(0);
+        waitQueue.add(waiter);
 
-	conditionLock.release();
-	waiter.P();
-	conditionLock.acquire();	
+        conditionLock.release();
+        waiter.P();
+        conditionLock.acquire();
     }
 
     /**
@@ -92,10 +92,10 @@ public class Condition {
      * current thread must hold the associated lock.
      */
     public void wake() {
-	Lib.assertTrue(conditionLock.isHeldByCurrentThread());
+        Lib.assertTrue(conditionLock.isHeldByCurrentThread());
 
-	if (!waitQueue.isEmpty())
-	    ((Semaphore) waitQueue.removeFirst()).V();
+        if (!waitQueue.isEmpty())
+            ((Semaphore) waitQueue.removeFirst()).V();
     }
 
     /**
@@ -103,10 +103,10 @@ public class Condition {
      * thread must hold the associated lock.
      */
     public void wakeAll() {
-	Lib.assertTrue(conditionLock.isHeldByCurrentThread());
+        Lib.assertTrue(conditionLock.isHeldByCurrentThread());
 
-	while (!waitQueue.isEmpty())
-	    wake();
+        while (!waitQueue.isEmpty())
+            wake();
     }
 
     private Lock conditionLock;

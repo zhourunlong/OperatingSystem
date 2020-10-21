@@ -282,10 +282,12 @@ public class KThread {
         if (status == statusFinished)
             return;
 
-        boolean tmp = Machine.interrupt().disable();
+        boolean intStatus = Machine.interrupt().disable();
+
         joinQueue.waitForAccess(currentThread);
         sleep();
-        Machine.interrupt().setStatus(tmp);
+        
+        Machine.interrupt().restore(intStatus);
     }
 
     /**
