@@ -2,6 +2,7 @@ package nachos.threads;
 
 import nachos.machine.*;
 
+import java.util.LinkedList;
 import java.util.TreeSet;
 import java.util.HashSet;
 import java.util.Iterator;
@@ -17,7 +18,7 @@ import java.util.Iterator;
  * thread that has been waiting longest.
  *
  * <p>
- * Essentially, a priority scheduler gives access in a round-robin fassion to
+ * Essentially, a priority scheduler gives access in a round-robin fashion to
  * all the highest-priority threads, and ignores all other threads. This has
  * the potential to
  * starve a thread if there's always a thread waiting with higher priority.
@@ -127,6 +128,9 @@ public class PriorityScheduler extends Scheduler {
      */
     protected class PriorityQueue extends ThreadQueue {
         PriorityQueue(boolean transferPriority) {
+            for(int i = priorityMinimum; i <= priorityMaximum; i++) {
+                waitQueues[i] = new LinkedList<KThread>();
+            }
             this.transferPriority = transferPriority;
         }
 
@@ -168,6 +172,7 @@ public class PriorityScheduler extends Scheduler {
          * threads to the owning thread.
          */
         public boolean transferPriority;
+        public LinkedList<KThread>[] waitQueues = new LinkedList [priorityMaximum + 1];
     }
 
     /**
@@ -219,7 +224,6 @@ public class PriorityScheduler extends Scheduler {
                 return;
 
             this.priority = priority;
-
             // implement me
         }
 
@@ -237,6 +241,7 @@ public class PriorityScheduler extends Scheduler {
          */
         public void waitForAccess(PriorityQueue waitQueue) {
             // implement me
+            waitQueue.waitQueues[this.priority].add(this.thread);
         }
 
         /**
@@ -251,6 +256,8 @@ public class PriorityScheduler extends Scheduler {
          */
         public void acquire(PriorityQueue waitQueue) {
             // implement me
+            Lib.assertTrue(Machine.interrupt().disabled());
+            Lib.assertTrue(waitQueue.waitQueues[this.priority].isEmpty());
         }
 
         /** The thread with which this object is associated. */
