@@ -2,6 +2,8 @@ package nachos.threads;
 
 import nachos.machine.*;
 
+import java.util.Comparator;
+import java.util.PriorityQueue;
 /**
  * Uses the hardware timer to provide preemption, and to allow threads to sleep
  * until a certain time.
@@ -27,6 +29,15 @@ public class Alarm {
      * that should be run.
      */
     public void timerInterrupt() {
+        boolean intStatus = Machine.interrupt().disable();
+
+        while (!Q.isEmpty() && Q.peek().Time() <= Machine.timer().getTime())
+            Q.poll().Thread().ready();
+        
+        Machine.interrupt().restore(intStatus);
+
+        // ???
+        // KThread.yield();
         KThread.currentThread().yield();
     }
 
@@ -46,8 +57,36 @@ public class Alarm {
      */
     public void waitUntil(long x) {
         // for now, cheat just to get something working (busy waiting is bad)
-        long wakeTime = Machine.timer().getTime() + x;
-        while (wakeTime > Machine.timer().getTime())
-            KThread.yield();
+        TimeThreadPair ttp = new TimeThreadPair(
+                                Machine.timer().getTime() + x,
+                                KThread.currentThread());
+
+        boolean intStatus = Machine.interrupt().disable();
+
+        Q.add(ttp);
+        // ???
+        // KThread.sleep();
+        KThread.currentThread().sleep();
+        
+        Machine.interrupt().restore(intStatus);
     }
+
+    private class TimeThreadPair {
+        long Time;
+        KThread Thread;
+        public TimeThreadPair(long _Time, KThread _Thread) {
+            Time = _Time;
+            Thread = _Thread;
+        }
+        public long Time() {return Time;}
+        public KThread Thread() {return Thread;}
+    }
+    static Comparator<TimeThreadPair> cmp = new Comparator<TimeThreadPair>() {
+        public int compare(TimeThreadPair a, TimeThreadPair b) {
+            long tmp = a.Time - b.Time;
+            return tmp > 0 ? 1 : (tmp == 0 ? 0 : -1);
+        }
+    };
+
+    PriorityQueue<TimeThreadPair> Q = new PriorityQueue<TimeThreadPair>(cmp);
 }
