@@ -147,6 +147,9 @@ public class PriorityScheduler extends Scheduler {
         public KThread nextThread() {
             Lib.assertTrue(Machine.interrupt().disabled());
             // implement me
+            if(pickNextThread() != null) {
+                return pickNextThread().thread;
+            }
             return null;
         }
 
@@ -159,6 +162,20 @@ public class PriorityScheduler extends Scheduler {
          */
         protected ThreadState pickNextThread() {
             // implement me
+            long Min = Long.MAX_VALUE;
+            ThreadState next_thread_state = null;
+            for(int i = priorityMinimum; i <= priorityMaximum; i++) {
+                if(!waitQueues[i].isEmpty()) {
+                    for(Iterator<KThread> j = waitQueues[i].iterator(); j.hasNext(); ) {
+                        KThread tmp_thread = j.next();
+                        if(Min > getThreadState(tmp_thread).birth) {
+                            Min = getThreadState(tmp_thread).birth;
+                            next_thread_state = getThreadState(tmp_thread);
+                        }
+                    }
+                    return next_thread_state;
+                }
+            }
             return null;
         }
 
@@ -172,7 +189,8 @@ public class PriorityScheduler extends Scheduler {
          * threads to the owning thread.
          */
         public boolean transferPriority;
-        public LinkedList<KThread>[] waitQueues = new LinkedList [priorityMaximum + 1];
+        protected LinkedList<KThread>[] waitQueues = new LinkedList [priorityMaximum + 1];
+        protected KThread current_holder = null;
     }
 
     /**
@@ -222,7 +240,11 @@ public class PriorityScheduler extends Scheduler {
         public void setPriority(int priority) {
             if (this.priority == priority)
                 return;
-
+            for(Iterator<PriorityQueue> i = list_of_queue.iterator(); i.hasNext(); ) {
+                PriorityQueue tmp_queue = i.next();
+                tmp_queue.waitQueues[this.priority].remove(this.thread);
+                tmp_queue.waitQueues[priority].add(this.thread);
+            }
             this.priority = priority;
             // implement me
         }
@@ -241,7 +263,17 @@ public class PriorityScheduler extends Scheduler {
          */
         public void waitForAccess(PriorityQueue waitQueue) {
             // implement me
+            this.birth = Machine.timer().getTime();
             waitQueue.waitQueues[this.priority].add(this.thread);
+            if(waitQueue.transferPriority) {
+                list_of_queue.add(waitQueue);
+                if(waitQueue.current_holder != null) {
+                    waited_threads_queue.add(waitQueue.current_holder);
+                    ThreadState current_holder_state = getThreadState(waitQueue.current_holder);
+                    current_holder_state.setPriority(Math.max(this.priority, current_holder_state.priority));
+                    current_holder_state.update();
+                }
+            }
         }
 
         /**
@@ -257,12 +289,29 @@ public class PriorityScheduler extends Scheduler {
         public void acquire(PriorityQueue waitQueue) {
             // implement me
             Lib.assertTrue(Machine.interrupt().disabled());
-            Lib.assertTrue(waitQueue.waitQueues[this.priority].isEmpty());
+            waitQueue.current_holder = this.thread;
+        }
+
+        /**
+         * Called when the associated thread donates its priority to the thread which occupies the requested lock.
+         */
+
+        protected void update() {
+            for(Iterator<KThread> i = waited_threads_queue.iterator(); i.hasNext(); ) {
+                KThread suc_thread = i.next();
+                if(this.priority <= getThreadState(suc_thread).getPriority())
+                    continue;
+                getThreadState(suc_thread).setPriority(Math.max(this.priority, getThreadState(suc_thread).getPriority()));
+                getThreadState(suc_thread).update();
+            }
         }
 
         /** The thread with which this object is associated. */
         protected KThread thread;
         /** The priority of the associated thread. */
         protected int priority;
+        protected long birth = Machine.timer().getTime();
+        protected LinkedList<KThread> waited_threads_queue = new LinkedList<>();
+        protected LinkedList<PriorityQueue> list_of_queue = new LinkedList<>();
     }
 }
