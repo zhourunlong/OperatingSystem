@@ -78,13 +78,13 @@ public class Boat
 
         for (int i=0; i<adults; i++) {
             KThread t = new KThread(sample_adult);
-            t.setName("Boat Thread - Adult - #" + (i+1));
+            t.setName("Adult #" + (i+1));
             t.fork();
         }
 
         while (true) {
             int reportedArrival = reporterAtMolokai.listen();
-            System.out.println("***** Newly listened: " + reportedArrival + " people have arrived at Molokai.");
+            System.out.println("***** Newly listened: " + reportedArrival + " people are now at Molokai.");
             if (reportedArrival == children + adults)
                 break;
         }
