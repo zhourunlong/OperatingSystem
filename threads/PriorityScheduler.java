@@ -310,8 +310,11 @@ public class PriorityScheduler extends Scheduler {
         protected KThread thread;
         /** The priority of the associated thread. */
         protected int priority;
+        /** The latest time when the thread is added to a queue. */
         protected long birth = Machine.timer().getTime();
+        /** The threads that takes the lock which is requested by the associated thread. */
         protected LinkedList<KThread> waited_threads_queue = new LinkedList<>();
+        /** The queues that contains the associate thread. */
         protected LinkedList<PriorityQueue> list_of_queue = new LinkedList<>();
     }
 }
