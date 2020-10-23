@@ -52,8 +52,10 @@ public class RoundRobinScheduler extends Scheduler {
         public KThread nextThread() {
             Lib.assertTrue(Machine.interrupt().disabled());
 
+            print();
             if (waitQueue.isEmpty())
                 return null;
+
 
             return (KThread) waitQueue.removeFirst();
         }
@@ -74,9 +76,10 @@ public class RoundRobinScheduler extends Scheduler {
          */
         public void print() {
             Lib.assertTrue(Machine.interrupt().disabled());
-
+            System.out.println("Current queue info: ");
             for (Iterator i=waitQueue.iterator(); i.hasNext(); )
                 System.out.print((KThread) i.next() + " ");
+            System.out.println();
         }
 
         private LinkedList<KThread> waitQueue = new LinkedList<KThread>();
