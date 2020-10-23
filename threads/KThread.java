@@ -407,18 +407,6 @@ public class KThread {
     }
 
     /**
-     * Tests whether this module is working.
-     */
-    public static void selfTest() {
-        Lib.debug(dbgThread, "Enter KThread.selfTest");
-
-        new KThread(new PingTest(1)).setName("forked thread").fork();
-        new PingTest(0).run();
-    }
-
-    private static final char dbgThread = 't';
-
-    /**
      * Additional state used by schedulers.
      *
      * @see	nachos.threads.PriorityScheduler.ThreadState
@@ -455,4 +443,18 @@ public class KThread {
     private static KThread idleThread = null;
 
     private KThread swap = null;
+
+    private static final char dbgThread = 't';
+
+    /**
+     * Tests whether this module is working.
+     */
+    public static void selfTest() {
+        Lib.debug(dbgThread, "Enter KThread.selfTest");
+
+        new KThread(new PingTest(1)).setName("forked thread").fork();
+        new PingTest(0).run();
+
+        Lib.debug(dbgThread, "Finish KThread.selfTest\n*****");
+    }
 }

@@ -66,4 +66,12 @@ public class Communicator {
     private boolean inUse = false;
     private Lock lock;
     private Condition2 speaker, listener;
+
+    public static void selfTest() {
+        System.out.println("Enter Communicator.selfTest");
+
+        //new KThread(new PingTest(1)).setName("forked thread").fork();
+        //new PingTest(0).run();
+        System.out.println("Finish Communicator.selfTest\n*****");
+    }
 }

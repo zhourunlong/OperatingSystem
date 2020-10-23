@@ -75,4 +75,17 @@ public class Condition2 {
 
     private Lock conditionLock;
     private ThreadQueue waitQueue = null;
+
+    private static final char dbgCond2 = 't';
+
+    /**
+     * Tests whether this module is working.
+     */
+    public static void selfTest() {
+        System.out.println("Enter Condition2.selfTest");
+
+        //new KThread(new PingTest(1)).setName("forked thread").fork();
+        //new PingTest(0).run();
+        System.out.println("Finish Condition2.selfTest\n*****");
+    }
 }
