@@ -34,12 +34,14 @@ public class Condition2 {
     public void sleep() {
         Lib.assertTrue(conditionLock.isHeldByCurrentThread());
 
-        conditionLock.release();
         boolean intStatus = Machine.interrupt().disable();
+        conditionLock.release();
+        
         waitQueue.waitForAccess(KThread.currentThread());
         KThread.sleep();
-        Machine.interrupt().restore(intStatus);
+        
         conditionLock.acquire();
+        Machine.interrupt().restore(intStatus);
     }
 
     /**
@@ -76,16 +78,16 @@ public class Condition2 {
     private Lock conditionLock;
     private ThreadQueue waitQueue = null;
 
-    private static final char dbgCond2 = 't';
+    private static final char dbgCond2 = 'c';
 
     /**
      * Tests whether this module is working.
      */
     public static void selfTest() {
-        System.out.println("Enter Condition2.selfTest");
+        Lib.debug(dbgCond2, "Enter Condition2.selfTest");
 
         //new KThread(new PingTest(1)).setName("forked thread").fork();
         //new PingTest(0).run();
-        System.out.println("Finish Condition2.selfTest\n*****");
+        Lib.debug(dbgCond2, "Finish Condition2.selfTest\n*****");
     }
 }
