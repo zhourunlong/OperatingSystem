@@ -144,8 +144,9 @@ public class PriorityScheduler extends Scheduler {
         public KThread nextThread() {
             Lib.assertTrue(Machine.interrupt().disabled());
             // implement me
-            if(pickNextThread() != null) {
-                return pickNextThread().thread;
+            ThreadState next_thread_state = pickNextThread();
+            if(next_thread_state != null) {
+                return next_thread_state.thread;
             }
             return null;
         }
@@ -159,6 +160,7 @@ public class PriorityScheduler extends Scheduler {
          */
         protected ThreadState pickNextThread() {
             // implement me
+            print();
             long Min = Long.MAX_VALUE;
             ThreadState next_thread_state = null;
             for(int i = priorityMaximum; i >= priorityMinimum; i--) {
@@ -171,11 +173,12 @@ public class PriorityScheduler extends Scheduler {
                         }
                     }
                     if(next_thread_state != null) {
-                        waitQueues[i].remove(next_thread_state.thread);
+                        acquire(next_thread_state.thread);
                     }
                     return next_thread_state;
                 }
             }
+            // System.out.println(1);
             return null;
         }
 
@@ -195,6 +198,15 @@ public class PriorityScheduler extends Scheduler {
         public void print() {
             Lib.assertTrue(Machine.interrupt().disabled());
             // implement me (if you want)
+            System.out.println("Current queue info: ");
+            for (int j = priorityMaximum; j >= priorityMinimum; j--) {
+                for (Iterator i = waitQueues[j].iterator(); i.hasNext(); ) {
+                    KThread tmp_thread = (KThread) i.next();
+                    System.out.print(tmp_thread + " ");
+                    System.out.print(getThreadState(tmp_thread).getEffectivePriority() + " " + j);
+                }
+            }
+            System.out.println();
         }
 
         /**
@@ -339,6 +351,7 @@ public class PriorityScheduler extends Scheduler {
                 this.holding_resources.add(waitQueue);
             }
             waitQueue.waitQueues[this.effective_priority].remove(this.thread);
+            waitQueue.thread_info.remove(this.thread);
             list_of_queue.remove(waitQueue);
             recalculateDonation();
         }
@@ -371,6 +384,7 @@ public class PriorityScheduler extends Scheduler {
                 int tmp_priority = donating_queue.highestPriority();
                 Max = Math.max(tmp_priority, Max);
             }
+            Max = Math.max(this.priority, Max);
             if (Max == this.effective_priority) {
                 return ;
             }
