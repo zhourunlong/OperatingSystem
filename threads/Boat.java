@@ -1,5 +1,6 @@
 package nachos.threads;
 import nachos.ag.BoatGrader;
+import nachos.machine.Lib;
 
 public class Boat
 {
@@ -63,11 +64,11 @@ public class Boat
         // Walkthrough linked from the projects page.
 
         Runnable sample_child = new Runnable() {
-            public void run() { ChildItinerary(myLocation); };
+            public void run() { ChildItinerary(); };
         };
 
         Runnable sample_adult = new Runnable() {
-            public void run() { AdultItinerary(myLocation); };
+            public void run() { AdultItinerary(); };
         };
 
         for (int i=0; i<children; i++) {
