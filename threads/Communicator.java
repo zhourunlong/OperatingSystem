@@ -67,11 +67,13 @@ public class Communicator {
     private Lock lock;
     private Condition2 speaker, listener;
 
+    private static final char dbgCommunicator = 'c';
+
     public static void selfTest() {
-        System.out.println("Enter Communicator.selfTest");
+        Lib.debug(dbgCommunicator, "Enter Communicator.selfTest");
 
         //new KThread(new PingTest(1)).setName("forked thread").fork();
         //new PingTest(0).run();
-        System.out.println("Finish Communicator.selfTest\n*****");
+        Lib.debug(dbgCommunicator, "Finish Communicator.selfTest\n*****");
     }
 }

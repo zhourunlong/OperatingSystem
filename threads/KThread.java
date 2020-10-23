@@ -390,22 +390,6 @@ public class KThread {
         Lib.assertTrue(this == currentThread);
     }
 
-    private static class PingTest implements Runnable {
-        PingTest(int which) {
-            this.which = which;
-        }
-
-        public void run() {
-            for (int i=0; i<5; i++) {
-                System.out.println("*** thread " + which + " looped "
-                        + i + " times");
-                currentThread.yield();
-            }
-        }
-
-        private int which;
-    }
-
     /**
      * Additional state used by schedulers.
      *
@@ -455,6 +439,70 @@ public class KThread {
         new KThread(new PingTest(1)).setName("forked thread").fork();
         new PingTest(0).run();
 
+        JoinTest();
+
         Lib.debug(dbgThread, "Finish KThread.selfTest\n*****");
+    }
+
+    /**
+     * PingPong
+     */
+    private static class PingTest implements Runnable {
+        PingTest(int which) {
+            this.which = which;
+        }
+
+        public void run() {
+            for (int i=0; i<5; i++) {
+                System.out.println("*** thread " + which + " looped "
+                        + i + " times");
+                currentThread.yield();
+            }
+        }
+
+        private int which;
+    }
+
+    /**
+     * Join: Z start, X start, Y start, X join Z, X join Y
+     */
+
+    private static void JoinTest(){
+        KThread Z = new KThread(new ThreadJoined("Z")).setName("Z");
+        KThread Y = new KThread(new ThreadJoined("Y")).setName("Y");
+        KThread X = new KThread(new ThreadJoin("X", Y, Z)).setName("X");
+        Z.fork();
+        X.fork();
+        Y.fork();
+    }
+
+    private static class ThreadJoined implements Runnable {
+        private String name;
+        ThreadJoined(String _name) {
+            name = _name;
+        }
+        public void run(){
+            System.out.println(name + ": Running");
+        }
+    }
+
+    private static class ThreadJoin implements Runnable {
+        private String name;
+        private KThread Y, Z;
+
+        ThreadJoin(String _name, KThread _Y, KThread _Z){
+            name = _name;
+            Y = _Y;
+            Z = _Z;
+        }
+
+        public void run(){
+            System.out.println(name + ": before joining " + Z.getName());
+            Z.join();
+            System.out.println(name + ": after joining " + Z.getName());
+            System.out.println(name + ": before joining " + Y.getName());
+            Y.join();
+            System.out.println(name + ": after joining " + Y.getName());
+        }
     }
 }
