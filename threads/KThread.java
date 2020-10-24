@@ -440,7 +440,6 @@ public class KThread {
         new PingTest(0).run();
 
         JoinTest();
-
         System.out.println("Finish KThread.selfTest\n*****");
     }
 
@@ -506,4 +505,6 @@ public class KThread {
             System.out.println(name + ": after joining " + Y.getName());
         }
     }
+
+
 }

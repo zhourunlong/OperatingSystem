@@ -2,6 +2,7 @@ package nachos.threads;
 
 import nachos.machine.*;
 
+import java.nio.file.Watchable;
 import java.util.*;
 
 /**
@@ -120,6 +121,7 @@ public class PriorityScheduler extends Scheduler {
         return (ThreadState) thread.schedulingState;
     }
 
+
     /**
      * A <tt>ThreadQueue</tt> that sorts threads by priority.
      */
@@ -134,7 +136,7 @@ public class PriorityScheduler extends Scheduler {
         public void waitForAccess(KThread thread) {
             Lib.assertTrue(Machine.interrupt().disabled());
             getThreadState(thread).waitForAccess(this);
-            print();
+            // print();
         }
 
         public void acquire(KThread thread) {
@@ -161,15 +163,13 @@ public class PriorityScheduler extends Scheduler {
          */
         protected ThreadState pickNextThread() {
             // implement me
-            print();
+            // print();
             long Min = Long.MAX_VALUE;
             ThreadState next_thread_state = null;
             for(int i = priorityMaximum; i >= priorityMinimum; i--) {
                 if(!waitQueues[i].isEmpty()) {
                     for(Iterator<KThread> j = waitQueues[i].iterator(); j.hasNext(); ) {
                         KThread tmp_thread = j.next();
-                        if (thread_info.get(tmp_thread) == null)
-                            System.out.println("WRONG");
                         if(Min > thread_info.get(tmp_thread)) {
                             Min = thread_info.get(tmp_thread);
                             next_thread_state = getThreadState(tmp_thread);
@@ -195,7 +195,7 @@ public class PriorityScheduler extends Scheduler {
                     return i;
                 }
             }
-            return 0;
+            return -1;
         }
 
         public void print() {
@@ -296,6 +296,7 @@ public class PriorityScheduler extends Scheduler {
             }
             this.priority = priority;
             this.effective_priority = priority;
+            recalculateDonation();
             // implement me
         }
 
@@ -332,12 +333,13 @@ public class PriorityScheduler extends Scheduler {
          */
         public void waitForAccess(PriorityQueue waitQueue) {
             // implement me
-            if(this.list_of_queue.contains(waitQueue) || this.holding_resources.contains(waitQueue)) {
+            Lib.assertTrue(Machine.interrupt().disabled());
+            if(this.list_of_queue.contains(waitQueue) /*|| this.holding_resources.contains(waitQueue)*/) {
                 return ;
             }
             long birth = Machine.timer().getTime();
-            waitQueue.waitQueues[this.effective_priority].add(this.thread);
             waitQueue.thread_info.put(this.thread, birth);
+            waitQueue.waitQueues[this.effective_priority].add(this.thread);
             list_of_queue.add(waitQueue);
             if(waitQueue.transferPriority) {
                 if(waitQueue.current_holder != null) {
@@ -366,9 +368,7 @@ public class PriorityScheduler extends Scheduler {
                 getThreadState(waitQueue.current_holder).recalculateDonation();
             }
             waitQueue.current_holder = this.thread;
-            if (waitQueue.transferPriority) {
-                this.holding_resources.add(waitQueue);
-            }
+            this.holding_resources.add(waitQueue);
             waitQueue.waitQueues[this.effective_priority].remove(this.thread);
             waitQueue.thread_info.remove(this.thread);
             list_of_queue.remove(waitQueue);
@@ -403,7 +403,8 @@ public class PriorityScheduler extends Scheduler {
             for(Iterator<PriorityQueue> i = holding_resources.iterator(); i.hasNext(); ) {
                 PriorityQueue donating_queue = i.next();
                 int tmp_priority = donating_queue.highestPriority();
-                Max = Math.max(tmp_priority, Max);
+                if(donating_queue.transferPriority)
+                    Max = Math.max(tmp_priority, Max);
             }
             Max = Math.max(this.priority, Max);
             if (Max == this.effective_priority) {

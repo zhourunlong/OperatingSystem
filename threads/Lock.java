@@ -2,6 +2,8 @@ package nachos.threads;
 
 import nachos.machine.*;
 
+import java.util.Random;
+
 /**
  * A <tt>Lock</tt> is a synchronization primitive that has two states,
  * <i>busy</i> and <i>free</i>. There are only two operations allowed on a
@@ -73,6 +75,72 @@ public class Lock {
         return (lockHolder == KThread.currentThread());
     }
 
+    /**
+     *
+     * @return lockHolder
+     */
+    public KThread getLockHolder() {
+        return lockHolder;
+    }
+
+    /**
+     * @return waitQueue
+     */
+
+    public ThreadQueue getWaitQueue() {
+        return waitQueue;
+    }
+
     private KThread lockHolder = null;
     private ThreadQueue waitQueue = ThreadedKernel.scheduler.newThreadQueue(true);
+
+    public static void schedulerTest() {
+        qTester.critical = new Lock();
+        final int num_thread = 50;
+        KThread[] qThreads = new KThread[num_thread];
+        for (int i = 0; i < num_thread; i++) {
+            qTester tmp_tester = new qTester();
+            qThreads[i] = new KThread(tmp_tester).setName("qTester" + i);
+            tmp_tester.thread = qThreads[i];
+            boolean intStatus = Machine.interrupt().disable();
+            ThreadedKernel.scheduler.setPriority(qThreads[i], Math.min(7, 0));
+            Machine.interrupt().restore(intStatus);
+        }
+        qTester.N = num_thread;
+        qTester.threads = qThreads;
+        qTester.ID = 0;
+        qThreads[0].fork();
+
+        for (int i = 1; i < num_thread; i++) {
+            qThreads[i].fork();
+        }
+    }
+
+    public static class qTester implements Runnable {
+        public KThread thread;
+        public static KThread[] threads;
+        public static Lock critical;
+        public static int ID;
+        public static int N;
+        public void run() {
+            System.out.print("Running: ");
+            System.out.println(thread);
+            critical.acquire();
+            boolean intStatus = Machine.interrupt().disable();
+            critical.getWaitQueue().print();
+            Machine.interrupt().restore(intStatus);
+            ID += 1;
+            if (ID % 7 == 1) {
+                Random r = new Random();
+                intStatus = Machine.interrupt().disable();
+                for (int i = 1; i < N; i++) {
+                    ThreadedKernel.scheduler.setPriority(threads[i], r.nextInt(8));
+                }
+                Machine.interrupt().restore(intStatus);
+            }
+            critical.release();
+            System.out.print("Finished: ");
+            System.out.println(thread);
+        }
+    }
 }
