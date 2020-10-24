@@ -52,7 +52,7 @@ public class RoundRobinScheduler extends Scheduler {
         public KThread nextThread() {
             Lib.assertTrue(Machine.interrupt().disabled());
 
-            print();
+            //print();
             if (waitQueue.isEmpty())
                 return null;
 

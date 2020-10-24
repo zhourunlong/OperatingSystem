@@ -2,6 +2,8 @@ package nachos.threads;
 
 import nachos.machine.*;
 
+import java.util.*;
+
 /**
  * An implementation of condition variables that disables interrupt()s for
  * synchronization.
@@ -78,16 +80,79 @@ public class Condition2 {
     private Lock conditionLock;
     private ThreadQueue waitQueue = null;
 
-    private static final char dbgCond2 = 'c';
-
     /**
      * Tests whether this module is working.
      */
     public static void selfTest() {
-        Lib.debug(dbgCond2, "Enter Condition2.selfTest");
+        System.out.println("-----\nEnter Condition2.selfTest");
 
-        //new KThread(new PingTest(1)).setName("forked thread").fork();
-        //new PingTest(0).run();
-        Lib.debug(dbgCond2, "Finish Condition2.selfTest\n*****");
+        int[] item = new int[1];
+        item[0] = 0;
+        Lock lock = new Lock();
+        Condition2 cond2 = new Condition2(lock);
+        KThread[] producer = new KThread[5];
+        KThread[] consumer = new KThread[5];
+        Random r = new Random();
+        int cp = 0, cc = 0;
+        for (int i = 0; i < 10; ++i) {
+            int type = r.nextInt(2);
+            while (true) {
+                if ((type == 0 && cp < 5) || (type == 1 && cc < 5))
+                    break;
+                type = r.nextInt(2);
+            }
+            if (type == 0) {
+                producer[cp] = new KThread(new Producer(item, lock, cond2));
+                producer[cp].fork();
+                ++cp;
+            } else {
+                consumer[cc] = new KThread(new Consumer(item, lock, cond2));
+                consumer[cc].fork();
+                ++cc;
+            }
+        }
+        ThreadedKernel.alarm.waitUntil(100000);
+        System.out.println(item[0] + " item(s) left");
+
+        System.out.println("Finish Condition2.selfTest\n*****");
+    }
+
+    private static class Consumer implements Runnable{
+        private int[] item;
+        private Lock lock;
+        private Condition2 cond2;
+        public Consumer(int[] _item, Lock _lock, Condition2 _cond2){
+            item = _item;
+            lock = _lock;
+            cond2 = _cond2;
+        }
+        public void run(){
+            lock.acquire();
+            while (item[0] < 1) {
+                System.out.println("Consumer: no item, sleep.");
+                cond2.sleep();
+            }
+            item[0] -= 1;
+            System.out.println("Consumer: consume 1 item.");
+            lock.release();
+        }
+    }
+    
+    private static class Producer implements Runnable{
+        private int[] item;
+        private Lock lock;
+        private Condition2 cond2;
+        public Producer(int[] _item, Lock _lock, Condition2 _cond2){
+            item = _item;
+            lock = _lock;
+            cond2 = _cond2;
+        }
+        public void run(){
+            lock.acquire();
+            item[0] += 1;
+            System.out.println("Producer: produce 1 item.");
+            cond2.wakeAll();
+            lock.release();
+        }
     }
 }

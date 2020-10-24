@@ -96,7 +96,7 @@ public class Alarm {
      * Tests whether this module is working.
      */
     public static void selfTest() {
-        Lib.debug(dbgAlarm, "Enter Alarm.selfTest");
+        Lib.debug(dbgAlarm, "-----\nEnter Alarm.selfTest");
 
         //new KThread(new PingTest(1)).setName("forked thread").fork();
         //new PingTest(0).run();

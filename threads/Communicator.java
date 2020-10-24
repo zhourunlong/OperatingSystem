@@ -70,7 +70,7 @@ public class Communicator {
     private static final char dbgCommunicator = 'c';
 
     public static void selfTest() {
-        Lib.debug(dbgCommunicator, "Enter Communicator.selfTest");
+        Lib.debug(dbgCommunicator, "-----\nEnter Communicator.selfTest");
 
         //new KThread(new PingTest(1)).setName("forked thread").fork();
         //new PingTest(0).run();
