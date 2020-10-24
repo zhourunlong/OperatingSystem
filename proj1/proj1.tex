@@ -24,6 +24,9 @@
 % Homework Specific Information. Change it to your own
 \newcommand{\Title}{Project 1}
 \newcommand{\DueDate}{Oct 29, 2020}
+\newcommand{\StudentName}{}
+\newcommand{\StudentClass}{}
+\newcommand{\StudentNumber}{}
 
 % In case you need to adjust margins:
 \topmargin=-0.45in      %
@@ -167,25 +170,39 @@
 
 \begin{homeworkProblem}[Task I]
 
+\texttt{join()} and \texttt{finish()} are modified. A \texttt{swap} thread is used to record the current thread in 
+\texttt{join()}, which is suspended. When a thread calls \texttt{finish()}, it makes its \texttt{swap} thread ready.
 
+\texttt{JoinTest()} is the test function, and it is called inside \texttt{KThread.selfTest()}.
+It creates three threads $X,Y,Z$.
+$Z$ runs first, then $X$, finally $Y$. $X$ joins both $Z$ and $Y$, but $Y$ starts later than $X$. So this function tests
+the two condition of \texttt{join()}.
+
+For task I through IV, all the test functions are called in \texttt{ThreadedKernel.selfTest()}.
 
 \end{homeworkProblem}
 
 \begin{homeworkProblem}[Task II]
 
-
+Test (\texttt{Condition2.selfTest()}) is a Consumer-Producer problem,
+where 5 consumers and 5 producers are ordered in a random manner.
+We need to check whether there is no item left in the end.
 
 \end{homeworkProblem}
 
 \begin{homeworkProblem}[Task III]
 
-
+In the test (\texttt{Alarm.selfTest()}), 5 threads are created and each of them waits for a random time.
+A random time interval is placed between contiguous threads. The purpose of the test is to check whether
+some threads do not get enough wait time or wait for too long.
 
 \end{homeworkProblem}
 
 \begin{homeworkProblem}[Task IV]
 
-
+Test (\texttt{Communicator.selfTest()}) is a modified Consumer-Producer problem,
+where each item is a random number. We need to make sure that all Listeners get exactly one word and all the words
+they get are different.
 
 \end{homeworkProblem}
 
