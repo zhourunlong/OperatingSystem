@@ -134,6 +134,7 @@ public class PriorityScheduler extends Scheduler {
         public void waitForAccess(KThread thread) {
             Lib.assertTrue(Machine.interrupt().disabled());
             getThreadState(thread).waitForAccess(this);
+            print();
         }
 
         public void acquire(KThread thread) {
@@ -167,6 +168,8 @@ public class PriorityScheduler extends Scheduler {
                 if(!waitQueues[i].isEmpty()) {
                     for(Iterator<KThread> j = waitQueues[i].iterator(); j.hasNext(); ) {
                         KThread tmp_thread = j.next();
+                        if (thread_info.get(tmp_thread) == null)
+                            System.out.println("WRONG");
                         if(Min > thread_info.get(tmp_thread)) {
                             Min = thread_info.get(tmp_thread);
                             next_thread_state = getThreadState(tmp_thread);
@@ -198,15 +201,29 @@ public class PriorityScheduler extends Scheduler {
         public void print() {
             Lib.assertTrue(Machine.interrupt().disabled());
             // implement me (if you want)
-            System.out.println("Current queue info: ");
+            // System.out.println("Current queue info: ");
+            boolean is_queue_empty = true;
+
             for (int j = priorityMaximum; j >= priorityMinimum; j--) {
                 for (Iterator i = waitQueues[j].iterator(); i.hasNext(); ) {
                     KThread tmp_thread = (KThread) i.next();
                     System.out.print(tmp_thread + " ");
-                    System.out.print(getThreadState(tmp_thread).getEffectivePriority() + " " + j);
+                    System.out.print(getThreadState(tmp_thread).getEffectivePriority() + " ");
+                    is_queue_empty = false;
                 }
             }
-            System.out.println();
+
+            if (current_holder != null && !is_queue_empty) {
+                System.out.println();
+                System.out.print(current_holder + " ");
+                System.out.print(getThreadState(current_holder).getEffectivePriority() + " ");
+                is_queue_empty = false;
+            }
+
+            if(!is_queue_empty) {
+                System.out.println();
+                System.out.println();
+            }
         }
 
         /**
@@ -273,6 +290,7 @@ public class PriorityScheduler extends Scheduler {
             }
             for(Iterator<PriorityQueue> i = list_of_queue.iterator(); i.hasNext(); ) {
                 PriorityQueue tmp_queue = i.next();
+                Lib.assertTrue(tmp_queue.waitQueues[this.effective_priority].contains(this.thread));
                 tmp_queue.waitQueues[this.effective_priority].remove(this.thread);
                 tmp_queue.waitQueues[priority].add(this.thread);
             }
@@ -288,11 +306,12 @@ public class PriorityScheduler extends Scheduler {
          */
 
         public void setEffectivePriority(int effectivePriority) {
-            if(effectivePriority <= effective_priority) {
+            if(effectivePriority == effective_priority) {
                 return ;
             }
             for(Iterator<PriorityQueue> i = list_of_queue.iterator(); i.hasNext(); ) {
                 PriorityQueue tmp_queue = i.next();
+                Lib.assertTrue(tmp_queue.waitQueues[this.effective_priority].contains(this.thread));
                 tmp_queue.waitQueues[this.effective_priority].remove(this.thread);
                 tmp_queue.waitQueues[effectivePriority].add(this.thread);
             }
@@ -313,17 +332,17 @@ public class PriorityScheduler extends Scheduler {
          */
         public void waitForAccess(PriorityQueue waitQueue) {
             // implement me
-            if(this.list_of_queue.contains(waitQueue)) {
+            if(this.list_of_queue.contains(waitQueue) || this.holding_resources.contains(waitQueue)) {
                 return ;
             }
             long birth = Machine.timer().getTime();
-            waitQueue.waitQueues[this.priority].add(this.thread);
+            waitQueue.waitQueues[this.effective_priority].add(this.thread);
             waitQueue.thread_info.put(this.thread, birth);
             list_of_queue.add(waitQueue);
             if(waitQueue.transferPriority) {
                 if(waitQueue.current_holder != null) {
                     ThreadState current_holder_state = getThreadState(waitQueue.current_holder);
-                    current_holder_state.setEffectivePriority(this.priority);
+                    current_holder_state.setEffectivePriority(Math.max(this.effective_priority, current_holder_state.effective_priority));
                     current_holder_state.update();
                 }
             }
@@ -366,6 +385,8 @@ public class PriorityScheduler extends Scheduler {
                 if(!suc_queue.transferPriority)
                     continue;
                 KThread suc_thread = suc_queue.current_holder;
+                if(suc_thread == null)
+                    continue;
                 if(this.effective_priority <= getThreadState(suc_thread).getEffectivePriority())
                     continue;
                 getThreadState(suc_thread).setEffectivePriority(this.effective_priority);
@@ -388,12 +409,14 @@ public class PriorityScheduler extends Scheduler {
             if (Max == this.effective_priority) {
                 return ;
             }
-            this.effective_priority = Max;
+            this.setEffectivePriority(Max);
             for(Iterator<PriorityQueue> i = list_of_queue.iterator(); i.hasNext(); ) {
                 PriorityQueue suc_queue = i.next();
                 if (!suc_queue.transferPriority)
                     continue;
                 KThread suc_thread = suc_queue.current_holder;
+                if(suc_thread == null)
+                    continue;
                 getThreadState(suc_thread).recalculateDonation();
             }
         }

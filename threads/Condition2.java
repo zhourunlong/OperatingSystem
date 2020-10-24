@@ -24,7 +24,7 @@ public class Condition2 {
      */
     public Condition2(Lock conditionLock) {
         this.conditionLock = conditionLock;
-        waitQueue = ThreadedKernel.scheduler.newThreadQueue(false);
+        waitQueue = ThreadedKernel.scheduler.newThreadQueue(true);
     }
 
     /**
@@ -91,23 +91,29 @@ public class Condition2 {
         Lock lock = new Lock();
         Condition2 cond2 = new Condition2(lock);
         KThread[] producer = new KThread[5];
-        KThread[] consumer = new KThread[5];
+        KThread[] consumer = new KThread[100];
         Random r = new Random();
         int cp = 0, cc = 0;
-        for (int i = 0; i < 10; ++i) {
+        for (int i = 0; i < 105; ++i) {
             int type = r.nextInt(2);
             while (true) {
-                if ((type == 0 && cp < 5) || (type == 1 && cc < 5))
+                if ((type == 0 && cp < 5) || (type == 1 && cc < 100))
                     break;
                 type = r.nextInt(2);
             }
             if (type == 0) {
-                producer[cp] = new KThread(new Producer(item, lock, cond2));
+                producer[cp] = new KThread(new Producer(item, lock, cond2)).setName("Pro" + cp);
                 producer[cp].fork();
+                boolean intStatus = Machine.interrupt().disable();
+                ThreadedKernel.scheduler.setPriority(producer[cp], Math.min(cp + 1, 7));
+                Machine.interrupt().restore(intStatus);
                 ++cp;
             } else {
-                consumer[cc] = new KThread(new Consumer(item, lock, cond2));
+                consumer[cc] = new KThread(new Consumer(item, lock, cond2)).setName("Con" + cc);
                 consumer[cc].fork();
+                boolean intStatus = Machine.interrupt().disable();
+                ThreadedKernel.scheduler.setPriority(consumer[cc], Math.min((int) cc / 10 + 1, 7));
+                Machine.interrupt().restore(intStatus);
                 ++cc;
             }
         }
