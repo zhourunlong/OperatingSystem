@@ -117,22 +117,22 @@ public class Condition2 {
                 ++cc;
             }
         }
-        ThreadedKernel.alarm.waitUntil(100000);
+        ThreadedKernel.alarm.waitUntil(10000);
         System.out.println(item[0] + " item(s) left");
 
         System.out.println("Finish Condition2.selfTest\n*****");
     }
 
-    private static class Consumer implements Runnable{
+    private static class Consumer implements Runnable {
         private int[] item;
         private Lock lock;
         private Condition2 cond2;
-        public Consumer(int[] _item, Lock _lock, Condition2 _cond2){
+        public Consumer(int[] _item, Lock _lock, Condition2 _cond2) {
             item = _item;
             lock = _lock;
             cond2 = _cond2;
         }
-        public void run(){
+        public void run() {
             lock.acquire();
             while (item[0] < 1) {
                 System.out.println("Consumer: no item, sleep.");
@@ -144,16 +144,16 @@ public class Condition2 {
         }
     }
     
-    private static class Producer implements Runnable{
+    private static class Producer implements Runnable {
         private int[] item;
         private Lock lock;
         private Condition2 cond2;
-        public Producer(int[] _item, Lock _lock, Condition2 _cond2){
+        public Producer(int[] _item, Lock _lock, Condition2 _cond2) {
             item = _item;
             lock = _lock;
             cond2 = _cond2;
         }
-        public void run(){
+        public void run() {
             lock.acquire();
             item[0] += 1;
             System.out.println("Producer: produce 1 item.");

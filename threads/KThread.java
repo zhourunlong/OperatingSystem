@@ -434,14 +434,14 @@ public class KThread {
      * Tests whether this module is working.
      */
     public static void selfTest() {
-        Lib.debug(dbgThread, "-----\nEnter KThread.selfTest");
+        System.out.println("-----\nEnter KThread.selfTest");
 
         new KThread(new PingTest(1)).setName("forked thread").fork();
         new PingTest(0).run();
 
-        //JoinTest();
+        JoinTest();
 
-        Lib.debug(dbgThread, "Finish KThread.selfTest\n*****");
+        System.out.println("Finish KThread.selfTest\n*****");
     }
 
     /**
@@ -474,6 +474,7 @@ public class KThread {
         Z.fork();
         X.fork();
         Y.fork();
+        ThreadedKernel.alarm.waitUntil(10000);
     }
 
     private static class ThreadJoined implements Runnable {

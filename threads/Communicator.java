@@ -2,6 +2,8 @@ package nachos.threads;
 
 import nachos.machine.*;
 
+import java.util.*;
+
 /**
  * A <i>communicator</i> allows threads to synchronously exchange 32-bit
  * messages. Multiple threads can be waiting to <i>speak</i>,
@@ -67,13 +69,66 @@ public class Communicator {
     private Lock lock;
     private Condition2 speaker, listener;
 
-    private static final char dbgCommunicator = 'c';
-
     public static void selfTest() {
-        Lib.debug(dbgCommunicator, "-----\nEnter Communicator.selfTest");
+        System.out.println("-----\nEnter Communicator.selfTest");
 
-        //new KThread(new PingTest(1)).setName("forked thread").fork();
-        //new PingTest(0).run();
-        Lib.debug(dbgCommunicator, "Finish Communicator.selfTest\n*****");
+        KThread[] speaker = new KThread[5];
+        KThread[] listener = new KThread[5];
+        Random r = new Random();
+        Random rw = new Random();
+        Communicator comm = new Communicator();
+
+        int cs = 0, cl = 0;
+        for (int i = 0; i < 10; ++i) {
+            int type = r.nextInt(2);
+            while (true) {
+                if ((type == 0 && cs < 5) || (type == 1 && cl < 5))
+                    break;
+                type = r.nextInt(2);
+            }
+            if (type == 0) {
+                speaker[cs] = new KThread(new Speaker("Speaker" + cs, rw, comm));
+                speaker[cs].fork();
+                ++cs;
+            } else {
+                listener[cl] = new KThread(new Listener("Listener" + cl, comm));
+                listener[cl].fork();
+                ++cl;
+            }
+        }
+
+        ThreadedKernel.alarm.waitUntil(10000);
+        System.out.println("Finish Communicator.selfTest\n*****");
+    }
+
+    private static class Speaker implements Runnable {
+        String name;
+        Random r;
+        Communicator comm;
+        public Speaker(String _name, Random _r, Communicator _comm) {
+            name = _name;
+            r = _r;
+            comm = _comm;
+            System.out.println(name);
+        }
+        public void run() {
+            int tmp = r.nextInt(999);
+            System.out.println(name + ": speak " + tmp);
+            comm.speak(tmp);
+        }
+    }
+    
+    private static class Listener implements Runnable {
+        String name;
+        Communicator comm;
+        public Listener(String _name, Communicator _comm) {
+            name = _name;
+            comm = _comm;
+            System.out.println(name);
+        }
+        public void run() {
+            int ret = comm.listen();
+            System.out.println(name + ": listen " + ret);
+        }
     }
 }

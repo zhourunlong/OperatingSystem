@@ -2,8 +2,7 @@ package nachos.threads;
 
 import nachos.machine.*;
 
-import java.util.Comparator;
-import java.util.PriorityQueue;
+import java.util.*;
 /**
  * Uses the hardware timer to provide preemption, and to allow threads to sleep
  * until a certain time.
@@ -90,16 +89,41 @@ public class Alarm {
 
     PriorityQueue<TimeThreadPair> Q = new PriorityQueue<TimeThreadPair>(cmp);
 
-    private static final char dbgAlarm = 'a';
-
     /**
      * Tests whether this module is working.
      */
     public static void selfTest() {
-        Lib.debug(dbgAlarm, "-----\nEnter Alarm.selfTest");
+        System.out.println("-----\nEnter Alarm.selfTest");
 
-        //new KThread(new PingTest(1)).setName("forked thread").fork();
-        //new PingTest(0).run();
-        Lib.debug(dbgAlarm, "Finish Alarm.selfTest\n*****");
+        Random r = new Random();
+        for (int i = 0; i < 5; ++i) {
+            long tmp = r.nextInt(998) + 2;
+            KThread thread = new KThread(new AlarmTest("Alarm" + i, tmp));
+            thread.fork();
+            ThreadedKernel.alarm.waitUntil(r.nextInt((int)(tmp / 2) + 1));
+        }  
+
+        ThreadedKernel.alarm.waitUntil(10000);
+        System.out.println("Finish Alarm.selfTest\n*****");
+    }
+
+    private static class AlarmTest implements Runnable {
+        private String name;
+        private long time;
+        public AlarmTest(String _name, long _time) {
+            name = _name;
+            time = _time;
+        }
+        public void run() {
+            long sleepTime = Machine.timer().getTime();
+            System.out.println(name + ": sleep at " + sleepTime + ", for " + time);
+            ThreadedKernel.alarm.waitUntil(time);
+            long wakeTime = Machine.timer().getTime();
+            System.out.println(name + ": wake at " + wakeTime);
+            if (wakeTime - sleepTime < time)
+                System.out.println(name + ": not enough sleep!");
+            if (wakeTime - sleepTime > time + 500)
+                System.out.println(name + ": over sleep!");
+        }
     }
 }
