@@ -24,7 +24,7 @@ public class Condition2 {
      */
     public Condition2(Lock conditionLock) {
         this.conditionLock = conditionLock;
-        waitQueue = ThreadedKernel.scheduler.newThreadQueue(false);
+        waitQueue = ThreadedKernel.scheduler.newThreadQueue(true);
     }
 
     /**
@@ -102,12 +102,18 @@ public class Condition2 {
                 type = r.nextInt(2);
             }
             if (type == 0) {
-                producer[cp] = new KThread(new Producer(item, lock, cond2));
+                producer[cp] = new KThread(new Producer(item, lock, cond2)).setName("con" + cp);
                 producer[cp].fork();
+                boolean intStatus = Machine.interrupt().disable();
+                ThreadedKernel.scheduler.setPriority(producer[cp], cp + 1);
+                Machine.interrupt().restore(intStatus);
                 ++cp;
             } else {
-                consumer[cc] = new KThread(new Consumer(item, lock, cond2));
+                consumer[cc] = new KThread(new Consumer(item, lock, cond2)).setName("Pro" + cc);
                 consumer[cc].fork();
+                boolean intStatus = Machine.interrupt().disable();
+                ThreadedKernel.scheduler.setPriority(consumer[cc], cc + 1);
+                Machine.interrupt().restore(intStatus);
                 ++cc;
             }
         }
