@@ -53,8 +53,8 @@ public class Communicator {
         lock.acquire();
 
         activeListen += 1;
-        while (!activeSpeak)
-            listener.sleep();
+        speaker.wake();
+        listener.sleep();
         activeListen -= 1;
         activeSpeak = false;
         int ret = word;
