@@ -296,7 +296,7 @@ public class PriorityScheduler extends Scheduler {
             }
             this.priority = priority;
             this.effective_priority = priority;
-            recalculateDonation();
+            update();
             // implement me
         }
 
@@ -427,7 +427,7 @@ public class PriorityScheduler extends Scheduler {
         /** The priority of the associated thread. */
         protected int priority;
         /** The effective priority of the associated thread. */
-        protected int effective_priority = 0;
+        protected int effective_priority = 1;
         /** The queues that contains the associate thread. */
         protected LinkedList<PriorityQueue> list_of_queue = new LinkedList<>();
         protected LinkedList<PriorityQueue> holding_resources = new LinkedList<>();

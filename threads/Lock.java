@@ -96,14 +96,14 @@ public class Lock {
 
     public static void schedulerTest() {
         qTester.critical = new Lock();
-        final int num_thread = 50;
+        final int num_thread = 10;
         KThread[] qThreads = new KThread[num_thread];
         for (int i = 0; i < num_thread; i++) {
             qTester tmp_tester = new qTester();
             qThreads[i] = new KThread(tmp_tester).setName("qTester" + i);
             tmp_tester.thread = qThreads[i];
             boolean intStatus = Machine.interrupt().disable();
-            ThreadedKernel.scheduler.setPriority(qThreads[i], Math.min(7, 0));
+            ThreadedKernel.scheduler.setPriority(qThreads[i], Math.min(7, i));
             Machine.interrupt().restore(intStatus);
         }
         qTester.N = num_thread;
@@ -111,9 +111,20 @@ public class Lock {
         qTester.ID = 0;
         qThreads[0].fork();
 
+        ThreadedKernel.alarm.waitUntil(50000);
+
+        KThread blocker = new KThread(new ThreadHogger());
+        boolean intStatus = Machine.interrupt().disable();
+        ThreadedKernel.scheduler.setPriority(blocker, 2);
+        Machine.interrupt().restore(intStatus);
+        blocker.fork();
+
         for (int i = 1; i < num_thread; i++) {
             qThreads[i].fork();
         }
+
+        ThreadedKernel.alarm.waitUntil(50000);
+
     }
 
     public static class qTester implements Runnable {
@@ -130,17 +141,20 @@ public class Lock {
             critical.getWaitQueue().print();
             Machine.interrupt().restore(intStatus);
             ID += 1;
-            if (ID % 7 == 1) {
-                Random r = new Random();
-                intStatus = Machine.interrupt().disable();
-                for (int i = 1; i < N; i++) {
-                    ThreadedKernel.scheduler.setPriority(threads[i], r.nextInt(8));
-                }
-                Machine.interrupt().restore(intStatus);
-            }
             critical.release();
             System.out.print("Finished: ");
             System.out.println(thread);
+        }
+    }
+
+    private static class ThreadHogger implements Runnable{
+        public int d = 0;
+        public void run() {
+            while (d <= 10) {
+                KThread.yield();
+                ThreadedKernel.alarm.waitUntil(50000);
+                d += 1;
+            }
         }
     }
 }
