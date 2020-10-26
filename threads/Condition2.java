@@ -124,7 +124,7 @@ public class Condition2 {
     }
 
     public static void scheduleTest() {
-        System.out.println("-----\nEnter Condition2.selfTest");
+        System.out.println("-----\nEnter Condition2.scheduleTest");
 
         int[] item = new int[1];
         item[0] = 0;
@@ -160,7 +160,7 @@ public class Condition2 {
         ThreadedKernel.alarm.waitUntil(10000);
         System.out.println(item[0] + " item(s) left");
 
-        System.out.println("Finish Condition2.selfTest\n*****");
+        System.out.println("Finish Condition2.scheduleTest\n*****");
     }
 
     private static class Consumer implements Runnable {

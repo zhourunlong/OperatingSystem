@@ -34,7 +34,7 @@ public class Communicator {
     public void speak(int _word) {
         lock.acquire();
 
-        while (activeSpeak|| activeListen == 0)
+        while (activeSpeak || activeListen == 0)
             speaker.sleep();
         activeSpeak = true;
         word = _word;
