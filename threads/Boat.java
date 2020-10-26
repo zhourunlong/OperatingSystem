@@ -35,14 +35,23 @@ public class Boat
     {
         BoatGrader b = new BoatGrader();
 
-        System.out.println("\n ***Testing Boats with only 2 children***");
-        begin(0, 2, b);
+        // System.out.println("\n*** Testing Boats with only 2 children ***");
+        // begin(0, 2, b);
 
-//	System.out.println("\n ***Testing Boats with 2 children, 1 adult***");
-//  	begin(1, 2, b);
+        // System.out.println("\n*** Testing Boats with 2 children & 1 adult ***");
+        // begin(1, 2, b);
 
-//  	System.out.println("\n ***Testing Boats with 3 children, 3 adults***");
-//  	begin(3, 3, b);
+        // System.out.println("\n*** Testing Boats with 3 children & 3 adults ***");
+        // begin(3, 3, b);
+
+        // System.out.println("\n*** Testing Boats with 5 children & 5 adults ***");
+        // begin(5, 5, b);
+
+        // System.out.println("\n*** Testing Boats with 6 children & 6 adults ***");
+        // begin(6, 6, b);
+
+        System.out.println("\n*** Testing Boats with 5 children & 6 adults ***");
+        begin(6, 5, b);
     }
 
     public static void begin( int adults, int children, BoatGrader b )
@@ -62,7 +71,6 @@ public class Boat
 
         // Create threads here. See section 3.4 of the Nachos for Java
         // Walkthrough linked from the projects page.
-
         Runnable sample_child = new Runnable() {
             public void run() { ChildItinerary(); };
         };
@@ -85,7 +93,7 @@ public class Boat
 
         while (true) {
             int reportedArrival = reporterAtMolokai.listen();
-            System.out.println("***** Newly listened: " + reportedArrival + " people are now at Molokai.");
+            System.out.println("--- Newly listened: " + reportedArrival + " people are now at Molokai.");
             if (reportedArrival == children + adults)
                 break;
         }

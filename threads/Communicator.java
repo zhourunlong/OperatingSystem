@@ -34,10 +34,9 @@ public class Communicator {
     public void speak(int _word) {
         lock.acquire();
 
-        while (inUse)
+        while (activeSpeak || activeListen == 0)
             speaker.sleep();
-
-        inUse = true;
+        activeSpeak = true;
         word = _word;
         listener.wake();
 
@@ -53,10 +52,11 @@ public class Communicator {
     public int listen() {
         lock.acquire();
 
-        while (!inUse)
-            listener.sleep();
-
-        inUse = false;
+        activeListen += 1;
+        speaker.wake();
+        listener.sleep();
+        activeListen -= 1;
+        activeSpeak = false;
         int ret = word;
         speaker.wake();
 
@@ -64,8 +64,8 @@ public class Communicator {
         return ret;
     }
 
-    private int word;
-    private boolean inUse = false;
+    private int word, activeListen = 0;
+    private boolean activeSpeak = false;
     private Lock lock;
     private Condition2 speaker, listener;
 
