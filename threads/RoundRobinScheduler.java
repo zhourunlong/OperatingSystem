@@ -40,7 +40,7 @@ public class RoundRobinScheduler extends Scheduler {
             Lib.assertTrue(Machine.interrupt().disabled());
 
             waitQueue.add(thread);
-            print();
+            // print();
         }
 
         /**
@@ -53,10 +53,9 @@ public class RoundRobinScheduler extends Scheduler {
         public KThread nextThread() {
             Lib.assertTrue(Machine.interrupt().disabled());
 
-            print();
+            // print();
             if (waitQueue.isEmpty())
                 return null;
-
 
             return (KThread) waitQueue.removeFirst();
         }
