@@ -77,6 +77,14 @@ public class Condition2 {
         Machine.interrupt().restore(intStatus);
     }
 
+    /**
+     * @return waitQueue
+     */
+
+    public ThreadQueue getWaitQueue() {
+        return waitQueue;
+    }
+
     private Lock conditionLock;
     private ThreadQueue waitQueue = null;
 
@@ -123,7 +131,7 @@ public class Condition2 {
         System.out.println("Finish Condition2.selfTest\n*****");
     }
 
-    public static void scheduleTest() {
+    public static void schedulerTest() {
         System.out.println("-----\nEnter Condition2.scheduleTest");
 
         int[] item = new int[1];
@@ -156,8 +164,11 @@ public class Condition2 {
                 Machine.interrupt().restore(intStatus);
                 ++cc;
             }
+            boolean intStatus = Machine.interrupt().disable();
+            cond2.getWaitQueue().print();
+            Machine.interrupt().restore(intStatus);
         }
-        ThreadedKernel.alarm.waitUntil(10000);
+        ThreadedKernel.alarm.waitUntil(1000000);
         System.out.println(item[0] + " item(s) left");
 
         System.out.println("Finish Condition2.scheduleTest\n*****");

@@ -103,27 +103,39 @@ public class Lock {
             qThreads[i] = new KThread(tmp_tester).setName("qTester" + i);
             tmp_tester.thread = qThreads[i];
             boolean intStatus = Machine.interrupt().disable();
-            ThreadedKernel.scheduler.setPriority(qThreads[i], Math.min(7, i));
+            ThreadedKernel.scheduler.setPriority(qThreads[i], Math.min(7, i + 2));
             Machine.interrupt().restore(intStatus);
         }
+
         qTester.N = num_thread;
         qTester.threads = qThreads;
         qTester.ID = 0;
+        boolean intStatus = Machine.interrupt().disable();
+        ThreadedKernel.scheduler.setPriority(qThreads[0], Math.min(7, 1));
+        Machine.interrupt().restore(intStatus);
         qThreads[0].fork();
 
-        ThreadedKernel.alarm.waitUntil(50000);
+        while(qTester.critical.getLockHolder() == null) {
+            ThreadedKernel.alarm.waitUntil(5000);
+            KThread.yield();
+        }
 
-        KThread blocker = new KThread(new ThreadHogger());
-        boolean intStatus = Machine.interrupt().disable();
-        ThreadedKernel.scheduler.setPriority(blocker, 2);
-        Machine.interrupt().restore(intStatus);
-        blocker.fork();
+        System.out.print("LockHolder: ");
+        System.out.println(qTester.critical.getLockHolder());
 
         for (int i = 1; i < num_thread; i++) {
             qThreads[i].fork();
         }
 
-        ThreadedKernel.alarm.waitUntil(50000);
+        KThread blocker = new KThread(new ThreadHogger());
+        intStatus = Machine.interrupt().disable();
+        ThreadedKernel.scheduler.setPriority(blocker, 2);
+        Machine.interrupt().restore(intStatus);
+        blocker.fork();
+
+        KThread.yield();
+
+        ThreadedKernel.alarm.waitUntil(100000000);
 
     }
 
@@ -136,12 +148,18 @@ public class Lock {
         public void run() {
             System.out.print("Running: ");
             System.out.println(thread);
-            critical.acquire();
             boolean intStatus = Machine.interrupt().disable();
             critical.getWaitQueue().print();
             Machine.interrupt().restore(intStatus);
+            critical.acquire();
             ID += 1;
+
+            ThreadedKernel.alarm.waitUntil(10000000);
+            // KThread.yield();
+            System.out.print(thread);
+            System.out.println(" releases the lock");
             critical.release();
+            N -= 1;
             System.out.print("Finished: ");
             System.out.println(thread);
         }
@@ -150,11 +168,11 @@ public class Lock {
     private static class ThreadHogger implements Runnable{
         public int d = 0;
         public void run() {
-            while (d <= 10) {
+            System.out.println("Hogger started");
+            while (qTester.N >= 1) {
                 KThread.yield();
-                ThreadedKernel.alarm.waitUntil(50000);
-                d += 1;
             }
+            System.out.println("Hogger finished");
         }
     }
 }

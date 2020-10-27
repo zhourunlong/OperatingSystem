@@ -213,7 +213,11 @@ they get are different.
 
 \begin{homeworkProblem}[Task V]
 
+Test (\texttt{Lock.schedulerTest}) is implemented in \texttt{Lock.java}, where we construct 9 threads which are waiting for a lock that is held by a thread with relatively low priority. Meanwhile, a thread with higher priority consumes CPU time as long as the lock is not free and it revokes the $yield$ function periodically. Without priority donation, thread 0 will be stuck forever. 
 
+Test (\texttt{Condition2.schedulerTest}) relies on the Consumer-Producer model to test whether the queue is correctly organized when the number of consumers get larger. 
+
+In both of the test, we print the information of the queue at some critical points. 
 
 \end{homeworkProblem}
 
