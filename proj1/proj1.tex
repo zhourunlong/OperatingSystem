@@ -1,6 +1,11 @@
 %!TEX builder = latexmk
 %!TEX program = xelatex
 \documentclass{article}
+\usepackage{enumitem}
+\setenumerate[1]{leftmargin=2em, itemsep=0pt, partopsep=0pt, parsep=\parskip, topsep=0pt}
+\setenumerate[2]{leftmargin=2em, itemsep=0pt, partopsep=0pt, parsep=\parskip, topsep=0pt}
+\setitemize[1]{leftmargin=2em, itemsep=0pt, partopsep=0pt, parsep=\parskip, topsep=0pt}
+\setitemize[2]{leftmargin=2em, itemsep=0pt, partopsep=0pt, parsep=\parskip, topsep=0pt}
 \usepackage{amsmath,amsfonts,amsthm,amssymb}
 \usepackage{setspace}
 \usepackage{fancyhdr}
@@ -12,12 +17,12 @@
 \usepackage{CJK}
 \usepackage{algorithm}  
 \usepackage{algpseudocode} 
-\usepackage{enumerate}
 \usepackage{longtable}
 \usepackage{listings}
 \usepackage{color}
 \usepackage{extarrows}
 \usepackage{subfigure}
+\usepackage{indentfirst}
 \newcommand{\Class}{Operating System}
 \newcommand{\ClassInstructor}{Wei Xu}
 
@@ -213,8 +218,14 @@ they get are different.
 \end{homeworkProblem}
 
 \begin{homeworkProblem}[Task VI]
-
-
+  Only \texttt{Boat.java} needs to be modified to solve the problem on boating. The key to a successful solution is to have more people heading for Molokai than coming back to Oahu. Therefore, we must always have as many children at Molokai as possible to move the boat back to Oahu (which is the only way to make progress).
+  
+  All testing cases are contained in test function \texttt{Boat.selfTest()}. Since the structure of the problem is fixed, the only manipulatable parameters are the numbers of adults and children on board. Nevertheless, the number of adults really does not matter much, since they always cross the river one-at-a-time. The number of children is crucial only in the sense of its parity (but not its absolute value). On the whole, it is actually reasonable to only test two types of cases:
+  \begin{itemize}
+    \item An even number of children and several adults;
+    \item An odd number of children and several adults.
+  \end{itemize}    
+  We also test on the edge case, where there are no adults.
 
 \end{homeworkProblem}
 
