@@ -222,14 +222,14 @@ In both of the test, we print the information of the queue at some critical poin
 \end{homeworkProblem}
 
 \begin{homeworkProblem}[Task VI]
-  Only \texttt{Boat.java} needs to be modified to solve the problem on boating. The key to a successful solution is to have more people heading for Molokai than coming back to Oahu. Therefore, we must always have as many children at Molokai as possible to move the boat back to Oahu (which is the only way to make progress).
+  Only \texttt{Boat.java} needs to be modified to solve the problem of boating. The key to success is to have more people heading for Molokai than coming back to Oahu. Therefore, we must always have as many children at Molokai as possible to move the boat back to Oahu (which is the only way to make progress).
   
-  All testing cases are contained in test function \texttt{Boat.selfTest()}. Since the structure of the problem is fixed, the only manipulatable parameters are the numbers of adults and children on board. Nevertheless, the number of adults really does not matter much, since they always cross the river one-at-a-time. The number of children is crucial only in the sense of its parity (but not its absolute value). On the whole, it is actually reasonable to only test two types of cases:
+  All testing cases are contained in test function \texttt{Boat.selfTest()}. The only manipulatable parameters are the numbers of adults and children on board. Nevertheless, the number of adults really does not matter much, since they always cross the river one-at-a-time. The number of children is crucial mainly in its parity (but not its absolute value). On the whole, it is actually reasonable to only test two types of cases:
   \begin{itemize}
     \item An even number of children and several adults;
     \item An odd number of children and several adults.
   \end{itemize}    
-  We also test on the edge case, where there are no adults.
+  We also test on edge cases, where there are no adults, and where we have way more adults than children (vice versa). It is worth mentioning that, under the scheduling policy it is possible to have a child rowing back to Oahu after someone has communicated completion (e.g., this happens in the example with 6 adults and 75 children). To fix the problem, we force that child to notice the situation and come back to Molokai at once, without interfering with the correctness of the program.
 
 \end{homeworkProblem}
 
