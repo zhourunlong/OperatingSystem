@@ -1,0 +1,242 @@
+%!TEX builder = latexmk
+%!TEX program = xelatex
+\documentclass{article}
+\usepackage{enumitem}
+\setenumerate[1]{leftmargin=2em, itemsep=0pt, partopsep=0pt, parsep=\parskip, topsep=0pt}
+\setenumerate[2]{leftmargin=2em, itemsep=0pt, partopsep=0pt, parsep=\parskip, topsep=0pt}
+\setitemize[1]{leftmargin=2em, itemsep=0pt, partopsep=0pt, parsep=\parskip, topsep=0pt}
+\setitemize[2]{leftmargin=2em, itemsep=0pt, partopsep=0pt, parsep=\parskip, topsep=0pt}
+\usepackage{amsmath,amsfonts,amsthm,amssymb}
+\usepackage{setspace}
+\usepackage{fancyhdr}
+\usepackage{lastpage}
+\usepackage{extramarks}
+\usepackage{chngpage}
+\usepackage{soul,color}
+\usepackage{graphicx,float,wrapfig}
+\usepackage{CJK}
+\usepackage{algorithm}  
+\usepackage{algpseudocode} 
+\usepackage{longtable}
+\usepackage{listings}
+\usepackage{color}
+\usepackage{extarrows}
+\usepackage{subfigure}
+\usepackage{indentfirst}
+\newcommand{\Class}{Operating System}
+\newcommand{\ClassInstructor}{Wei Xu}
+
+% Homework Specific Information. Change it to your own
+\newcommand{\Title}{Project 1}
+\newcommand{\DueDate}{Oct 29, 2020}
+\newcommand{\StudentName}{}
+\newcommand{\StudentClass}{}
+\newcommand{\StudentNumber}{}
+
+% In case you need to adjust margins:
+\topmargin=-0.45in      %
+\evensidemargin=0in     %
+\oddsidemargin=0in      %
+\textwidth=6.5in        %
+\textheight=9.0in       %
+\headsep=0.25in         %
+
+% Setup the header and footer
+\pagestyle{fancy}                                                       %
+\lhead{\StudentName}                                                 %
+\chead{\Title}  %
+\rhead{\firstxmark}                                                     %
+\lfoot{\lastxmark}                                                      %
+\cfoot{}                                                                %
+\rfoot{Page\ \thepage\ of\ \protect\pageref{LastPage}}                          %
+\renewcommand\headrulewidth{0.4pt}                                      %
+\renewcommand\footrulewidth{0.4pt}                                      %
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+% Some tools
+\newcommand{\enterProblemHeader}[1]{\nobreak\extramarks{#1}{#1 continued on next page\ldots}\nobreak%
+                                    \nobreak\extramarks{#1 (continued)}{#1 continued on next page\ldots}\nobreak}%
+\newcommand{\exitProblemHeader}[1]{\nobreak\extramarks{#1 (continued)}{#1 continued on next page\ldots}\nobreak%
+                                   \nobreak\extramarks{#1}{}\nobreak}%
+
+\newcommand{\homeworkProblemName}{}%
+\newcounter{homeworkProblemCounter}%
+\newenvironment{homeworkProblem}[1][Problem \arabic{homeworkProblemCounter}]%
+  {\stepcounter{homeworkProblemCounter}%
+   \renewcommand{\homeworkProblemName}{#1}%
+   \section*{\homeworkProblemName}%
+   \enterProblemHeader{\homeworkProblemName}}%
+  {\exitProblemHeader{\homeworkProblemName}}%
+
+\newcommand{\homeworkSectionName}{}%
+\newlength{\homeworkSectionLabelLength}{}%
+\newenvironment{homeworkSection}[1]%
+  {% We put this space here to make sure we're not connected to the above.
+
+   \renewcommand{\homeworkSectionName}{#1}%
+   \settowidth{\homeworkSectionLabelLength}{\homeworkSectionName}%
+   \addtolength{\homeworkSectionLabelLength}{0.25in}%
+   \changetext{}{-\homeworkSectionLabelLength}{}{}{}%
+   \subsection*{\homeworkSectionName}%
+   \enterProblemHeader{\homeworkProblemName\ [\homeworkSectionName]}}%
+  {\enterProblemHeader{\homeworkProblemName}%
+
+   % We put the blank space above in order to make sure this margin
+   % change doesn't happen too soon.
+   \changetext{}{+\homeworkSectionLabelLength}{}{}{}}%
+
+\newcommand{\Answer}{\textbf{Answer:} }
+\newcommand{\Acknowledgement}[1]{\ \\{\bf Acknowledgement:} #1}
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+% Make title
+\title{\textmd{\bf \Class: \Title}\\{\large Instructed by \textit{\ClassInstructor}}\\\normalsize\vspace{0.1in}\small{Due\ on\ \DueDate}}
+\date{}
+\author{\textbf{\StudentName}\ \ \StudentClass\ \ \StudentNumber}
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+% Listing Settings
+\definecolor{mygreen}{rgb}{0,0.6,0}
+\definecolor{mygray}{rgb}{0.5,0.5,0.5}
+\definecolor{mymauve}{rgb}{0.58,0,0.82}
+
+\lstset{
+  aboveskip=1em,                   % above skip space
+  backgroundcolor=\color[rgb]{0.9,0.9,0.9},
+                                   % choose the background color; you must add \usepackage{color} or \usepackage{xcolor}; should come as last argument
+  basicstyle=\ttfamily,            % the size of the fonts that are used for the code
+  breakatwhitespace=false,         % sets if automatic breaks should only happen at whitespace
+  breaklines=true,                 % sets automatic line breaking
+  captionpos=b,                    % sets the caption-position to bottom
+  commentstyle=\color{mygreen},    % comment style
+  deletekeywords={...},            % if you want to delete keywords from the given language
+  escapeinside={\%*}{*)},          % if you want to add LaTeX within your code
+  extendedchars=true,              % lets you use non-ASCII characters; for 8-bits encodings only, does not work with UTF-8
+  frame=single,                    % adds a frame around the code
+  keepspaces=true,                 % keeps spaces in text, useful for keeping indentation of code (possibly needs columns=flexible)
+  keywordstyle=\color{blue},       % keyword style
+  morekeywords={algexpr, frac, sqrt, pwr, b1, b2, b3, ln, sin, term},  
+                                   % if you want to add more keywords to the set
+  numbers=left,                    % where to put the line-numbers; possible values are (none, left, right)
+  numbersep=5pt,                   % how far the line-numbers are from the code
+  numberstyle=\color{mygray},      % the style that is used for the line-numbers
+  rulecolor=\color{black},         % if not set, the frame-color may be changed on line-breaks within not-black text (e.g. comments (green here))
+  showspaces=false,                % show spaces everywhere adding particular underscores; it overrides 'showstringspaces'
+  showstringspaces=false,          % underline spaces within strings only
+  showtabs=false,                  % show tabs within strings adding particular underscores
+  stepnumber=5,                    % the step between two line-numbers. If it's 1, each line will be numbered
+  stringstyle=\color{mymauve},     % string literal style
+  tabsize=2,                       % sets default tabsize to 2 spaces
+  title=\lstname,                  % show the filename of files included with \lstinputlisting; also try caption instead of title
+  xleftmargin=2em,                 % left margin
+  xrightmargin=2em,                % right margin
+}
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+
+\renewcommand{\algorithmicrequire}{\textbf{Input:}}  % Use Input in the format of Algorithm  
+\renewcommand{\algorithmicensure}{\textbf{Output:}} % Use Output in the format of Algorithm  
+
+
+\newcommand*{\dif}{\mathop{}\!\mathrm{d}}
+\newcommand*{\img}{\mathrm{i}}
+\newcommand*{\dps}{\displaystyle}
+\newcommand*{\lf}{\left\lfloor}
+\newcommand*{\rf}{\right\rfloor}
+\newcommand*{\lc}{\left\lceil}
+\newcommand*{\rc}{\right\rceil}
+\newcommand*{\ovt}[2]{\dps{\mathop{#1}^{#2}}}
+
+\newtheorem{lma}{Lemma}
+
+\newcommand{\lm}[1]{\textbf{Lemma \ref{#1}}}
+\newcommand{\lgd}[2]{\left(\frac{#1}{#2}\right)}
+\newcommand{\ds}[2]{\dps \frac{\partial #1}{\partial #2}}
+\newcommand{\bds}[2]{\dps \frac{\partial}{\partial #2}\left(#1\right)}
+\newcommand{\Eds}[2]{\dps \frac{\partial^2 #1}{\partial #2^2}}
+\newcommand{\eds}[3]{\dps \frac{\partial^2 #1}{\partial #2\partial #3}}
+\newcommand{\E}[1]{\mathbb{E}\left[#1\right]}
+\newcommand{\Var}[1]{\mathrm{Var}\left[#1\right]}
+\newcommand{\Cov}[1]{\mathrm{Cov}\left[#1\right]}
+
+\newcommand{\Fig}[1]{\textbf{Figure \ref{#1}}}
+
+\begin{document}
+\begin{spacing}{1.1}
+\maketitle \thispagestyle{empty}
+%\cite{}
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+% Begin edit from here
+
+\begin{homeworkProblem}[Task I]
+
+\texttt{join()} and \texttt{finish()} are modified. A \texttt{swap} thread is used to record the current thread in 
+\texttt{join()}, which is suspended. When a thread calls \texttt{finish()}, it makes its \texttt{swap} thread ready.
+
+\texttt{JoinTest()} is the test function, and it is called inside \texttt{KThread.selfTest()}.
+It creates three threads $X,Y,Z$.
+$Z$ runs first, then $X$, finally $Y$. $X$ joins both $Z$ and $Y$, but $Y$ starts later than $X$. So this function tests
+the two condition of \texttt{join()}.
+
+For task I through IV, all the test functions are called in \texttt{ThreadedKernel.selfTest()}.
+
+\end{homeworkProblem}
+
+\begin{homeworkProblem}[Task II]
+
+Test (\texttt{Condition2.selfTest()}) is a Consumer-Producer problem,
+where 5 consumers and 5 producers are ordered in a random manner.
+We need to check whether there is no item left in the end.
+
+\end{homeworkProblem}
+
+\begin{homeworkProblem}[Task III]
+
+In the test (\texttt{Alarm.selfTest()}), 5 threads are created and each of them waits for a random time.
+A random time interval is placed between contiguous threads. The purpose of the test is to check whether
+some threads do not get enough wait time or wait for too long.
+
+\end{homeworkProblem}
+
+\begin{homeworkProblem}[Task IV]
+
+Test (\texttt{Communicator.selfTest()}) is a modified Consumer-Producer problem,
+where each item is a random number. We need to make sure that all Listeners get exactly one word and all the words
+they get are different.
+
+\end{homeworkProblem}
+
+\begin{homeworkProblem}[Task V]
+
+Test (\texttt{Lock.schedulerTest}) is implemented in \texttt{Lock.java}, where we construct 9 threads which are waiting for a lock that is held by a thread with relatively low priority. Meanwhile, a thread with higher priority consumes CPU time as long as the lock is not free and it revokes the $yield$ function periodically. Without priority donation, thread 0 will be stuck forever. 
+
+Test (\texttt{Condition2.schedulerTest}) relies on the Consumer-Producer model to test whether the queue is correctly organized when the number of consumers get larger. 
+
+In both of the test, we print the information of the queue at some critical points. 
+
+\end{homeworkProblem}
+
+\begin{homeworkProblem}[Task VI]
+  Only \texttt{Boat.java} needs to be modified to solve the problem of boating. The key to success is to have more people heading for Molokai than coming back to Oahu. Therefore, we must always have as many children at Molokai as possible to move the boat back to Oahu (which is the only way to make progress).
+  
+  All testing cases are contained in test function \texttt{Boat.selfTest()}. The only manipulatable parameters are the numbers of adults and children on board. Nevertheless, the number of adults really does not matter much, since they always cross the river one-at-a-time. The number of children is crucial mainly in its parity (but not its absolute value). On the whole, it is actually reasonable to only test two types of cases:
+  \begin{itemize}
+    \item An even number of children and several adults;
+    \item An odd number of children and several adults.
+  \end{itemize}    
+  We also test on edge cases, where there are no adults, and where we have way more adults than children (vice versa). It is worth mentioning that, under the scheduling policy it is possible to have a child rowing back to Oahu after someone has communicated completion (e.g., this happens in the example with 6 adults and 75 children). To fix the problem, we force that child to notice the situation and come back to Molokai at once, without interfering with the correctness of the program.
+
+\end{homeworkProblem}
+
+% End edit to here
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+\end{spacing}
+\end{document}
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%

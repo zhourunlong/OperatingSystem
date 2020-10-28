@@ -50,8 +50,20 @@ public class Boat
         // System.out.println("\n*** Testing Boats with 6 children & 6 adults ***");
         // begin(6, 6, b);
 
-        System.out.println("\n*** Testing Boats with 5 children & 6 adults ***");
-        begin(6, 5, b);
+        // System.out.println("\n*** Testing Boats with 5 children & 6 adults ***");
+        // begin(6, 5, b);
+
+        // System.out.println("\n*** Testing Boats with 2 children & 200 adults ***");
+        // begin(200, 2, b);
+
+        // System.out.println("\n*** Testing Boats with 199 children & 2 adults ***");
+        // begin(2, 199, b);
+
+        // System.out.println("\n*** Testing Boats with 200 children & 2 adults ***");
+        // begin(2, 200, b);
+
+        System.out.println("\n*** Testing Boats with 75 children & 6 adults ***");
+        begin(6, 75, b);
     }
 
     public static void begin( int adults, int children, BoatGrader b )
@@ -94,8 +106,13 @@ public class Boat
         while (true) {
             int reportedArrival = reporterAtMolokai.listen();
             System.out.println("--- Newly listened: " + reportedArrival + " people are now at Molokai.");
-            if (reportedArrival == children + adults)
-                break;
+            if (reportedArrival == children + adults) {
+                if (childrenAtMolokai + adultsAtMolokai == children + adults) {
+                    break;
+                } else {
+                    System.out.println("--- THIS IS A MISREPORT. PROGRAM CONTINUES.");
+                }
+            }
         }
     }
 
@@ -231,9 +248,26 @@ public class Boat
                 childrenAtMolokai--;
                 childrenAtOahu++;
 
-                // Wake up everyone at Oahu to inform them of a potential ride.
-                waitAtOahu.wakeAll();
-                waitAtOahu.sleep();
+                // Handle an edge case: the child is the last person at Oahu.
+                if ((adultsAtOahu == 0) && (childrenAtOahu == 1)) {
+                    // Edge case: only 1 child to travel.
+                    // Row the current thread to Molokai by himself.
+                    bg.ChildRowToMolokai();
+                    myLocation = Molokai;
+                    boatLocation = Molokai;
+                    childrenAtOahu--;
+                    childrenAtMolokai++;
+                    passengersOnBoat = 0;
+
+                    // Since the child is in Molokai, he may report current number of arrivals.
+                    reporterAtMolokai.speak(childrenAtMolokai+adultsAtMolokai);
+
+                    // Fall asleep (probably forever).
+                    waitAtMolokai.sleep();
+                } else {
+                    waitAtOahu.wakeAll();
+                    waitAtOahu.sleep();
+                }
             } else {  // An error occurs.
                 Lib.assertTrue(false);
                 break;
