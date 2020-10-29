@@ -49,6 +49,8 @@ public class KThread {
             readyQueue = ThreadedKernel.scheduler.newThreadQueue(false);
             readyQueue.acquire(this);
 
+            swap_queue = ThreadedKernel.scheduler.newThreadQueue(true);
+
             currentThread = this;
             tcb = TCB.currentTCB();
             name = "main";
@@ -191,8 +193,11 @@ public class KThread {
         toBeDestroyed = currentThread;
 
         currentThread.status = statusFinished;
-        if (currentThread.swap != null)
+        if (currentThread.swap != null) {
             currentThread.swap.ready();
+            Lib.assertTrue(currentThread.swap_queue.nextThread() == currentThread.swap);
+            currentThread.swap = null;
+        }
 
         sleep();
     }
@@ -283,6 +288,10 @@ public class KThread {
         boolean intStatus = Machine.interrupt().disable();
 
         this.swap = currentThread;
+        if (swap_queue == null)
+            System.out.println("aaaaa");
+        swap_queue.acquire(this);
+        swap_queue.waitForAccess(currentThread);
         currentThread.sleep();
         
         Machine.interrupt().restore(intStatus);
@@ -427,6 +436,7 @@ public class KThread {
     private static KThread idleThread = null;
 
     private KThread swap = null;
+    private ThreadQueue swap_queue = ThreadedKernel.scheduler.newThreadQueue(true);
 
     private static final char dbgThread = 't';
 

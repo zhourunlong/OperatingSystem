@@ -150,6 +150,7 @@ public class PriorityScheduler extends Scheduler {
             // implement me
             ThreadState next_thread_state = pickNextThread();
             if(next_thread_state != null) {
+                acquire(next_thread_state.thread);
                 return next_thread_state.thread;
             }
             return null;
@@ -176,9 +177,7 @@ public class PriorityScheduler extends Scheduler {
                             next_thread_state = getThreadState(tmp_thread);
                         }
                     }
-                    if(next_thread_state != null) {
-                        acquire(next_thread_state.thread);
-                    }
+
                     return next_thread_state;
                 }
             }
