@@ -392,6 +392,12 @@ public class UserProcess {
             case syscallHalt:
                 return handleHalt();
 
+            case syscallExec:
+                return handleExec(a0, a1, a2);
+            case syscallJoin:
+                return handleJoin(a0, a1);
+            case syscallExit:
+                return handleExit(a0);
 
             default:
                 Lib.debug(dbgProcess, "Unknown syscall " + syscall);
