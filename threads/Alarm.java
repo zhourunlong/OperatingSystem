@@ -55,7 +55,6 @@ public class Alarm {
      * @see	nachos.machine.Timer#getTime()
      */
     public void waitUntil(long x) {
-        // for now, cheat just to get something working (busy waiting is bad)
         TimeThreadPair ttp = new TimeThreadPair(
                                 Machine.timer().getTime() + x,
                                 KThread.currentThread());
@@ -63,8 +62,7 @@ public class Alarm {
         boolean intStatus = Machine.interrupt().disable();
 
         Q.add(ttp);
-        // ???
-        // KThread.sleep();
+        // ??? KThread.sleep();
         KThread.currentThread().sleep();
         
         Machine.interrupt().restore(intStatus);

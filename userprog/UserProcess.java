@@ -5,6 +5,10 @@ import nachos.threads.*;
 import nachos.userprog.*;
 
 import java.io.EOFException;
+import java.util.HashMap;
+import java.util.List;
+import java.util.LinkedList;
+import java.util.Arrays;
 
 /**
  * Encapsulates the state of a user process that is not contained in its
@@ -27,6 +31,13 @@ public class UserProcess {
         pageTable = new TranslationEntry[numPhysPages];
         for (int i=0; i<numPhysPages; i++)
             pageTable[i] = new TranslationEntry(i,i, true,false,false,false);
+
+        // Added to support file system calls.
+        // Maintain a collection of open files and free file descriptors.
+        openFiles = new HashMap<Integer, OpenFile>();
+        openFiles.put(0, UserKernel.console.openForReading());  // Standard input.
+        openFiles.put(1, UserKernel.console.openForWriting());  // Standard output.
+        freeDescriptors = new LinkedList<Integer>(Arrays.asList(2,3,4,5,6,7,8,9,10,11,12,13,14,15));
     }
 
     /**
@@ -347,6 +358,170 @@ public class UserProcess {
     }
 
 
+
+
+    /*************************************************************************
+     * The following system calls are implemented by Hu Yang (Problem #1).
+     *************************************************************************/
+
+    /** Syscall prototype: int creat(char *name);
+     * @param   filenameAddr: char*, pointer to the filename string in virtual memory.
+     * @return  A new file descriptor (0~15), or an error flag (-1).
+     **/
+    private int handleCreate(int filenameAddr) {
+        String filename = readVirtualMemoryString(filenameAddr, 255);
+        if (filename == null)
+            return -1;  // If filename does not exist at given address, return -1.
+
+        OpenFile file = ThreadedKernel.fileSystem.open(filename, true);  // Overwrite on collision.
+        if (file == null)
+            return -1;  // If file system fails to open the file (given filename), return -1.
+
+        if (freeDescriptors.isEmpty())
+            return -1;  // If there are no available file descriptors, return -1.
+
+        Integer newFileDescriptor = freeDescriptors.removeFirst();
+        openFiles.put(newFileDescriptor, file);
+        return newFileDescriptor;  // On success, return a file descriptor.
+    }
+
+    /** Syscall prototype: int open(char *name);
+     * @param   filenameAddr: char*, pointer to the filename string in virtual memory.
+     * @return  A new file descriptor (0~15), or an error flag (-1).
+     **/
+    private int handleOpen(int filenameAddr) {
+        String filename = readVirtualMemoryString(filenameAddr, 255);
+        if (filename == null)
+            return -1;  // If filename does not exist at given address, return -1.
+
+        OpenFile file = ThreadedKernel.fileSystem.open(filename, false);  // Error on file miss.
+        if (file == null)
+            return -1;  // If file system fails to open the file (given filename), return -1.
+
+        if (freeDescriptors.isEmpty())
+            return -1;  // If there are no available file descriptors, return -1.
+
+        Integer newFileDescriptor = freeDescriptors.removeFirst();
+        openFiles.put(newFileDescriptor, file);
+        return newFileDescriptor;  // On success, return a file descriptor.
+    }
+
+    /** Syscall prototype: int read(int fd, char *buffer, int size);
+     * @param   fileDescriptor: int (0~15), file descriptor number (local to the current process).
+     * @param   readBufferAddr: char*, pointer to the read buffer in virtual memory.
+     * @param   maxCount: int, the maximum number of bytes to be read.
+     * @return  The number of bytes read from the file <fileDescriptor>.
+     * For disk files, we should also advance current file position.
+     * Error occurs if fileDescriptor or buffer is invalid (return < maxCount is not an error).
+     **/
+    private int handleRead(int fileDescriptor, int readBufferAddr, int maxCount) {
+        OpenFile file = openFiles.get(fileDescriptor);
+        if (file == null)
+            return -1;  // If file descriptor is not in use, return -1.
+
+        // Note that we shall only write to buffer (virtual memory) in pages,
+        // so we choose to read at most one page at a time, and repeat until EOS.
+        byte[] bufferPage = new byte[pageSize];
+
+        int totalReadCount = 0;
+        boolean done = false;
+        while ((!done) && (maxCount > 0)) {
+            int readLength = Math.min(pageSize, maxCount);  // Update current read length.
+            int currentReadCount = file.read(bufferPage, 0, readLength);
+            if (currentReadCount == -1)
+                return -1;  // If an exception occurs during reading, return -1.
+
+            // Determine whether reaching EOS: stop reading whenever not all bytes are filled.
+            if (currentReadCount < readLength)
+                done = true;
+
+            // Write bufferPage to virtual memory, and move readBufferAddr forward (by whole pages).
+            int currentWrittenToVM = writeVirtualMemory(readBufferAddr, bufferPage, 0, currentReadCount);
+            if (currentWrittenToVM != currentReadCount)
+                return -1;  // If an exception occurs during writing to VM (not enough bytes written), return -1.
+            readBufferAddr += currentReadCount;
+            
+            maxCount -= currentReadCount;
+            totalReadCount += currentReadCount;
+        }
+        return totalReadCount;
+    }
+
+    /** Syscall prototype: int write(int fd, char *buffer, int size);
+     * @param   fileDescriptor: int (0~15), file descriptor number (local to the current process).
+     * @param   writeBufferAddr: char*, pointer to the read buffer in virtual memory.
+     * @param   maxCount: int, the maximum number of bytes to be read.
+     * @return  The number of bytes written to the file <fileDescriptor>.
+     * For disk files, we should also advance current file position.
+     * Error occurs if fileDescriptor or buffer is invalid, or return < maxCount (caution here).
+     **/
+    private int handleWrite(int fileDescriptor, int writeBufferAddr, int maxCount) {
+        OpenFile file = openFiles.get(fileDescriptor);
+        if (file == null)
+            return -1;  // If file descriptor is not in use, return -1.
+
+        // Note that we shall only read from buffer (virtual memory) in pages,
+        // so we choose to read at most one page at a time, and repeat until EOS.
+        byte[] bufferPage = new byte[pageSize];
+
+        int totalWriteCount = 0;
+        while (maxCount > 0) {
+            int writeLength = Math.min(pageSize, maxCount);  // Update current read length.
+            int currentWriteCount = readVirtualMemory(writeBufferAddr, bufferPage, 0, writeLength);
+            if (currentWriteCount == -1)
+                return -1;  // If an exception occurs during reading, return -1.
+            if (currentWriteCount != writeLength)
+                return -1;  // If an exception occurs during reading VM (not enough bytes read), return -1.
+
+            // Write bufferPage to file, and move writeBufferAddr forward (by whole pages).
+            int currentWrittenToFile = writeVirtualMemory(writeBufferAddr, bufferPage, 0, currentWriteCount);
+            if (currentWrittenToFile != currentWriteCount)
+                return -1;  // If an exception occurs during writing to file (not enough bytes written), return -1.
+            writeBufferAddr += currentWriteCount;
+
+            maxCount -= currentWriteCount;
+            totalWriteCount += currentWriteCount;
+        }
+        return totalWriteCount;
+    }
+
+    /** Syscall prototype: int close(int fd);
+     * @param   fileDescriptor: int (0~15), file descriptor number (local to the current process).
+     * @return  0 on success, and -1 on failure.
+     **/
+    private int handleClose(int fileDescriptor) {
+        OpenFile file = openFiles.get(fileDescriptor);
+        if (file == null)
+            return -1;  // If file descriptor is not in use, return -1.
+
+        file.close();
+        openFiles.remove(fileDescriptor);
+        freeDescriptors.add(fileDescriptor);
+        return 0;
+    }
+
+    /** Syscall prototype: int unlink(char *name);
+     * @param   filenameAddr: char*, pointer to the filename string in virtual memory.
+     * @return  0 on success, and -1 on failure.
+     * This syscall removes a specific file from the file system.
+     * No change happens to the thread state.
+     **/
+    private int handleUnlink(int filenameAddr) {
+        String filename = readVirtualMemoryString(filenameAddr, 255);
+        if (filename == null)
+            return -1;  // If filename does not exist at given address, return -1.
+
+        // Try to remove file, and return success flag.
+        return ThreadedKernel.fileSystem.remove(filename) ? 0 : -1;
+    }
+
+    /*************************************************************************
+     * The above system calls are implemented by Hu Yang (Problem #1).
+     *************************************************************************/
+
+
+
+
     private static final int
             syscallHalt = 0,
             syscallExit = 1,
@@ -392,6 +567,19 @@ public class UserProcess {
             case syscallHalt:
                 return handleHalt();
 
+            // The following system calls are implemented by Hu Yang (Problem #1).
+            case syscallCreate:
+                return handleCreate(a0);
+            case syscallOpen:
+                return handleOpen(a0);
+            case syscallRead:
+                return handleRead(a0, a1, a2);
+            case syscallWrite:
+                return handleWrite(a0, a1, a2);
+            case syscallClose:
+                return handleClose(a0);
+            case syscallUnlink:
+                return handleUnlink(a0);
 
             default:
                 Lib.debug(dbgProcess, "Unknown syscall " + syscall);
@@ -446,4 +634,7 @@ public class UserProcess {
 
     private static final int pageSize = Processor.pageSize;
     private static final char dbgProcess = 'a';
+
+    private HashMap<Integer, OpenFile> openFiles;
+    private List<Integer> freeDescriptors;
 }
