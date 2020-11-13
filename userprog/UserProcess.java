@@ -32,8 +32,10 @@ public class UserProcess {
         PID = ++totProcess;
         int numPhysPages = Machine.processor().getNumPhysPages();
         pageTable = new TranslationEntry[numPhysPages];
-        for (int i=0; i<numPhysPages; i++)
-            pageTable[i] = new TranslationEntry(i,i, true,false,false,false);
+        for (int i=0; i<numPhysPages; i++) {
+            Lib.assertTrue(!UserKernel.freePages.isEmpty());
+            pageTable[i] = new TranslationEntry(i, UserKernel.freePages.removeFirst(), true, false, false, false);
+        }
 
         // Added to support file system calls.
         // Maintain a collection of open files and free file descriptors.
@@ -150,12 +152,51 @@ public class UserProcess {
 
         byte[] memory = Machine.processor().getMemory();
 
+        int amount = 0;
+
         // for now, just assume that virtual addresses equal physical addresses
         if (vaddr < 0 || vaddr >= memory.length)
             return 0;
 
-        int amount = Math.min(length, memory.length-vaddr);
-        System.arraycopy(memory, vaddr, data, offset, amount);
+        int first_vpn = vaddr / pageSize;
+        int first_pageOffset = vaddr % pageSize;
+
+        int last_vpn = (vaddr + length - 1) / pageSize;
+        int last_pageOffset = (vaddr + length - 1) % pageSize;
+
+        Lib.assertTrue(translate(first_vpn) != -1 && translate(last_vpn) != -1);
+
+        Lib.assertTrue(first_vpn <= last_vpn);
+
+        int t_ppn;
+
+        if(last_vpn == first_vpn) {
+            t_ppn = translate(first_vpn);
+            System.arraycopy(memory, t_ppn * pageSize + first_pageOffset, data, offset, last_pageOffset - first_pageOffset + 1);
+            offset += last_pageOffset - first_pageOffset + 1;
+            amount += last_pageOffset - first_pageOffset + 1;
+        }
+
+        else {
+            t_ppn = translate(first_vpn);
+            System.arraycopy(memory, t_ppn * pageSize + first_pageOffset, data, offset, pageSize - first_pageOffset);
+            offset += pageSize - first_pageOffset;
+            amount += pageSize - first_pageOffset;
+        }
+
+        for(int i = first_vpn + 1; i < last_vpn; i++) {
+            t_ppn = translate(i);
+            System.arraycopy(memory, t_ppn * pageSize, data, offset, pageSize);
+            offset += pageSize;
+            amount += pageSize;
+        }
+
+        t_ppn = translate(last_vpn);
+        System.arraycopy(memory, t_ppn * pageSize, data, offset, last_pageOffset + 1);
+        amount += last_pageOffset + 1;
+
+        // amount = Math.min(length, memory.length-vaddr);
+        // System.arraycopy(memory, vaddr, data, offset, amount);
 
         return amount;
     }
@@ -193,14 +234,88 @@ public class UserProcess {
 
         byte[] memory = Machine.processor().getMemory();
 
+        int amount = 0;
+
         // for now, just assume that virtual addresses equal physical addresses
         if (vaddr < 0 || vaddr >= memory.length)
             return 0;
 
-        int amount = Math.min(length, memory.length-vaddr);
-        System.arraycopy(data, offset, memory, vaddr, amount);
+        int first_vpn = vaddr / pageSize;
+        int first_pageOffset = vaddr % pageSize;
+
+        int last_vpn = (vaddr + length - 1) / pageSize;
+        int last_pageOffset = (vaddr + length - 1) % pageSize;
+
+        Lib.assertTrue(translate(first_vpn) != -1 && translate(last_vpn) != -1);
+
+        Lib.assertTrue(first_vpn <= last_vpn);
+
+        int t_ppn;
+
+        if(last_vpn == first_vpn) {
+            t_ppn = translate(first_vpn);
+            Lib.assertTrue(pageTable[first_vpn].readOnly == false);
+            System.arraycopy(data, offset, memory, t_ppn * pageSize + first_pageOffset, last_pageOffset - first_pageOffset + 1);
+            offset += last_pageOffset - first_pageOffset + 1;
+            amount += last_pageOffset - first_pageOffset + 1;
+        }
+
+        else {
+            t_ppn = translate(first_vpn);
+            Lib.assertTrue(pageTable[first_vpn].readOnly == false);
+            System.arraycopy(data, offset, memory, t_ppn * pageSize + first_pageOffset, pageSize - first_pageOffset);
+            offset += pageSize - first_pageOffset;
+            amount += pageSize - first_pageOffset;
+        }
+
+        for(int i = first_vpn + 1; i < last_vpn; i++) {
+            t_ppn = translate(i);
+            Lib.assertTrue(pageTable[i].readOnly == false);
+            System.arraycopy(data, offset, memory, t_ppn * pageSize, pageSize);
+            offset += pageSize;
+            amount += pageSize;
+        }
+
+        t_ppn = translate(last_vpn);
+        Lib.assertTrue(pageTable[last_vpn].readOnly == false);
+        System.arraycopy(data, offset, memory, t_ppn * pageSize, last_pageOffset + 1);
+        amount += last_pageOffset + 1;
+
+        // int amount = Math.min(length, memory.length-vaddr);
+        // System.arraycopy(data, offset, memory, vaddr, amount);
 
         return amount;
+    }
+
+    /**
+     * Translate a virtual page number to a physical page number
+     * @param vpn the virtual page number
+     * @return
+     */
+
+    private int translate(int vpn) {
+        for(int i = 0; i < pageTable.length; i++) {
+            if(pageTable[i].valid && pageTable[i].vpn == vpn)
+                return pageTable[i].ppn;
+        }
+        return -1;
+    }
+
+    /**
+     * Translate a virtual page number to a physical page number
+     * @param vpn the vurtual page number
+     * @param readOnly whether the page is read-only
+     * @return
+     */
+
+    private int translate(int vpn, boolean readOnly) {
+        for(int i = 0; i < pageTable.length; i++) {
+            if(pageTable[i].valid && pageTable[i].vpn == vpn) {
+                pageTable[i].readOnly = readOnly;
+                return pageTable[i].ppn;
+            }
+        }
+        return -1;
     }
 
     /**
@@ -313,10 +428,10 @@ public class UserProcess {
                     + " section (" + section.getLength() + " pages)");
 
             for (int i=0; i<section.getLength(); i++) {
-                int vpn = section.getFirstVPN()+i;
+                int vpn = section.getFirstVPN() + i;
 
                 // for now, just assume virtual addresses=physical addresses
-                section.loadPage(i, vpn);
+                section.loadPage(i, translate(vpn, section.isReadOnly()));
             }
         }
 
@@ -590,6 +705,9 @@ public class UserProcess {
         
         childProc.clear();
         allProc.remove(PID);
+
+        for (int i = 0; i < numPages; i++)
+            UserKernel.freePages.add(pageTable[i].ppn);
 
         System.out.println(PID + "exited");
 

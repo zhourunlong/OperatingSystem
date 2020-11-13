@@ -12,13 +12,13 @@ public final class TranslationEntry {
      * Allocate a new invalid translation entry.
      */
     public TranslationEntry() {
-	valid = false;
+	    valid = false;
     }
 
     /**
      * Allocate a new translation entry with the specified initial state.
      *
-     * @param	vpn		the virtual page numben.
+     * @param	vpn		the virtual page number.
      * @param	ppn		the physical page number.
      * @param	valid		the valid bit.
      * @param	readOnly	the read-only bit.
@@ -27,12 +27,12 @@ public final class TranslationEntry {
      */
     public TranslationEntry(int vpn, int ppn, boolean valid, boolean readOnly,
 			    boolean used, boolean dirty) {
-	this.vpn = vpn;
-	this.ppn = ppn;
-	this.valid = valid;
-	this.readOnly = readOnly;
-	this.used = used;
-	this.dirty = dirty;
+	    this.vpn = vpn;
+	    this.ppn = ppn;
+	    this.valid = valid;
+	    this.readOnly = readOnly;
+	    this.used = used;
+	    this.dirty = dirty;
     }       
 
     /**
@@ -42,12 +42,12 @@ public final class TranslationEntry {
      * @param	entry	the translation entry to copy.
      */
     public TranslationEntry(TranslationEntry entry) {
-	vpn = entry.vpn;
-	ppn = entry.ppn;
-	valid = entry.valid;
-	readOnly = entry.readOnly;
-	used = entry.used;
-	dirty = entry.dirty;
+	    vpn = entry.vpn;
+	    ppn = entry.ppn;
+	    valid = entry.valid;
+	    readOnly = entry.readOnly;
+	    used = entry.used;
+	    dirty = entry.dirty;
     }
 
     /** The virtual page number. */
