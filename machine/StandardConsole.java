@@ -123,6 +123,7 @@ public class StandardConsole implements SerialConsole {
      * @param	value	the byte to write.
      */
     protected void out(int value) {
+        // System.out.println(value);
         System.out.write(value);
         System.out.flush();
     }

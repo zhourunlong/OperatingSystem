@@ -115,7 +115,7 @@ public class UserKernel extends ThreadedKernel {
     /** Globally accessible reference to the synchronized console. */
     public static SynchConsole console;
 
-    public static LinkedList<Integer> freePages;
+    public static LinkedList<Integer> freePages = new LinkedList<Integer>();
 
     // dummy variables to make javac smarter
     private static Coff dummy1 = null;

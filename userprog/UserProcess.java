@@ -172,6 +172,8 @@ public class UserProcess {
 
         if(last_vpn == first_vpn) {
             t_ppn = translate(first_vpn);
+            if(pageTable[first_vpn].valid == false)
+                return amount;
             System.arraycopy(memory, t_ppn * pageSize + first_pageOffset, data, offset, last_pageOffset - first_pageOffset + 1);
             offset += last_pageOffset - first_pageOffset + 1;
             amount += last_pageOffset - first_pageOffset + 1;
@@ -179,6 +181,8 @@ public class UserProcess {
 
         else {
             t_ppn = translate(first_vpn);
+            if(pageTable[first_vpn].valid == false)
+                return amount;
             System.arraycopy(memory, t_ppn * pageSize + first_pageOffset, data, offset, pageSize - first_pageOffset);
             offset += pageSize - first_pageOffset;
             amount += pageSize - first_pageOffset;
@@ -186,12 +190,16 @@ public class UserProcess {
 
         for(int i = first_vpn + 1; i < last_vpn; i++) {
             t_ppn = translate(i);
+            if(pageTable[i].valid == false)
+                return amount;
             System.arraycopy(memory, t_ppn * pageSize, data, offset, pageSize);
             offset += pageSize;
             amount += pageSize;
         }
 
         t_ppn = translate(last_vpn);
+        if(pageTable[last_vpn].valid == false)
+            return amount;
         System.arraycopy(memory, t_ppn * pageSize, data, offset, last_pageOffset + 1);
         amount += last_pageOffset + 1;
 
@@ -255,6 +263,8 @@ public class UserProcess {
         if(last_vpn == first_vpn) {
             t_ppn = translate(first_vpn);
             Lib.assertTrue(pageTable[first_vpn].readOnly == false);
+            if(pageTable[first_vpn].valid == false || pageTable[first_vpn].readOnly == true)
+                return amount;
             System.arraycopy(data, offset, memory, t_ppn * pageSize + first_pageOffset, last_pageOffset - first_pageOffset + 1);
             offset += last_pageOffset - first_pageOffset + 1;
             amount += last_pageOffset - first_pageOffset + 1;
@@ -442,6 +452,8 @@ public class UserProcess {
      * Release any resources allocated by <tt>loadSections()</tt>.
      */
     protected void unloadSections() {
+        for (int i = 0; i < numPages; i++)
+            UserKernel.freePages.add(pageTable[i].ppn);
     }
 
     /**
