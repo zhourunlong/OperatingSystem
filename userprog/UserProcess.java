@@ -499,6 +499,7 @@ public class UserProcess {
      * @return  A new file descriptor (0~15), or an error flag (-1).
      **/
     private int handleCreate(int filenameAddr) {
+        System.out.println("===== Handling Create =====");
         String filename = readVirtualMemoryString(filenameAddr, 255);
         if (filename == null)
             return -1;  // If filename does not exist at given address, return -1.
@@ -520,6 +521,7 @@ public class UserProcess {
      * @return  A new file descriptor (0~15), or an error flag (-1).
      **/
     private int handleOpen(int filenameAddr) {
+        System.out.println("===== Handling Open =====");
         String filename = readVirtualMemoryString(filenameAddr, 255);
         if (filename == null)
             return -1;  // If filename does not exist at given address, return -1.
@@ -545,6 +547,7 @@ public class UserProcess {
      * Error occurs if fileDescriptor or buffer is invalid (return < maxCount is not an error).
      **/
     private int handleRead(int fileDescriptor, int readBufferAddr, int maxCount) {
+        System.out.println("===== Handling Read =====");
         OpenFile file = openFiles.get(fileDescriptor);
         if (file == null)
             return -1;  // If file descriptor is not in use, return -1.
@@ -586,6 +589,7 @@ public class UserProcess {
      * Error occurs if fileDescriptor or buffer is invalid, or return < maxCount (caution here).
      **/
     private int handleWrite(int fileDescriptor, int writeBufferAddr, int maxCount) {
+        System.out.println("===== Handling Write =====");
         OpenFile file = openFiles.get(fileDescriptor);
         if (file == null)
             return -1;  // If file descriptor is not in use, return -1.
@@ -620,6 +624,7 @@ public class UserProcess {
      * @return  0 on success, and -1 on failure.
      **/
     private int handleClose(int fileDescriptor) {
+        System.out.println("===== Handling Close =====");
         OpenFile file = openFiles.get(fileDescriptor);
         if (file == null)
             return -1;  // If file descriptor is not in use, return -1.
@@ -637,6 +642,7 @@ public class UserProcess {
      * No change happens to the thread state.
      **/
     private int handleUnlink(int filenameAddr) {
+        System.out.println("===== Handling Unlink =====");
         String filename = readVirtualMemoryString(filenameAddr, 255);
         if (filename == null)
             return -1;  // If filename does not exist at given address, return -1.
@@ -652,6 +658,7 @@ public class UserProcess {
     // Begin Task 3
 
     private int handleExec(int filePtr, int argc, int argvPtr) {
+        System.out.println("===== Handling Exec =====");
         String fileName = readVirtualMemoryString(filePtr, 255);
         if (fileName == null) {
             Lib.debug(dbgProcess, "Exec: file not found");
@@ -675,6 +682,7 @@ public class UserProcess {
 
         for (int i = 0; i < argc; ++i) {
             argv[i] = readVirtualMemoryString(Lib.bytesToInt(buf, 4 * i), 255);
+            System.out.println(argv[i]);
             if (argv[i] == null) {
                 Lib.debug(dbgProcess, "Exec: argv[" + i + "] not found");
                 return -1;
@@ -690,6 +698,7 @@ public class UserProcess {
     }
 
     private int handleJoin(int processID, int statusPtr) {
+        System.out.println("===== Handling Join =====");
         if (!childProc.contains(processID)) {
             Lib.debug(dbgProcess, "Join: not child");
             return -1;
@@ -709,9 +718,10 @@ public class UserProcess {
     }
 
     private int handleExit(int _status) {
+        System.out.println("===== Handling Exit =====");
         status = _status;
 
-        System.out.println(PID + "closing files");
+        System.out.println(PID + " closing files");
 
         unloadSections();
         
@@ -721,7 +731,7 @@ public class UserProcess {
         for (int i = 0; i < numPages; i++)
             UserKernel.freePages.add(pageTable[i].ppn);
 
-        System.out.println(PID + "exited");
+        System.out.println(PID + " exited");
 
         if (allProc.size() == 0)
             Kernel.kernel.terminate();
