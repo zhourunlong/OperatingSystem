@@ -501,15 +501,21 @@ public class UserProcess {
     private int handleCreate(int filenameAddr) {
         System.out.println("===== Handling Create =====");
         String filename = readVirtualMemoryString(filenameAddr, 255);
-        if (filename == null)
+        if (filename == null) {
+            System.out.println("handleCreate Error: Fail to retrieve file name.");
             return -1;  // If filename does not exist at given address, return -1.
+        }
 
         OpenFile file = ThreadedKernel.fileSystem.open(filename, true);  // Overwrite on collision.
-        if (file == null)
+        if (file == null) {
+            System.out.println("handleCreate Error: Fail to open the created file.");
             return -1;  // If file system fails to open the file (given filename), return -1.
+        }
 
-        if (freeDescriptors.isEmpty())
+        if (freeDescriptors.isEmpty()) {
+            System.out.println("handleCreate Error: No available file descriptors.");
             return -1;  // If there are no available file descriptors, return -1.
+        }
 
         Integer newFileDescriptor = freeDescriptors.remove(0);
         openFiles.put(newFileDescriptor, file);
@@ -523,8 +529,10 @@ public class UserProcess {
     private int handleOpen(int filenameAddr) {
         System.out.println("===== Handling Open =====");
         String filename = readVirtualMemoryString(filenameAddr, 255);
-        if (filename == null)
+        if (filename == null) {
+            System.out.println("handleOpen Error: Fail to retrieve file name.");
             return -1;  // If filename does not exist at given address, return -1.
+        }
 
         OpenFile file = ThreadedKernel.fileSystem.open(filename, false);  // Error on file miss.
         if (file == null)
@@ -549,8 +557,10 @@ public class UserProcess {
     private int handleRead(int fileDescriptor, int readBufferAddr, int maxCount) {
         System.out.println("===== Handling Read =====");
         OpenFile file = openFiles.get(fileDescriptor);
-        if (file == null)
+        if (file == null) {
+            System.out.println("handleRead Error: File descriptor does not exist.");
             return -1;  // If file descriptor is not in use, return -1.
+        }
 
         // Note that we shall only write to buffer (virtual memory) in pages,
         // so we choose to read at most one page at a time, and repeat until EOS.
@@ -561,8 +571,10 @@ public class UserProcess {
         while ((!done) && (maxCount > 0)) {
             int readLength = Math.min(pageSize, maxCount);  // Update current read length.
             int currentReadCount = file.read(bufferPage, 0, readLength);
-            if (currentReadCount == -1)
+            if (currentReadCount == -1) {
+                System.out.println("handleRead Error: Exception during reading.");
                 return -1;  // If an exception occurs during reading, return -1.
+            }
 
             // Determine whether reaching EOS: stop reading whenever not all bytes are filled.
             if (currentReadCount < readLength)
@@ -570,8 +582,10 @@ public class UserProcess {
 
             // Write bufferPage to virtual memory, and move readBufferAddr forward (by whole pages).
             int currentWrittenToVM = writeVirtualMemory(readBufferAddr, bufferPage, 0, currentReadCount);
-            if (currentWrittenToVM != currentReadCount)
+            if (currentWrittenToVM != currentReadCount) {
+                System.out.println("handleRead Error: Something got dropped in writing to buffer.");
                 return -1;  // If an exception occurs during writing to VM (not enough bytes written), return -1.
+            }
             readBufferAddr += currentReadCount;
             
             maxCount -= currentReadCount;
@@ -591,8 +605,10 @@ public class UserProcess {
     private int handleWrite(int fileDescriptor, int writeBufferAddr, int maxCount) {
         System.out.println("===== Handling Write =====");
         OpenFile file = openFiles.get(fileDescriptor);
-        if (file == null)
+        if (file == null) {
+            System.out.println("handleWrite Error: File descriptor does not exist.");
             return -1;  // If file descriptor is not in use, return -1.
+        }
 
         // Note that we shall only read from buffer (virtual memory) in pages,
         // so we choose to read at most one page at a time, and repeat until EOS.
@@ -602,15 +618,21 @@ public class UserProcess {
         while (maxCount > 0) {
             int writeLength = Math.min(pageSize, maxCount);  // Update current read length.
             int currentWriteCount = readVirtualMemory(writeBufferAddr, bufferPage, 0, writeLength);
-            if (currentWriteCount == -1)
+            if (currentWriteCount == -1) {
+                System.out.println("handleWrite Error: Exception during reading.");
                 return -1;  // If an exception occurs during reading, return -1.
-            if (currentWriteCount != writeLength)
+            }
+            if (currentWriteCount != writeLength) {
+                System.out.println("handleWrite Error: Something got dropped in writing to buffer.");
                 return -1;  // If an exception occurs during reading VM (not enough bytes read), return -1.
+            }
 
             // Write bufferPage to file, and move writeBufferAddr forward (by whole pages).
             int currentWrittenToFile = writeVirtualMemory(writeBufferAddr, bufferPage, 0, currentWriteCount);
-            if (currentWrittenToFile != currentWriteCount)
+            if (currentWrittenToFile != currentWriteCount) {
+                System.out.println("handleWrite Error: Something got dropped in writing to file.");
                 return -1;  // If an exception occurs during writing to file (not enough bytes written), return -1.
+            }
             writeBufferAddr += currentWriteCount;
 
             maxCount -= currentWriteCount;
@@ -626,8 +648,10 @@ public class UserProcess {
     private int handleClose(int fileDescriptor) {
         System.out.println("===== Handling Close =====");
         OpenFile file = openFiles.get(fileDescriptor);
-        if (file == null)
+        if (file == null) {
+            System.out.println("handleClose Error: Fail to retrieve file name.");
             return -1;  // If file descriptor is not in use, return -1.
+        }
 
         file.close();
         openFiles.remove(fileDescriptor);
@@ -644,8 +668,10 @@ public class UserProcess {
     private int handleUnlink(int filenameAddr) {
         System.out.println("===== Handling Unlink =====");
         String filename = readVirtualMemoryString(filenameAddr, 255);
-        if (filename == null)
+        if (filename == null) {
+            System.out.println("handleClose Error: Fail to retrieve file name.");
             return -1;  // If filename does not exist at given address, return -1.
+        }
 
         // Try to remove file, and return success flag.
         return ThreadedKernel.fileSystem.remove(filename) ? 0 : -1;
