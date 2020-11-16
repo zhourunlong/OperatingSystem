@@ -661,22 +661,22 @@ public class UserProcess {
         System.out.println("===== Handling Exec =====");
         String fileName = readVirtualMemoryString(filePtr, 255);
         if (fileName == null) {
-            Lib.debug(dbgProcess, "Exec: file not found");
+            System.out.println("Exec: file not found");
             return -1;
         }
         if (!fileName.endsWith(".coff")) {
-            Lib.debug(dbgProcess, "Exec: not end with .coff");
+            System.out.println("Exec: not end with .coff");
             return -1;
         }
         if (argc < 0) {
-            Lib.debug(dbgProcess, "Exec: argc < 0");
+            System.out.println("Exec: argc < 0");
             return -1;
         }
 
         String[] argv = new String[argc];
         byte[] buf = new byte[4 * argc];
         if (readVirtualMemory(argvPtr, buf) != 4 * argc) {
-            Lib.debug(dbgProcess, "Exec: argv length error");
+            System.out.println("Exec: argv length error");
             return -1;
         }
 
@@ -684,7 +684,7 @@ public class UserProcess {
             argv[i] = readVirtualMemoryString(Lib.bytesToInt(buf, 4 * i), 255);
             System.out.println(argv[i]);
             if (argv[i] == null) {
-                Lib.debug(dbgProcess, "Exec: argv[" + i + "] not found");
+                System.out.println("Exec: argv[" + i + "] not found");
                 return -1;
             }
         }
@@ -700,7 +700,7 @@ public class UserProcess {
     private int handleJoin(int processID, int statusPtr) {
         System.out.println("===== Handling Join =====");
         if (!childProc.contains(processID)) {
-            Lib.debug(dbgProcess, "Join: not child");
+            System.out.println("Join: not child");
             return -1;
         }
 
@@ -711,7 +711,7 @@ public class UserProcess {
         byte[] buf = new byte[4];
         buf = Lib.bytesFromInt(proc.status);
         if (proc.status == -1 || writeVirtualMemory(statusPtr, buf) != 4) {
-            Lib.debug(dbgProcess, "Join: child exited abnormally");
+            System.out.println("Join: child exited abnormally");
             return 0;
         } else
             return 1;
