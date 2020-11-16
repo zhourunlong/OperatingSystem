@@ -67,8 +67,11 @@ public class UserProcess {
      * @return	<tt>true</tt> if the program was successfully executed.
      */
     public boolean execute(String name, String[] args) {
-        if (!load(name, args))
+        if (!load(name, args)) {
+            System.out.println(System.getProperty("user.dir"));
+            System.out.println("Fail to load" + name);
             return false;
+        }
 
         thread = (UThread) (new UThread(this).setName(name));
         thread.fork();
@@ -165,43 +168,40 @@ public class UserProcess {
         int last_pageOffset = (vaddr + length - 1) % pageSize;
 
         Lib.assertTrue(translate(first_vpn) != -1 && translate(last_vpn) != -1);
-
         Lib.assertTrue(first_vpn <= last_vpn);
 
         int t_ppn;
 
-        if(last_vpn == first_vpn) {
+        if (last_vpn == first_vpn) {
             t_ppn = translate(first_vpn);
-            if(pageTable[first_vpn].valid == false)
+            if (pageTable[first_vpn].valid == false)
                 return amount;
             System.arraycopy(memory, t_ppn * pageSize + first_pageOffset, data, offset, last_pageOffset - first_pageOffset + 1);
             offset += last_pageOffset - first_pageOffset + 1;
             amount += last_pageOffset - first_pageOffset + 1;
-        }
-
-        else {
+        } else {
             t_ppn = translate(first_vpn);
-            if(pageTable[first_vpn].valid == false)
+            if (pageTable[first_vpn].valid == false)
                 return amount;
             System.arraycopy(memory, t_ppn * pageSize + first_pageOffset, data, offset, pageSize - first_pageOffset);
             offset += pageSize - first_pageOffset;
             amount += pageSize - first_pageOffset;
-        }
 
-        for(int i = first_vpn + 1; i < last_vpn; i++) {
-            t_ppn = translate(i);
-            if(pageTable[i].valid == false)
+            for (int i = first_vpn + 1; i < last_vpn; i++) {
+                t_ppn = translate(i);
+                if(pageTable[i].valid == false)
+                    return amount;
+                System.arraycopy(memory, t_ppn * pageSize, data, offset, pageSize);
+                offset += pageSize;
+                amount += pageSize;
+            }
+
+            t_ppn = translate(last_vpn);
+            if (pageTable[last_vpn].valid == false)
                 return amount;
-            System.arraycopy(memory, t_ppn * pageSize, data, offset, pageSize);
-            offset += pageSize;
-            amount += pageSize;
+            System.arraycopy(memory, t_ppn * pageSize, data, offset, last_pageOffset + 1);
+            amount += last_pageOffset + 1;
         }
-
-        t_ppn = translate(last_vpn);
-        if(pageTable[last_vpn].valid == false)
-            return amount;
-        System.arraycopy(memory, t_ppn * pageSize, data, offset, last_pageOffset + 1);
-        amount += last_pageOffset + 1;
 
         // amount = Math.min(length, memory.length-vaddr);
         // System.arraycopy(memory, vaddr, data, offset, amount);
@@ -255,12 +255,11 @@ public class UserProcess {
         int last_pageOffset = (vaddr + length - 1) % pageSize;
 
         Lib.assertTrue(translate(first_vpn) != -1 && translate(last_vpn) != -1);
-
         Lib.assertTrue(first_vpn <= last_vpn);
 
         int t_ppn;
 
-        if(last_vpn == first_vpn) {
+        if (last_vpn == first_vpn) {
             t_ppn = translate(first_vpn);
             Lib.assertTrue(pageTable[first_vpn].readOnly == false);
             if(pageTable[first_vpn].valid == false || pageTable[first_vpn].readOnly == true)
@@ -268,28 +267,26 @@ public class UserProcess {
             System.arraycopy(data, offset, memory, t_ppn * pageSize + first_pageOffset, last_pageOffset - first_pageOffset + 1);
             offset += last_pageOffset - first_pageOffset + 1;
             amount += last_pageOffset - first_pageOffset + 1;
-        }
-
-        else {
+        } else {
             t_ppn = translate(first_vpn);
             Lib.assertTrue(pageTable[first_vpn].readOnly == false);
             System.arraycopy(data, offset, memory, t_ppn * pageSize + first_pageOffset, pageSize - first_pageOffset);
             offset += pageSize - first_pageOffset;
             amount += pageSize - first_pageOffset;
-        }
 
-        for(int i = first_vpn + 1; i < last_vpn; i++) {
-            t_ppn = translate(i);
-            Lib.assertTrue(pageTable[i].readOnly == false);
-            System.arraycopy(data, offset, memory, t_ppn * pageSize, pageSize);
-            offset += pageSize;
-            amount += pageSize;
-        }
+            for (int i = first_vpn + 1; i < last_vpn; i++) {
+                t_ppn = translate(i);
+                Lib.assertTrue(pageTable[i].readOnly == false);
+                System.arraycopy(data, offset, memory, t_ppn * pageSize, pageSize);
+                offset += pageSize;
+                amount += pageSize;
+            }
 
-        t_ppn = translate(last_vpn);
-        Lib.assertTrue(pageTable[last_vpn].readOnly == false);
-        System.arraycopy(data, offset, memory, t_ppn * pageSize, last_pageOffset + 1);
-        amount += last_pageOffset + 1;
+            t_ppn = translate(last_vpn);
+            Lib.assertTrue(pageTable[last_vpn].readOnly == false);
+            System.arraycopy(data, offset, memory, t_ppn * pageSize, last_pageOffset + 1);
+            amount += last_pageOffset + 1;
+        }
 
         // int amount = Math.min(length, memory.length-vaddr);
         // System.arraycopy(data, offset, memory, vaddr, amount);
@@ -554,7 +551,7 @@ public class UserProcess {
      * For disk files, we should also advance current file position.
      * Error occurs if fileDescriptor or buffer is invalid (return < maxCount is not an error).
      **/
-    private int handleRead(int fileDescriptor, int readBufferAddr, int maxCount) {
+    private int handleRead(int fileDescriptor, int readBufferAddr, int maxReadCount) {
         System.out.println("===== Handling Read =====");
         OpenFile file = openFiles.get(fileDescriptor);
         if (file == null) {
@@ -562,47 +559,37 @@ public class UserProcess {
             return -1;  // If file descriptor is not in use, return -1.
         }
 
-        // Note that we shall only write to buffer (virtual memory) in pages,
-        // so we choose to read at most one page at a time, and repeat until EOS.
-        byte[] bufferPage = new byte[pageSize];
-
-        int totalReadCount = 0;
-        boolean done = false;
-        while ((!done) && (maxCount > 0)) {
-            int readLength = Math.min(pageSize, maxCount);  // Update current read length.
-            int currentReadCount = file.read(bufferPage, 0, readLength);
-            if (currentReadCount == -1) {
-                System.out.println("handleRead Error: Exception during reading.");
-                return -1;  // If an exception occurs during reading, return -1.
-            }
-
-            // Determine whether reaching EOS: stop reading whenever not all bytes are filled.
-            if (currentReadCount < readLength)
-                done = true;
-
-            // Write bufferPage to virtual memory, and move readBufferAddr forward (by whole pages).
-            int currentWrittenToVM = writeVirtualMemory(readBufferAddr, bufferPage, 0, currentReadCount);
-            if (currentWrittenToVM != currentReadCount) {
-                System.out.println("handleRead Error: Something got dropped in writing to buffer.");
-                return -1;  // If an exception occurs during writing to VM (not enough bytes written), return -1.
-            }
-            readBufferAddr += currentReadCount;
-            
-            maxCount -= currentReadCount;
-            totalReadCount += currentReadCount;
+        // Read from readBuffer.
+        byte[] buffer = new byte[maxReadCount];
+        int readFromBuffer = file.read(buffer, 0, maxReadCount);
+        if (readFromBuffer == -1) {
+            System.out.println("handleRead Error: Exception during reading readBuffer.");
+            return -1;  // If an exception occurs during reading the readBuffer, return -1.
         }
-        return totalReadCount;
+
+        // Write to virtual memory.
+        int writtenToMemory = file.write(buffer, 0, readFromBuffer);
+        if (writtenToMemory == -1) {
+            System.out.println("handleRead Error: Exception during writing memory.");
+            return -1;  // If an exception occurs during writing the memory, return -1.
+        }
+        if (writtenToMemory != readFromBuffer) {
+            System.out.println("handleRead Error: Not enough bytes written to memory.");
+            return -1;  // If not enough bytes are written to the memory, return -1.
+        }
+
+        return writtenToMemory;
     }
 
     /** Syscall prototype: int write(int fd, char *buffer, int size);
      * @param   fileDescriptor: int (0~15), file descriptor number (local to the current process).
      * @param   writeBufferAddr: char*, pointer to the read buffer in virtual memory.
-     * @param   maxCount: int, the maximum number of bytes to be read.
+     * @param   maxCount: int, the maximum number of bytes to be written.
      * @return  The number of bytes written to the file <fileDescriptor>.
      * For disk files, we should also advance current file position.
      * Error occurs if fileDescriptor or buffer is invalid, or return < maxCount (caution here).
      **/
-    private int handleWrite(int fileDescriptor, int writeBufferAddr, int maxCount) {
+    private int handleWrite(int fileDescriptor, int writeBufferAddr, int writeCount) {
         System.out.println("===== Handling Write =====");
         OpenFile file = openFiles.get(fileDescriptor);
         if (file == null) {
@@ -610,35 +597,30 @@ public class UserProcess {
             return -1;  // If file descriptor is not in use, return -1.
         }
 
-        // Note that we shall only read from buffer (virtual memory) in pages,
-        // so we choose to read at most one page at a time, and repeat until EOS.
-        byte[] bufferPage = new byte[pageSize];
-
-        int totalWriteCount = 0;
-        while (maxCount > 0) {
-            int writeLength = Math.min(pageSize, maxCount);  // Update current read length.
-            int currentWriteCount = readVirtualMemory(writeBufferAddr, bufferPage, 0, writeLength);
-            if (currentWriteCount == -1) {
-                System.out.println("handleWrite Error: Exception during reading.");
-                return -1;  // If an exception occurs during reading, return -1.
-            }
-            if (currentWriteCount != writeLength) {
-                System.out.println("handleWrite Error: Something got dropped in writing to buffer.");
-                return -1;  // If an exception occurs during reading VM (not enough bytes read), return -1.
-            }
-
-            // Write bufferPage to file, and move writeBufferAddr forward (by whole pages).
-            int currentWrittenToFile = writeVirtualMemory(writeBufferAddr, bufferPage, 0, currentWriteCount);
-            if (currentWrittenToFile != currentWriteCount) {
-                System.out.println("handleWrite Error: Something got dropped in writing to file.");
-                return -1;  // If an exception occurs during writing to file (not enough bytes written), return -1.
-            }
-            writeBufferAddr += currentWriteCount;
-
-            maxCount -= currentWriteCount;
-            totalWriteCount += currentWriteCount;
+        // Read from writeBuffer.
+        byte[] buffer = new byte[writeCount];
+        int readFromBuffer = readVirtualMemory(writeBufferAddr, buffer, 0, writeCount);
+        if (readFromBuffer == -1) {
+            System.out.println("handleWrite Error: Exception during reading writeBuffer.");
+            return -1;  // If an exception occurs during reading the writeBuffer, return -1.
         }
-        return totalWriteCount;
+        if (readFromBuffer != writeCount) {
+            System.out.println("handleWrite Error: Not enough bytes read from writeBuffer.");
+            return -1;  // If not enough bytes are read from the writeBuffer, return -1.
+        }
+
+        // Write to file.
+        int writtenToFile = file.write(buffer, 0, writeCount);
+        if (writtenToFile == -1) {
+            System.out.println("handleWrite Error: Exception during writing file.");
+            return -1;  // If an exception occurs during writing the file, return -1.
+        }
+        if (writtenToFile != writeCount) {
+            System.out.println("handleWrite Error: Not enough bytes written to file.");
+            return -1;  // If not enough bytes are written to the file, return -1.
+        }
+
+        return writtenToFile;
     }
 
     /** Syscall prototype: int close(int fd);
