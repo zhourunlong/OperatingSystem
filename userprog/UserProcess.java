@@ -552,7 +552,7 @@ public class UserProcess {
      * Error occurs if fileDescriptor or buffer is invalid (return < maxCount is not an error).
      **/
     private int handleRead(int fileDescriptor, int readBufferAddr, int maxReadCount) {
-        System.out.println("===== Handling Read =====");
+        // System.out.println("===== Handling Read =====");
         OpenFile file = openFiles.get(fileDescriptor);
         if (file == null) {
             System.out.println("handleRead Error: File descriptor does not exist.");
@@ -568,7 +568,7 @@ public class UserProcess {
         }
 
         // Write to virtual memory.
-        int writtenToMemory = file.write(buffer, 0, readFromBuffer);
+        int writtenToMemory = writeVirtualMemory(readBufferAddr, buffer, 0, readFromBuffer);
         if (writtenToMemory == -1) {
             System.out.println("handleRead Error: Exception during writing memory.");
             return -1;  // If an exception occurs during writing the memory, return -1.
