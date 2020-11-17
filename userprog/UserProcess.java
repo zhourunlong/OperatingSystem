@@ -326,6 +326,17 @@ public class UserProcess {
         return -1;
     }
 
+    private int getNewPage() {
+        UserKernel.lockForPages.acquire();
+        while (UserKernel.freePages.isEmpty()) {
+            System.out.println("No available pages now, waiting");
+            UserKernel.condForPages.sleep();
+        }
+        System.out.println("Stop waiting");
+        UserKernel.lockForPages.release();
+        return UserKernel.freePages.removeFirst();
+    }
+
     /**
      * Load the executable with the specified name into this process, and
      * prepare to pass it the specified arguments. Opens the executable, reads
@@ -368,7 +379,7 @@ public class UserProcess {
 
         for (int i=0; i < numPages; i++) {
             Lib.assertTrue(!UserKernel.freePages.isEmpty());
-            pageTable[i] = new TranslationEntry(i, UserKernel.freePages.removeFirst(), true, false, false, false);
+            pageTable[i] = new TranslationEntry(i, getNewPage(), true, false, false, false);
         }
 
         // make sure the argv array will fit in one page
@@ -393,14 +404,14 @@ public class UserProcess {
 
         for (int i = numPages - stackPages; i < numPages; i++) {
             Lib.assertTrue(!UserKernel.freePages.isEmpty());
-            pageTable[i] = new TranslationEntry(i, UserKernel.freePages.removeFirst(), true, false, false, false);
+            pageTable[i] = new TranslationEntry(i, getNewPage(), true, false, false, false);
         }
 
         initialSP = numPages*pageSize;
 
         // and finally reserve 1 page for arguments
         numPages++;
-        pageTable[numPages - 1] = new TranslationEntry(numPages - 1, UserKernel.freePages.removeFirst(), true, false, false, false);
+        pageTable[numPages - 1] = new TranslationEntry(numPages - 1, getNewPage(), true, false, false, false);
 
 
         if (!loadSections())
@@ -453,7 +464,7 @@ public class UserProcess {
                 // System.out.println(numPages);
                 // if (translate(vpn) == -1) {
                 //     numPages += 1;
-                //     pageTable[numPages] = new TranslationEntry(vpn, UserKernel.freePages.removeFirst(), true, section.isReadOnly(), false, false);
+                //     pageTable[numPages] = new TranslationEntry(vpn, getNewPage(), true, section.isReadOnly(), false, false);
                 // }
                 // for now, just assume virtual addresses=physical addresses
                 // System.out.println(vpn);

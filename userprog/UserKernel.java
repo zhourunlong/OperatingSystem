@@ -2,7 +2,8 @@ package nachos.userprog;
 
 import nachos.machine.*;
 import nachos.threads.*;
-import nachos.userprog.*;
+
+import nachos.threads.Lock;
 
 import java.util.LinkedList;
 
@@ -10,6 +11,8 @@ import java.util.LinkedList;
  * A kernel that can support multiple user processes.
  */
 public class UserKernel extends ThreadedKernel {
+    public static Lock lockForPages;
+    public static Condition2 condForPages;
     /**
      * Allocate a new user kernel.
      */
@@ -26,7 +29,8 @@ public class UserKernel extends ThreadedKernel {
         for(int i = 0; i < Machine.processor().getNumPhysPages(); i++) {
             freePages.add(i);
         }
-
+        lockForPages = new Lock();
+        condForPages = new Condition2(lockForPages);
         console = new SynchConsole(Machine.console());
 
         Machine.processor().setExceptionHandler(new Runnable() {

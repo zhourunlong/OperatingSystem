@@ -2,6 +2,7 @@ package nachos.threads;
 
 import nachos.machine.*;
 
+import javax.crypto.Mac;
 import java.util.Random;
 
 /**
@@ -93,7 +94,7 @@ public class Lock {
     }
 
     private KThread lockHolder = null;
-    private ThreadQueue waitQueue = ThreadedKernel.scheduler.newThreadQueue(true);
+    private ThreadQueue waitQueue;
 
     public static void schedulerTest() {
         qTester.critical = new Lock();
