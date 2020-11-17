@@ -23,7 +23,7 @@ public class UserKernel extends ThreadedKernel {
      */
     public void initialize(String[] args) {
         super.initialize(args);
-        for(int i = 0; i < Processor.maxPages; i++) {
+        for(int i = 0; i < Machine.processor().getNumPhysPages(); i++) {
             freePages.add(i);
         }
 
@@ -116,6 +116,8 @@ public class UserKernel extends ThreadedKernel {
     public static SynchConsole console;
 
     public static LinkedList<Integer> freePages = new LinkedList<Integer>();
+
+
 
     // dummy variables to make javac smarter
     private static Coff dummy1 = null;

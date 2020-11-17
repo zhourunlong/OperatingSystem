@@ -310,7 +310,10 @@ public class KThread {
         Lib.assertTrue(idleThread == null);
 
         idleThread = new KThread(new Runnable() {
-            public void run() { while (true) yield(); }
+            public void run() {
+                while (true)
+                    yield();
+            }
         });
         idleThread.setName("idle");
 
@@ -347,9 +350,6 @@ public class KThread {
      * changed from running to blocked or ready (depending on whether the
      * thread is sleeping or yielding).
      *
-     * @param	finishing	<tt>true</tt> if the current thread is
-     *              finished, and should be destroyed by the new
-     *              thread.
      */
     private void run() {
         Lib.assertTrue(Machine.interrupt().disabled());

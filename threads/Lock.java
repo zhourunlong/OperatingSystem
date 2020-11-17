@@ -26,6 +26,7 @@ public class Lock {
      * Allocate a new lock. The lock will initially be <i>free</i>.
      */
     public Lock() {
+        waitQueue = ThreadedKernel.scheduler.newThreadQueue(true);
     }
 
     /**

@@ -32,11 +32,8 @@ public class UserProcess {
         PID = ++totProcess;
         int numPhysPages = Machine.processor().getNumPhysPages();
         pageTable = new TranslationEntry[numPhysPages];
-        for (int i=0; i<numPhysPages; i++) {
-            Lib.assertTrue(!UserKernel.freePages.isEmpty());
-            pageTable[i] = new TranslationEntry(i, UserKernel.freePages.removeFirst(), true, false, false, false);
-        }
-
+        // Machine.processor().lock_pages.acquire();
+        // Machine.processor().lock_pages.release();
         // Added to support file system calls.
         // Maintain a collection of open files and free file descriptors.
         openFiles = new HashMap<Integer, OpenFile>();
@@ -254,6 +251,10 @@ public class UserProcess {
         int last_vpn = (vaddr + length - 1) / pageSize;
         int last_pageOffset = (vaddr + length - 1) % pageSize;
 
+        // System.out.println(first_vpn);
+        // System.out.println(last_vpn);
+        // System.out.println(numPages);
+
         Lib.assertTrue(translate(first_vpn) != -1 && translate(last_vpn) != -1);
         Lib.assertTrue(first_vpn <= last_vpn);
 
@@ -302,7 +303,7 @@ public class UserProcess {
 
     private int translate(int vpn) {
         for(int i = 0; i < pageTable.length; i++) {
-            if(pageTable[i].valid && pageTable[i].vpn == vpn)
+            if(pageTable[i] != null && pageTable[i].valid && pageTable[i].vpn == vpn)
                 return pageTable[i].ppn;
         }
         return -1;
@@ -317,7 +318,7 @@ public class UserProcess {
 
     private int translate(int vpn, boolean readOnly) {
         for(int i = 0; i < pageTable.length; i++) {
-            if(pageTable[i].valid && pageTable[i].vpn == vpn) {
+            if(pageTable[i] != null && pageTable[i].valid && pageTable[i].vpn == vpn) {
                 pageTable[i].readOnly = readOnly;
                 return pageTable[i].ppn;
             }
@@ -365,6 +366,11 @@ public class UserProcess {
             numPages += section.getLength();
         }
 
+        for (int i=0; i < numPages; i++) {
+            Lib.assertTrue(!UserKernel.freePages.isEmpty());
+            pageTable[i] = new TranslationEntry(i, UserKernel.freePages.removeFirst(), true, false, false, false);
+        }
+
         // make sure the argv array will fit in one page
         byte[][] argv = new byte[args.length][];
         int argsSize = 0;
@@ -384,10 +390,18 @@ public class UserProcess {
 
         // next comes the stack; stack pointer initially points to top of it
         numPages += stackPages;
+
+        for (int i = numPages - stackPages; i < numPages; i++) {
+            Lib.assertTrue(!UserKernel.freePages.isEmpty());
+            pageTable[i] = new TranslationEntry(i, UserKernel.freePages.removeFirst(), true, false, false, false);
+        }
+
         initialSP = numPages*pageSize;
 
         // and finally reserve 1 page for arguments
         numPages++;
+        pageTable[numPages - 1] = new TranslationEntry(numPages - 1, UserKernel.freePages.removeFirst(), true, false, false, false);
+
 
         if (!loadSections())
             return false;
@@ -436,8 +450,14 @@ public class UserProcess {
 
             for (int i=0; i<section.getLength(); i++) {
                 int vpn = section.getFirstVPN() + i;
-
+                // System.out.println(numPages);
+                // if (translate(vpn) == -1) {
+                //     numPages += 1;
+                //     pageTable[numPages] = new TranslationEntry(vpn, UserKernel.freePages.removeFirst(), true, section.isReadOnly(), false, false);
+                // }
                 // for now, just assume virtual addresses=physical addresses
+                // System.out.println(vpn);
+                // System.out.println(translate(vpn, section.isReadOnly()));
                 section.loadPage(i, translate(vpn, section.isReadOnly()));
             }
         }
@@ -449,8 +469,12 @@ public class UserProcess {
      * Release any resources allocated by <tt>loadSections()</tt>.
      */
     protected void unloadSections() {
-        for (int i = 0; i < numPages; i++)
+        for (int i = stackPages; i < numPages; i++) {
             UserKernel.freePages.add(pageTable[i].ppn);
+            System.out.print("freeing page ");
+            System.out.println(i);
+        }
+        numPages = stackPages;
     }
 
     /**
@@ -736,8 +760,11 @@ public class UserProcess {
         childProc.clear();
         allProc.remove(PID);
 
-        for (int i = 0; i < numPages; i++)
+        for (int i = 0; i < numPages; i++) {
             UserKernel.freePages.add(pageTable[i].ppn);
+            System.out.print("freeing page");
+            System.out.println(pageTable[i].ppn);
+        }
 
         System.out.println(PID + " exited");
 

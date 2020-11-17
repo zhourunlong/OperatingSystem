@@ -3,6 +3,7 @@
 package nachos.machine;
 
 import nachos.security.*;
+import nachos.threads.Lock;
 
 /**
  * The <tt>Processor</tt> class simulates a MIPS processor that supports a
@@ -562,6 +563,8 @@ public final class Processor {
     private static final char dbgProcessor = 'p';
     private static final char dbgDisassemble = 'm';
     private static final char dbgFullDisassemble = 'M';
+
+    // public static Lock lock_pages = new Lock();
 
     private class ProcessorPrivilege implements Privilege.ProcessorPrivilege {
         public void flushPipe() {
