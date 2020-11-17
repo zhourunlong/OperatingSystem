@@ -42,6 +42,7 @@ public class UserProcess {
         freeDescriptors = new LinkedList<Integer>(Arrays.asList(2,3,4,5,6,7,8,9,10,11,12,13,14,15));
 
         allProc.put(PID, this);
+        System.out.println("new proc ID = " + PID + ", now " + allProc.size() + " procs");
     }
 
     /**
@@ -518,6 +519,10 @@ public class UserProcess {
      */
     private int handleHalt() {
 
+        if (PID != 1) {
+            System.out.println("Halt: not root calling!");
+            return -1;
+        }
         Machine.halt();
 
         Lib.assertNotReached("Machine.halt() did not halt machine!");
@@ -733,7 +738,7 @@ public class UserProcess {
 
         for (int i = 0; i < argc; ++i) {
             argv[i] = readVirtualMemoryString(Lib.bytesToInt(buf, 4 * i), 255);
-            System.out.println(argv[i]);
+            //System.out.println(argv[i]);
             if (argv[i] == null) {
                 System.out.println("Exec: argv[" + i + "] not found");
                 return -1;
@@ -745,6 +750,7 @@ public class UserProcess {
 
         if (!proc.execute(fileName, argv)) {
             System.out.println("Exec: execute error!");
+            allProc.remove(proc.PID);
             return -1;
         }
 
@@ -753,7 +759,7 @@ public class UserProcess {
 
     private int handleJoin(int processID, int statusPtr) {
         Lib.debug(dbgProcess, "===== Handling Join =====");
-        System.out.println("Join: " + processID);
+        //System.out.println("Join: " + processID);
         if (!childProc.contains(processID)) {
             System.out.println("Join: not child");
             return -1;
@@ -792,7 +798,7 @@ public class UserProcess {
             Lib.debug(dbgProcess, "Freeing page " + pageTable[i].ppn);
         }
 
-        System.out.println(PID + " exited");
+        System.out.println(PID + " exited, remain " + allProc.size() + " procs");
 
         if (allProc.size() == 0)
             Kernel.kernel.terminate();
