@@ -743,19 +743,27 @@ public class UserProcess {
         UserProcess proc = newUserProcess();
         childProc.add(proc.PID);
 
-        proc.execute(fileName, argv);
+        if (!proc.execute(fileName, argv)) {
+            System.out.println("Exec: execute error!");
+            return -1;
+        }
 
         return proc.PID;
     }
 
     private int handleJoin(int processID, int statusPtr) {
         Lib.debug(dbgProcess, "===== Handling Join =====");
+        System.out.println("Join: " + processID);
         if (!childProc.contains(processID)) {
             System.out.println("Join: not child");
             return -1;
         }
 
         UserProcess proc = allProc.get(processID);
+        if (proc == null) {
+            System.out.println("Join: child already exited or child not exist");
+            return 0;
+        }
         childProc.remove(processID);
         proc.thread.join();
         
