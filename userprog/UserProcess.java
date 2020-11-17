@@ -413,6 +413,7 @@ public class UserProcess {
         numPages++;
         pageTable[numPages - 1] = new TranslationEntry(numPages - 1, getNewPage(), true, false, false, false);
 
+        System.out.println("PAGES = " + numPages);
 
         if (!loadSections())
             return false;
@@ -679,7 +680,7 @@ public class UserProcess {
         Lib.debug(dbgProcess, "===== Handling Close =====");
         OpenFile file = openFiles.get(fileDescriptor);
         if (file == null) {
-            System.out.println("handleClose Error: Fail to retrieve file name.");
+            System.out.println("handleClose Error: File descriptor does not exist.");
             return -1;  // If file descriptor is not in use, return -1.
         }
 
@@ -699,7 +700,7 @@ public class UserProcess {
         Lib.debug(dbgProcess, "===== Handling Unlink =====");
         String filename = readVirtualMemoryString(filenameAddr, 255);
         if (filename == null) {
-            System.out.println("handleClose Error: Fail to retrieve file name.");
+            System.out.println("handleUnlink Error: File descriptor does not exist.");
             return -1;  // If filename does not exist at given address, return -1.
         }
 
@@ -759,7 +760,9 @@ public class UserProcess {
 
     private int handleJoin(int processID, int statusPtr) {
         Lib.debug(dbgProcess, "===== Handling Join =====");
+
         //System.out.println("Join: " + processID);
+
         if (!childProc.contains(processID)) {
             System.out.println("Join: not child");
             return -1;

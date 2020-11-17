@@ -5,9 +5,8 @@
 int main(int argc, char** argv)
 {
   int fileDescriptor, closeFlag, deleteFlag, readCount, writeCount;
-  char readBuffer[10], outBuffer[11];
+  char readBuffer[10];
   char writeBuffer[10] = "Success!!";
-  outBuffer[10] = 0;
   
   printf("========== Deal with non-existing files ==========\n");
   fileDescriptor = open("nonexisting.file");
@@ -37,6 +36,37 @@ int main(int argc, char** argv)
   printf("When write buffer overflows, return write count = %d. Buffer contents = %s.\n", writeCount, writeBuffer);
   closeFlag = close(fileDescriptor);
   printf("Close file testFileError1.file: flag = %d.\n", closeFlag);
+  
+  fileDescriptor = creat("testFileError2.file");
+  printf("Create testFileError2.file as file #%d.\n", fileDescriptor);
+  writeCount = write(fileDescriptor, (char*) 0, 16*1024);
+  printf("When write buffer = total memory capacity, return write count = %d.\n", writeCount);
+  closeFlag = close(fileDescriptor);
+  printf("Close file testFileError2.file: flag = %d.\n", closeFlag);
+  printf("========================================\n\n");
+  
+  printf("========== Deal with wrong buffer length ==========\n");
+  fileDescriptor = open("testFileError0.file");
+  printf("Open testFileError0.file as file #%d.\n", fileDescriptor);
+  readCount = read(fileDescriptor, readBuffer, 0);
+  printf("When read length = 0, return read count = %d.\n", readCount);
+  closeFlag = close(fileDescriptor);
+  printf("Close file testFileError0.file: flag = %d.\n", closeFlag);
+  
+  fileDescriptor = creat("testFileError3.file");
+  printf("Create testFileError3.file as file #%d.\n", fileDescriptor);
+  writeCount = write(fileDescriptor, writeBuffer, 0);
+  printf("When write length = 0, return write count = %d.\n", writeCount);
+  closeFlag = close(fileDescriptor);
+  printf("Close file testFileError3.file: flag = %d.\n", closeFlag);
+  printf("========================================\n\n");
+  
+  printf("========== Try to close stdin & stdout ==========\n");
+  closeFlag = close(0);
+  printf("Close stdin: flag = %d.\n", closeFlag);
+  printf("We will close stdout soon. No more displaying on console.\n");
+  closeFlag = close(1);
+  printf("Close stdout: flag = %d.\n", closeFlag);
   printf("========================================\n\n");
   
   printf("Invalid file operation test successfully done.\n");
