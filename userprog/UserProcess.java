@@ -581,7 +581,7 @@ public class UserProcess {
     /** Syscall prototype: int read(int fd, char *buffer, int size);
      * @param   fileDescriptor: int (0~15), file descriptor number (local to the current process).
      * @param   readBufferAddr: char*, pointer to the read buffer in virtual memory.
-     * @param   maxCount: int, the maximum number of bytes to be read.
+     * @param   maxReadCount: int, the maximum number of bytes to be read.
      * @return  The number of bytes read from the file <fileDescriptor>.
      * For disk files, we should also advance current file position.
      * Error occurs if fileDescriptor or buffer is invalid (return < maxCount is not an error).
@@ -619,7 +619,7 @@ public class UserProcess {
     /** Syscall prototype: int write(int fd, char *buffer, int size);
      * @param   fileDescriptor: int (0~15), file descriptor number (local to the current process).
      * @param   writeBufferAddr: char*, pointer to the read buffer in virtual memory.
-     * @param   maxCount: int, the maximum number of bytes to be written.
+     * @param   writeCount: int, the maximum number of bytes to be written.
      * @return  The number of bytes written to the file <fileDescriptor>.
      * For disk files, we should also advance current file position.
      * Error occurs if fileDescriptor or buffer is invalid, or return < maxCount (caution here).
