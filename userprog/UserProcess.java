@@ -488,10 +488,6 @@ public class UserProcess {
             Lib.debug(dbgProcess, "Freeing page " + i);
         }
         numPages = stackPages;
-
-        // Added by Hu Yang to release file descriptor occupied by executable files.
-        // WARNING: This might be wrong.
-        coff.close();
     }
 
     /**
