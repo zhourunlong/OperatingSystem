@@ -65,8 +65,7 @@ public class UserProcess {
      */
     public boolean execute(String name, String[] args) {
         if (!load(name, args)) {
-            System.out.println(System.getProperty("user.dir"));
-            System.out.println("Fail to load" + name);
+            System.out.println("Fail to load " + name);
             return false;
         }
 
@@ -329,10 +328,10 @@ public class UserProcess {
     private int getNewPage() {
         UserKernel.lockForPages.acquire();
         while (UserKernel.freePages.isEmpty()) {
-            System.out.println("No available pages now, waiting");
+            // System.out.println("No available pages now. Waiting ...");
             UserKernel.condForPages.sleep();
         }
-        System.out.println("Stop waiting");
+        // System.out.println("Stop waiting.");
         UserKernel.lockForPages.release();
         return UserKernel.freePages.removeFirst();
     }
@@ -435,6 +434,10 @@ public class UserProcess {
             stringOffset += 1;
         }
 
+        // Added by Hu Yang to release file descriptor occupied by executable files.
+        // WARNING: This might be wrong.
+        coff.close();
+
         return true;
     }
 
@@ -482,10 +485,13 @@ public class UserProcess {
     protected void unloadSections() {
         for (int i = stackPages; i < numPages; i++) {
             UserKernel.freePages.add(pageTable[i].ppn);
-            System.out.print("freeing page ");
-            System.out.println(i);
+            Lib.debug(dbgProcess, "Freeing page " + i);
         }
         numPages = stackPages;
+
+        // Added by Hu Yang to release file descriptor occupied by executable files.
+        // WARNING: This might be wrong.
+        coff.close();
     }
 
     /**
@@ -545,6 +551,7 @@ public class UserProcess {
         }
 
         if (freeDescriptors.isEmpty()) {
+            file.close();
             System.out.println("handleCreate Error: No available file descriptors.");
             return -1;  // If there are no available file descriptors, return -1.
         }
@@ -567,11 +574,16 @@ public class UserProcess {
         }
 
         OpenFile file = ThreadedKernel.fileSystem.open(filename, false);  // Error on file miss.
-        if (file == null)
+        if (file == null) {
+            System.out.println("handleOpen Error: Fail to open the file.");
             return -1;  // If file system fails to open the file (given filename), return -1.
+        }
 
-        if (freeDescriptors.isEmpty())
+        if (freeDescriptors.isEmpty()) {
+            file.close();
+            System.out.println("handleOpen Error: No available file descriptors.");
             return -1;  // If there are no available file descriptors, return -1.
+        }
 
         Integer newFileDescriptor = freeDescriptors.remove(0);
         openFiles.put(newFileDescriptor, file);
@@ -773,8 +785,7 @@ public class UserProcess {
 
         for (int i = 0; i < numPages; i++) {
             UserKernel.freePages.add(pageTable[i].ppn);
-            System.out.print("freeing page");
-            System.out.println(pageTable[i].ppn);
+            Lib.debug(dbgProcess, "Freeing page " + pageTable[i].ppn);
         }
 
         System.out.println(PID + " exited");

@@ -8,11 +8,11 @@ int main(int argc, char** argv)
   int i, closeFlag, readCount, writeCount;
   char content1[9] = "Testing.";
   char content2[9] = "Rewrite.";
-  char buffer[9];
+  char buffer[30];
   
   printf("========== Testing multiple-file operations ==========\n");
   for (i=0; i<16; i++) {
-      sprintf(buffer, "%d.file", i);
+      sprintf(buffer, "testFileMultiple%d.file", i);
       fileDescriptor[i] = creat(buffer);
       printf("Create a file %s and open it as file #%d.\n", buffer, fileDescriptor[i]);
   }
@@ -25,7 +25,7 @@ int main(int argc, char** argv)
   }
   
   for (i=0; i<7; i++) {
-      sprintf(buffer, "%d.file", i);
+      sprintf(buffer, "testFileMultiple%d.file", i);
       fileDescriptor[i] = creat(buffer);
       printf("Recreate a file %s and open it as file #%d.\n", buffer, fileDescriptor[i]);
       writeCount = write(fileDescriptor[i], content2, 9);
@@ -35,7 +35,7 @@ int main(int argc, char** argv)
   }
   
   for (i=0; i<14; i++) {
-      sprintf(buffer, "%d.file", i);
+      sprintf(buffer, "testFileMultiple%d.file", i);
       fileDescriptor[i] = open(buffer);
       printf("Open %s as file #%d.\n", buffer, fileDescriptor[i]);
       readCount = read(fileDescriptor[i], buffer, 9);
