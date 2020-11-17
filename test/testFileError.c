@@ -39,6 +39,13 @@ int main(int argc, char** argv)
   printf("Close file testFileError1.file: flag = %d.\n", closeFlag);
   printf("========================================\n\n");
   
+  printf("========== Try to close stdin & stdout ==========\n");
+  closeFlag = close(0);
+  printf("Close stdin: flag = %d.\n", closeFlag);
+  closeFlag = close(0);
+  printf("Close stdout: flag = %d.\n", closeFlag);
+  printf("========================================\n\n");
+  
   printf("Invalid file operation test successfully done.\n");
   return 0;
 }

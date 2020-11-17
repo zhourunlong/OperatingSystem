@@ -694,7 +694,7 @@ public class UserProcess {
         Lib.debug(dbgProcess, "===== Handling Unlink =====");
         String filename = readVirtualMemoryString(filenameAddr, 255);
         if (filename == null) {
-            System.out.println("handleClose Error: Fail to retrieve file name.");
+            System.out.println("handleUnlink Error: Fail to retrieve file name.");
             return -1;  // If filename does not exist at given address, return -1.
         }
 
@@ -753,7 +753,7 @@ public class UserProcess {
 
     private int handleJoin(int processID, int statusPtr) {
         Lib.debug(dbgProcess, "===== Handling Join =====");
-        System.out.println("Join: " + processID);
+        Lib.debug(dbgProcess, "Join: " + processID);
         if (!childProc.contains(processID)) {
             System.out.println("Join: not child");
             return -1;
