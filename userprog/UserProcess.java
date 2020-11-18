@@ -344,11 +344,19 @@ public class UserProcess {
 
     private int getNewPage() {
         UserKernel.lockForPages.acquire();
+
+        boolean firstFlag = true, waitFlag = false;
         while (UserKernel.freePages.isEmpty()) {
-            // System.out.println("No available pages now. Waiting ...");
+            if (firstFlag) {
+                System.out.println("No available pages now. Waiting ...");
+                firstFlag = false;
+                waitFlag = true;
+            }
             UserKernel.condForPages.sleep();
         }
-        // System.out.println("Stop waiting.");
+        if (waitFlag)
+            System.out.println("Exit waiting with free page.");
+
         UserKernel.lockForPages.release();
         return UserKernel.freePages.removeFirst();
     }
