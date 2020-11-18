@@ -164,8 +164,13 @@ public class UserProcess {
         int last_vpn = (vaddr + length - 1) / pageSize;
         int last_pageOffset = (vaddr + length - 1) % pageSize;
 
-        Lib.assertTrue(translate(first_vpn) != -1 && translate(last_vpn) != -1);
-        Lib.assertTrue(first_vpn <= last_vpn);
+        if (translate(first_vpn) == -1 || translate(last_vpn) == -1)
+            return 0;
+        if(first_vpn > last_vpn)
+            return 0;
+
+        // Lib.assertTrue(translate(first_vpn) != -1 && translate(last_vpn) != -1);
+        // Lib.assertTrue(first_vpn <= last_vpn);
 
         int t_ppn;
 
@@ -255,14 +260,19 @@ public class UserProcess {
         // System.out.println(last_vpn);
         // System.out.println(numPages);
 
-        Lib.assertTrue(translate(first_vpn) != -1 && translate(last_vpn) != -1);
-        Lib.assertTrue(first_vpn <= last_vpn);
+        if (translate(first_vpn) == -1 || translate(last_vpn) == -1)
+            return 0;
+        if(first_vpn > last_vpn)
+            return 0;
+
+        // Lib.assertTrue(translate(first_vpn) != -1 && translate(last_vpn) != -1);
+        // Lib.assertTrue(first_vpn <= last_vpn);
 
         int t_ppn;
 
         if (last_vpn == first_vpn) {
             t_ppn = translate(first_vpn);
-            Lib.assertTrue(pageTable[first_vpn].readOnly == false);
+            // Lib.assertTrue(pageTable[first_vpn].readOnly == false);
             if(pageTable[first_vpn].valid == false || pageTable[first_vpn].readOnly == true)
                 return amount;
             System.arraycopy(data, offset, memory, t_ppn * pageSize + first_pageOffset, last_pageOffset - first_pageOffset + 1);
@@ -270,21 +280,27 @@ public class UserProcess {
             amount += last_pageOffset - first_pageOffset + 1;
         } else {
             t_ppn = translate(first_vpn);
-            Lib.assertTrue(pageTable[first_vpn].readOnly == false);
+            // Lib.assertTrue(pageTable[first_vpn].readOnly == false);
+            if(pageTable[first_vpn].valid == false || pageTable[first_vpn].readOnly == true)
+                return amount;
             System.arraycopy(data, offset, memory, t_ppn * pageSize + first_pageOffset, pageSize - first_pageOffset);
             offset += pageSize - first_pageOffset;
             amount += pageSize - first_pageOffset;
 
             for (int i = first_vpn + 1; i < last_vpn; i++) {
                 t_ppn = translate(i);
-                Lib.assertTrue(pageTable[i].readOnly == false);
+                // Lib.assertTrue(pageTable[i].readOnly == false);
+                if(pageTable[i].valid == false || pageTable[i].readOnly == true)
+                    return amount;
                 System.arraycopy(data, offset, memory, t_ppn * pageSize, pageSize);
                 offset += pageSize;
                 amount += pageSize;
             }
 
             t_ppn = translate(last_vpn);
-            Lib.assertTrue(pageTable[last_vpn].readOnly == false);
+            // Lib.assertTrue(pageTable[last_vpn].readOnly == false);
+            if(pageTable[last_vpn].valid == false || pageTable[last_vpn].readOnly == true)
+                return amount;
             System.arraycopy(data, offset, memory, t_ppn * pageSize, last_pageOffset + 1);
             amount += last_pageOffset + 1;
         }
@@ -378,7 +394,7 @@ public class UserProcess {
         }
 
         for (int i=0; i < numPages; i++) {
-            Lib.assertTrue(!UserKernel.freePages.isEmpty());
+            // Lib.assertTrue(!UserKernel.freePages.isEmpty());
             pageTable[i] = new TranslationEntry(i, getNewPage(), true, false, false, false);
         }
 
@@ -403,7 +419,7 @@ public class UserProcess {
         numPages += stackPages;
 
         for (int i = numPages - stackPages; i < numPages; i++) {
-            Lib.assertTrue(!UserKernel.freePages.isEmpty());
+            // Lib.assertTrue(!UserKernel.freePages.isEmpty());
             pageTable[i] = new TranslationEntry(i, getNewPage(), true, false, false, false);
         }
 
