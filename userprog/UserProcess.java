@@ -42,7 +42,7 @@ public class UserProcess {
         freeDescriptors = new LinkedList<Integer>(Arrays.asList(2,3,4,5,6,7,8,9,10,11,12,13,14,15));
 
         allProc.put(PID, this);
-        System.out.println("new proc ID = " + PID + ", now " + allProc.size() + " procs");
+        // System.out.println("new proc ID = " + PID + ", now " + allProc.size() + " procs");
     }
 
     /**
@@ -428,8 +428,6 @@ public class UserProcess {
         // and finally reserve 1 page for arguments
         numPages++;
         pageTable[numPages - 1] = new TranslationEntry(numPages - 1, getNewPage(), true, false, false, false);
-
-        System.out.println("PAGES = " + numPages);
 
         if (!loadSections())
             return false;
