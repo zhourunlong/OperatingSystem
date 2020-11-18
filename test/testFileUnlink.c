@@ -18,14 +18,14 @@ int main(void) {
   
   fileDescriptor = open("testFileUnlink.file");
   printf("Open testFileUnlink.file as file #%d.\n", fileDescriptor);
-  readCount = read(fileDescriptor, buffer, 9);
-  buffer[9] = 0;
+  readCount = read(fileDescriptor, buffer, 4);
+  buffer[4] = 0;
   printf("Read %d characters from file #%d (testFileUnlink.file): \"%s\".\n", readCount, fileDescriptor, buffer);
   
   deleteFlag = unlink("testFileUnlink.file");
   printf("[CRITICAL] Mark testFileUnlink.file as unlinked, but do not delete at once: flag = %d.\n", deleteFlag);
 
-  readCount = read(fileDescriptor, buffer, 9);
+  readCount = read(fileDescriptor, buffer+4, 5);
   buffer[9] = 0;
   printf("[CRITICAL] We may still read from file #%d (testFileUnlink.file): %d characters, \"%s\".\n", fileDescriptor, readCount, buffer);
   

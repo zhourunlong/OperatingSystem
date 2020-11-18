@@ -173,20 +173,83 @@
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 % Begin edit from here
 
-\begin{homeworkProblem}[child\_*.c]
+\begin{homeworkProblem}[Tests for File Management Syscalls]
 
-\texttt{child\_1} invokes \texttt{child\_2} first and waits for its finish.
-Then \texttt{child\_1} outputs its own text. Finally, it invokes
-\texttt{child\_3}, which contains an infinite loop. In this test, the bash
-will never exit.
+  The listed C programs test different features of the file management syscalls.
+  
+  
+  \noindent\fbox{\textbf{\ttfamily testFileBasic.c}}
+  
+  This program tests the basic functionalities of \texttt{creat}, \texttt{open}, \texttt{read}, \texttt{write}, \texttt{close} and \texttt{unlink}:
+  \begin{itemize}
+    \item open \texttt{testFileBasic0.file}, read the content (``Reading.''), and then close the file;
+    \item create \texttt{testFileBasic1.file}, write the content (``Writing.''), and close the file; then reopen it for reading to verify whether we have successfully written;
+    \item simultaneously handle two files \texttt{testFileBasic1.file} and \texttt{testFileBasic2.file} (creating, writing some new content (``Rewrite.'') and closing);
+    \item check the content of \texttt{testFileBasic1.file} to verify that \texttt{creat} successfully overwrites an exiting file;
+    \item delete \texttt{testFileBasic2.file}.
+  \end{itemize}
+  
+  \noindent\fbox{\textbf{\ttfamily testFileMultiple.c}}
+  
+  This program tests whether the syscalls correctly manage multiple files:
+  \begin{itemize}
+    \item try to create 16 files (\texttt{testFileMultiple**.file}); since two file descriptors have been occupied by \texttt{stdin} and \texttt{stdout}, the last two attempts should fail and return $-1$, while other attempts should return the correct descriptors (in default settings, $2$ through $15$ are allocated);
+    \item write some initial content (``Testing.'') to all 14 files and close them;
+    \item recreate the first 7 files with some new content (``Rewrite.'');
+    \item open all 14 files, examine their contents and close them.
+  \end{itemize}
+  
+  \noindent\fbox{\textbf{\ttfamily testFileBig.c}}
+  
+  This program tests whether we can correctly read and write big files (files longer than one page):
+  \begin{itemize}
+    \item first write 2048 characters into a newly created file \texttt{testFileBig.file}, and close it;
+    \item then reopen it and read its contents for verification (we cannot print due to restrictions of \texttt{stdout}).
+  \end{itemize}
+  
+  \noindent\fbox{\textbf{\ttfamily testFileError.c}}
+  
+  This program tests some common erroneous file operations (for which the kernel should not crash):
+  \begin{itemize}
+    \item open and unlink non-existing files (should return $-1$);
+    \item read and write unallocated file descriptors (should return $-1$);
+    \item test for the case where read/write length is larger than the buffer size (in the last case, even writing the entire virtual memory into a file); however, this should not trigger any exception with C, since memory leak is not regarded as an error (as long as the memory addresses are valid);
+    \item test for the case where read/write length is $0$;
+    \item try to close \texttt{stdin} and \texttt{stdout} (note that after closing \texttt{stdout}, we cannot output any characters to the console, and any further \texttt{write} syscall will lead to errors).
+  \end{itemize}
+  
+  \noindent\fbox{\textbf{\ttfamily testFileUnlink.c}}
+  
+  This program tests for the case where we try to unlink an open file (postponed deletion until closing is expected) and read file contents before closing it (this is valid, since unlink does nothing before closing).
+  
+  However, it seems that the file system does not support delayed unlink, so the \texttt{unlink} syscall directly fails and returns $-1$ (unsuccessful deletion), while the program runs straight to the end. As discussed online, this should be regarded as a bug of NachOS internals (beyond our implementations).
+  
+  \noindent\fbox{\textbf{\ttfamily testFileConflict.c} and \textbf{\ttfamily testFileConflictChild.c}}
+  
+  This program tests for the case where multiple processes try to open (or even overwrite) the same file. In a typical OS, multiple opening is allowed, but overwriting should be illegal. However, NachOS does not guarantee to handle this correctly, which should also be regarded as a bug of NachOS internals.
 
 \end{homeworkProblem}
 
-\begin{homeworkProblem}[text\_halt.c]
 
-This program plays the role as an evil user who invokes \texttt{halt()}. In
+
+\begin{homeworkProblem}[Tests for Process Management Syscalls]
+
+  \noindent\fbox{\textbf{\ttfamily child\_*.c}}
+  
+  \texttt{child\_1} invokes \texttt{child\_2} first and waits for its finish.
+Then \texttt{child\_1} outputs its own text. Finally, it invokes
+\texttt{child\_3}, which contains an infinite loop. In this test, the bash
+will never exit.
+  
+  \noindent\fbox{\textbf{\ttfamily text\_halt.c}}
+  
+  This program plays the role as an evil user who invokes \texttt{halt()}. In
 this test, the OS prints error message to console and the bash does not really
 halt.
+
+  \noindent\fbox{\textbf{\ttfamily textExecNesting.c}}
+  
+  This program tests for nested \texttt{exec} calls, which receives a parameter $n$. When $n > 0$, it runs another instance of itself with parameter $(n-1)$; when $n = 0$, it executes \texttt{testFileMultiple.c}. Due to the limited memory size by default, we shall never run 5 processes simultaneously, so only the case $n=1$ succeeds, while any larger $n$ will results in early returning (and no-free-memory error messages). 
 
 \end{homeworkProblem}
 
