@@ -20,7 +20,7 @@ int main(int argc, char** argv)
   } else {
       sprintf(argv[1], "%d", r-1);
       printf("Executing next-level recursion with parameter %s.\n", argv[1]);
-      cpid = exec("testFileExec.coff", argc, argv);
+      cpid = exec("testExecNesting.coff", argc, argv);
   }
   int flag = join(cpid, &status);
   return status;

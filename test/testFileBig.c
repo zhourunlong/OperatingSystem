@@ -39,6 +39,8 @@ int main(void) {
   printf("Close file testFileBig.file to delete it: flag = %d.\n", closeFlag);
   deleteFlag = unlink("testFileBig.file");
   printf("Delete file testFileBig.file: flag = %d.\n", deleteFlag);
+  printf("========================================\n\n");
   
+  printf("Big file operation test successfully done.\n");
   return 0;
 }
