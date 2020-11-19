@@ -255,6 +255,17 @@ halt.
 
 \end{homeworkProblem}
 
+
+
+\begin{homeworkProblem}[Test for Memory Management]
+
+  \noindent\fbox{\textbf{\ttfamily testMemoryStack.c} and \textbf{\ttfamily testMemoryStatic.c}}
+  
+  This program tests for the layout of different sections within memory. Note that the 10000-byte buffer is allocated in the stack in \texttt{testMemoryStack.c}, and it is allocated in the static section in \texttt{testMemoryStatic.c}. Since the stack always covers 8 pages, the stack version will overflow, and overwrite part of the file name (\texttt{char*} in stack) so that the file opening operation fails; while the static version runs smoothly. \textit{(This is an interesting overflow ``bug'' we met in testing; we only include it here for fun.)}
+
+\end{homeworkProblem}
+
+
 \begin{homeworkProblem}[Test for Lottery Scheduler]
 
 Basically, we reuse the tests for schedulers in project 1. 
@@ -266,6 +277,8 @@ Basically, we reuse the tests for schedulers in project 1.
 	\noindent \fbox{\textbf{\ttfamily Condition2.schedulerTest()}}
 
 	Test (\texttt{Condition2.schedulerTest}) relies on the Consumer-Producer model to test whether the queue is correctly organized when the number of consumers get larger. 
+
+\end{homeworkProblem}
 
 % End edit to here
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
