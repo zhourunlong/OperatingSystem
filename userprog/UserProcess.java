@@ -346,6 +346,7 @@ public class UserProcess {
         UserKernel.lockForPages.acquire();
 
         if(UserKernel.freePages.isEmpty()) {
+            UserKernel.lockForPages.release();
             handleExit(-1);
             return -1;
         }
