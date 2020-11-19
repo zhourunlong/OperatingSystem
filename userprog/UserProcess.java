@@ -345,6 +345,11 @@ public class UserProcess {
     private int getNewPage() {
         UserKernel.lockForPages.acquire();
 
+        if(UserKernel.freePages.isEmpty()) {
+            handleExit(0);
+            return -1;
+        }
+
         Lib.assertTrue(!UserKernel.freePages.isEmpty());
         int freePageNumber = UserKernel.freePages.removeFirst();
 
@@ -499,8 +504,11 @@ public class UserProcess {
      */
     protected void unloadSections() {
         for (int i = stackPages; i < numPages; i++) {
-            UserKernel.freePages.add(pageTable[i].ppn);
+            UserKernel.lockForPages.acquire();
+            if (translate(i) != -1)
+                UserKernel.freePages.add(translate(i));
             Lib.debug(dbgProcess, "Freeing page " + i);
+            UserKernel.lockForPages.release();
         }
         numPages = stackPages;
     }
@@ -810,8 +818,11 @@ public class UserProcess {
         allProc.remove(PID);
 
         for (int i = 0; i < numPages; i++) {
-            UserKernel.freePages.add(pageTable[i].ppn);
+            UserKernel.lockForPages.acquire();
+            if (translate(i) != -1)
+                UserKernel.freePages.add(translate(i));
             Lib.debug(dbgProcess, "Freeing page " + pageTable[i].ppn);
+            UserKernel.lockForPages.release();
         }
 
         System.out.println(PID + " exited, remain " + allProc.size() + " procs");

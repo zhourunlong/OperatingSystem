@@ -348,8 +348,8 @@ public class LotteryScheduler extends PriorityScheduler {
             for(Iterator<LotteryQueue> i = holding_resources.iterator(); i.hasNext(); ) {
                 LotteryQueue donating_queue = i.next();
                 int tmp_priority = donating_queue.getPrioritySum();
-                if(donating_queue.transferPriority)
-                    Sum = tmp_priority;
+                if(donating_queue.transferPriority && !donating_queue.waitQueue.containsKey(this))
+                    Sum += tmp_priority;
             }
             if(this.getEffectivePriority() == Sum + this.priority)
                 return ;
