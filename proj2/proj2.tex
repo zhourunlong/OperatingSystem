@@ -236,10 +236,12 @@
 
   \noindent\fbox{\textbf{\ttfamily child\_*.c}}
   
-  \texttt{child\_1} invokes \texttt{child\_2} first and waits for its finish.
-Then \texttt{child\_1} outputs its own text. Finally, it invokes
-\texttt{child\_3}, which contains an infinite loop. In this test, the bash
-will never exit.
+  \texttt{child\_1} invokes and joins \texttt{child\_2} first.
+Then \texttt{child\_1} does its own output. Finally, it invokes but does not join
+\texttt{child\_3}, which contains an infinite loop. 
+
+If directly call \texttt{child\_1}, the bash will never halt. If call \texttt{child\_1}
+in \texttt{sh}, the process \texttt{child\_3} will run in background.
   
   \noindent\fbox{\textbf{\ttfamily text\_halt.c}}
   
