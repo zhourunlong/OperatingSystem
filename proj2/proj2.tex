@@ -253,9 +253,20 @@ halt.
 
 \end{homeworkProblem}
 
+\begin{homeworkProblem}[Test for Lottery Scheduler]
+
+Basically, we reuse the tests for schedulers in project 1. 
+
+	\noindent \fbox{\textbf{\ttfamily Lock.schedulerTest() in Lock.java}}
+
+	We construct 9 threads which are waiting for a lock that is held by a thread with relatively low priority. Meanwhile, a thread with higher priority consumes CPU time as long as the lock is not free and it revokes the $yield$ function periodically. Without priority donation, thread 0 will be stuck forever. 
+
+	\noindent \fbox{\textbf{\ttfamily Condition2.schedulerTest()}}
+
+	Test (\texttt{Condition2.schedulerTest}) relies on the Consumer-Producer model to test whether the queue is correctly organized when the number of consumers get larger. 
+
 % End edit to here
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-
 \end{spacing}
 \end{document}
 
