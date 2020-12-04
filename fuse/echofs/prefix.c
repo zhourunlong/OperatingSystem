@@ -1,38 +1,59 @@
 #include "prefix.h" /* prefix directory cwd */
 
-char* directory = "bar";
-char* prefix = NULL;
-char* cwd = NULL;
+char* current_working_dir = NULL;
+char* mount_root_dir = NULL;
 
-char* resolve_prefix(const char* path) {
-  long long path_len = strlen(path);
-  long long prefix_len = strlen(prefix);
-  long long result_len = path_len + prefix_len + 1;
-  char* result = malloc(result_len * sizeof(char));
-  strcpy(result, prefix);
-  strcat(result, path);
-  return result;
+char* relative_to_absolute(const char* root, const char* path) {
+    int rlen = strlen(root), plen = strlen(path);
+    char* ret = malloc((rlen + plen + 10) * sizeof(char));
+    memcpy(ret, root, rlen * sizeof(char));
+    int rend = rlen;
+    if (ret[rend - 1] != '/')
+        ret[rend++] = '/';
+    for (int i = 0; i < plen;) {
+        if (i + 1 < plen && path[i] == '.' && path[i + 1] == '/') {
+            i += 2;
+            continue;
+        }
+        if (i + 2 < plen && path[i] == '.' && path[i + 1] == '.' && path[i + 2] == '/') {
+            i += 3;
+            if (rend <= 1) {
+                logger(ERROR, "invalid relative path!");
+                continue;
+            }
+            for (rend -= 2; rend >= 0 && ret[rend] != '/'; --rend);
+            ++rend;
+            continue;
+        }
+        for (int j = i; j < plen && path[j] != '/'; ++j) {
+            ret[rend++] = path[j];
+            i = j;
+        }
+        ret[rend++] = '/';
+        i += 2;
+    }
+    char* nret = malloc(rend * sizeof(char));
+    memcpy(nret, ret, rend * sizeof(char));
+    return nret;
 }
 
-void generate_prefix() {
-  long long cwd_len = 0;
-  do {
-    cwd_len += 10;
-    logger(DEBUG, "Attempting to copy cwd into buffer of size %lld\n", cwd_len);
-    if(cwd != NULL) {
-      free(cwd);
-    }
-    cwd = malloc(cwd_len * sizeof(char));
-    errno = 0;
-    getcwd(cwd, cwd_len * sizeof(char));
-    logger(DEBUG, "%s\n", strerror(errno));
-  } while(errno == ERANGE);
-  cwd_len = strlen(cwd);
-  logger(DEBUG, "Started in directory: %s (%lld)\n", cwd, cwd_len);
-  long long directory_len = strlen(directory);
-  long long prefix_len = cwd_len + directory_len + 2;
-  prefix = malloc(prefix_len * sizeof(char));
-  strcpy(prefix, cwd);
-  strcat(prefix, "/");
-  strcat(prefix, directory);
+char* resolve_prefix(const char* path) {
+    return relative_to_absolute(mount_root_dir, path);
+}
+
+void generate_prefix(const char* path) {
+    int cwd_len = 0;
+    do {
+        cwd_len += 10;
+        if (current_working_dir != NULL)
+            free(current_working_dir);
+        current_working_dir = malloc(cwd_len * sizeof(char));
+        errno = 0;
+        getcwd(current_working_dir, cwd_len * sizeof(char));
+    } while (errno == ERANGE);
+    current_working_dir = relative_to_absolute(current_working_dir, "./");
+    logger(DEBUG, "current working dir =\t%s\n", current_working_dir);
+    
+    mount_root_dir = relative_to_absolute(current_working_dir, path);
+    logger(DEBUG, "mount root dir =\t%s\n", mount_root_dir);
 }

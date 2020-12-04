@@ -6,12 +6,9 @@
 #include <stdlib.h> /* malloc free */
 #include <string.h> /* strcat strcpy */
 #include <errno.h> /* errno */
-// Directory is the passthrough directory we create for the filesystem
-char* directory;
-// Prefix is the directory aboved resolved to the cwd so it is an absolute path
-char* prefix;
-// The current working directory for the process
-char* cwd;
+char* current_working_dir;
+char* mount_root_dir;
+char* relative_to_absolute(const char*, const char*);
 char* resolve_prefix(const char*);
-void generate_prefix();
+void generate_prefix(const char*);
 #endif
