@@ -1,3 +1,4 @@
 fuse/echofs/*.o
 fuse/echofs/*.sh
 fuse/echofs/.sconsign.dblite
+fuse/echofs/fuse
