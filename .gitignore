@@ -1,0 +1,2 @@
+fuse/echofs/*.o
+fuse/echofs/*.sh
