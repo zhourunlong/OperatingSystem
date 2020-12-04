@@ -24,4 +24,4 @@ out = dict()
 env.ParseConfig('pkg-config --cflags fuse3', partial(ParseFlags, out))
 env.AppendUnique(**out)
 
-env.Program("fuse", Glob("*.c"))
+env.Program("fuse", Glob("*.cpp"))

@@ -28,6 +28,7 @@
 
 #include "./logger.h" /* set_log_level set_log_output logger */
 
+// Errorneous: unsupported initialization in C++.
 static struct fuse_operations ops = {
     .init = o_init,
     .destroy = o_destroy,
