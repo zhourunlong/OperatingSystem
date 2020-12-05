@@ -1,6 +1,8 @@
 #include "rename.h"
+#include "prefix.h"
 
 int o_rename(const char* from, const char* to, unsigned int flags) {
-  logger(ERROR, "UNIMPLEMENTED: rename, from: %s, to: %s\n", from, to);
-  return -1;
+    logger(DEBUG, "RENAME, %s, %s, %d\n",
+        resolve_prefix(from), resolve_prefix(to), flags);
+    return 0;
 }

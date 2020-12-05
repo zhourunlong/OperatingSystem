@@ -1,5 +1,6 @@
 #include "destroy.h"
+#include "prefix.h"
 
 void o_destroy(void* private_data) {
-  logger(ERROR, "UNIMPLEMENTED: destroy\n");
+    logger(DEBUG, "DESTROY, %p\n", private_data);
 }

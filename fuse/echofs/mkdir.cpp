@@ -1,11 +1,7 @@
-#include "./mkdir.h"
+#include "mkdir.h"
+#include "prefix.h"
 
 int o_mkdir(const char* path, mode_t mode) {
-  logger(
-    ERROR,
-    "UNIMPLEMENTED: mkdir, path: %s, mode: %lo\n",
-    path,
-    (unsigned long) mode
-  );
-  return -1;
+    logger(DEBUG, "MKDIR, %s, %d\n", resolve_prefix(path), mode);
+    return 0;
 }

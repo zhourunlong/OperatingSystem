@@ -1,6 +1,7 @@
 #include "release.h"
+#include "prefix.h"
 
 int o_release(const char* path, struct fuse_file_info* fi) {
-  logger(ERROR, "UNIMPLEMENTED: release, path: %s\n", path);
-  return -1;
+    logger(DEBUG, "RELEASE, %s, %p\n", resolve_prefix(path), fi);
+    return 0;
 }

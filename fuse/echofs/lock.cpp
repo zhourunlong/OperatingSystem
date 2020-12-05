@@ -1,4 +1,5 @@
 #include "lock.h"
+#include "prefix.h"
 
 int o_lock(
     const char* path,
@@ -6,6 +7,7 @@ int o_lock(
     int cmd,
     struct flock* locks
 ) {
-  logger(ERROR, "UNIMPLEMENTED: lock, path: %s\n", path);
-  return -1;
+    logger(DEBUG, "LOCK, %s, %p, %d, %p\n",
+        resolve_prefix(path), fi, cmd, locks);
+    return 0;
 }

@@ -1,6 +1,7 @@
 #include "rmdir.h"
+#include "prefix.h"
 
 int o_rmdir(const char* path) {
-  logger(ERROR, "UNIMPLEMENTED: rmdir, path: %s\n", path);
-  return -1;
+    logger(DEBUG, "RMDIR, %s\n", resolve_prefix(path));
+    return 0;
 }

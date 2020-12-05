@@ -1,6 +1,7 @@
 #include "statfs.h"
+#include "prefix.h"
 
 int o_statfs(const char* path, struct statvfs* stbuf) {
-  logger(ERROR, "UNIMPLEMENTED: statfs, path: %s\n", path);
-  return -1;
+    logger(DEBUG, "STATFS, %s, %p\n", resolve_prefix(path), stbuf);
+    return 0;
 }

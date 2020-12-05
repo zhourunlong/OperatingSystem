@@ -1,6 +1,8 @@
 #include "utimens.h"
+#include "prefix.h"
 
 int o_utimens(const char* path, const struct timespec ts[2], struct fuse_file_info *fi) {
-  logger(ERROR, "UNIMPLEMENTED: utimens, path: %s\n", path);
-  return -1;
+    logger(DEBUG, "UTIMENS, %s, %p, %p\n",
+        resolve_prefix(path), &ts, fi);
+    return 0;
 }

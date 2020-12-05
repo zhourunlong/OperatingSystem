@@ -1,4 +1,5 @@
 #include "read.h"
+#include "prefix.h"
 
 int o_read(
     const char* path,
@@ -7,6 +8,7 @@ int o_read(
     off_t offset,
     struct fuse_file_info* fi
 ) {
-  logger(ERROR, "UNIMPLEMENTED: read, path: %s\n", path);
-  return -1;
+    logger(DEBUG, "READ, %s, %p, %d, %d, %p\n",
+        resolve_prefix(path), buf, size, offset, fi);
+    return 0;
 }

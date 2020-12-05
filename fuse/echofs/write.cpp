@@ -1,4 +1,5 @@
 #include "write.h"
+#include "prefix.h"
 
 int o_write(
     const char* path,
@@ -7,6 +8,7 @@ int o_write(
     off_t offset,
     struct fuse_file_info* fi
 ) {
-  logger(ERROR, "UNIMPLEMENTED: write, path: %s\n", path);
-  return -1;
+    logger(DEBUG, "WRITE, %s, %p, %d, %d, %p\n",
+        resolve_prefix(path), buf, size, offset, fi);
+    return 0;
 }

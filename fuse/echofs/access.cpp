@@ -1,6 +1,7 @@
 #include "access.h"
+#include "prefix.h"
 
 int o_access(const char* path, int mode) {
-  logger(ERROR, "UNIMPLEMENTED: access, path: %s, mode: %d\n", path, mode);
-  return -1;
+    logger(DEBUG, "ACCESS, %s, %d\n", resolve_prefix(path), mode);
+    return 0;
 }
