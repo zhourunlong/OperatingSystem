@@ -5,7 +5,7 @@ char* mount_root_dir = NULL;
 
 char* relative_to_absolute(const char* root, const char* path) {
     int rlen = strlen(root), plen = strlen(path);
-    char* ret = malloc((rlen + plen + 10) * sizeof(char));
+    char ret[rlen + plen + 10];
     memcpy(ret, root, rlen * sizeof(char));
     int rend = rlen;
     if (ret[rend - 1] != '/')
@@ -32,8 +32,8 @@ char* relative_to_absolute(const char* root, const char* path) {
         ret[rend++] = '/';
         i += 2;
     }
-    char* nret = malloc(rend * sizeof(char));
-    memcpy(nret, ret, rend * sizeof(char));
+    char nret[rend];
+    memcpy(nret, ret, sizeof(nret));
     return nret;
 }
 
@@ -47,7 +47,7 @@ void generate_prefix(const char* path) {
         cwd_len += 10;
         if (current_working_dir != NULL)
             free(current_working_dir);
-        current_working_dir = malloc(cwd_len * sizeof(char));
+        current_working_dir = (char*)malloc(cwd_len * sizeof(char));
         errno = 0;
         getcwd(current_working_dir, cwd_len * sizeof(char));
     } while (errno == ERANGE);

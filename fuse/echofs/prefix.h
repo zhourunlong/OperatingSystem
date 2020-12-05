@@ -6,8 +6,7 @@
 #include <stdlib.h> /* malloc free */
 #include <string.h> /* strcat strcpy */
 #include <errno.h> /* errno */
-char* current_working_dir;
-char* mount_root_dir;
+
 char* relative_to_absolute(const char*, const char*);
 char* resolve_prefix(const char*);
 void generate_prefix(const char*);
