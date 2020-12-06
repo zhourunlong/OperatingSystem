@@ -5,14 +5,16 @@ char* mount_root_dir = NULL;
 
 const int SC = sizeof(char);
 
-char* relative_to_absolute(const char* root, const char* path) {
+char* relative_to_absolute(const char* root, const char* path, const int bgi = 0) {
     int rlen = strlen(root), plen = strlen(path);
+
     char* ret = (char *)malloc((rlen + plen + 10) * SC);
     memcpy(ret, root, rlen * SC);
+    ret[rlen] = 0;
     int rend = rlen;
     if (ret[rend - 1] != '/')
         ret[rend++] = '/';
-    for (int i = 0; i < plen;) {
+    for (int i = bgi; i < plen;) {
         if (i + 1 < plen && path[i] == '.' && path[i + 1] == '/') {
             i += 2;
             continue;
@@ -34,13 +36,16 @@ char* relative_to_absolute(const char* root, const char* path) {
         ret[rend++] = '/';
         i += 2;
     }
-    char* nret = (char *)malloc(rend * SC);
+    if (path[plen - 1] != '/')
+        --rend;
+    char* nret = (char *)malloc((rend + 1)* SC);
     memcpy(nret, ret, rend * SC);
+    nret[rend] = 0;
     return nret;
 }
 
 char* resolve_prefix(const char* path) {
-    return relative_to_absolute(mount_root_dir, path);
+    return relative_to_absolute(mount_root_dir, path, path[0] == '/');
 }
 
 void generate_prefix(const char* path) {

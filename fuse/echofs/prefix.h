@@ -7,7 +7,7 @@
 #include <string.h> /* strcat strcpy */
 #include <errno.h> /* errno */
 
-char* relative_to_absolute(const char*, const char*);
+char* relative_to_absolute(const char*, const char*, const int);
 char* resolve_prefix(const char*);
 void generate_prefix(const char*);
 #endif
