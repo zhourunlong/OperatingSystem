@@ -26,6 +26,7 @@
 #include "fsyncdir.h" /* o_fsyncdir */
 #include "flush.h" /* o_flush */
 #include "lock.h" /* o_lock */
+#include "create.h" /* o_create */
 
 #include <fuse.h> /* fuse_main */
 

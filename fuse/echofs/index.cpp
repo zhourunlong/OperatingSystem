@@ -23,6 +23,7 @@ struct fuse_operations ops = {
     .init = o_init,
     .destroy = o_destroy,
     .access = o_access,
+    .create = o_create,
     .lock = o_lock,
     .utimens = o_utimens,
 };
