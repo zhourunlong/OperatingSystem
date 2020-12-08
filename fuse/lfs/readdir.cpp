@@ -7,16 +7,18 @@ int o_readdir(const char* path, void* buf, fuse_fill_dir_t filler, off_t offset,
     logger(DEBUG, "READDIR, %s, %p, %p, %d, %p, %d\n",
         resolve_prefix(path), buf, &filler, offset, fi, flags);
     
-    (void) offset;
-	(void) fi;
-	(void) flags;
+    int opendir_err = o_opendir(path, fi);
+    if (opendir_err != 0)
+        return opendir_err;
 
-	if (strcmp(path, "/") != 0)
-		return -ENOENT;
-
-	filler(buf, ".", NULL, 0, (fuse_fill_dir_flags)0);
-	filler(buf, "..", NULL, 0, (fuse_fill_dir_flags)0);
-	filler(buf, options.filename, NULL, 0, (fuse_fill_dir_flags)0);
+    filler(buf, ".", NULL, 0, (fuse_fill_dir_flags)0);
+    filler(buf, "..", NULL, 0, (fuse_fill_dir_flags)0);
+    
+    struct block = read_from_xxx(fi->fh);
+    while (block) {
+        filler(buf, options.filename, NULL, 0, (fuse_fill_dir_flags)0);
+        block = read_
+    }
     
     return 0;
 }
