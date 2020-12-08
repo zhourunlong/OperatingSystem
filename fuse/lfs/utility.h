@@ -110,7 +110,7 @@ struct checkpoint_entry {
     int count_inode;                   // Current number of inodes (monotone increasing).
     int cur_segment;                   // Next available segment.
     int cur_block;                     // Next available block (in the segment).
-    int root_dir_inode;                // Current inode number of root directory.
+    int root_dir_inumber;              // Current inode number of root directory.
     int timestamp;                     // Timestamp of last change to this checkpoint.
 };
 typedef struct checkpoint_entry checkpoints[2];
@@ -142,7 +142,7 @@ int write_superblock(void* buf);
 extern int file_handle;
 extern char segment_buffer[SEGMENT_SIZE];
 extern int inode_table[MAX_NUM_INODE];
-extern int count_inode, cur_segment, cur_block;  // cur_block is the last block WITH data.
-extern int root_dir_inode;
+extern int count_inode, cur_segment, cur_block;  // cur_block is the first available block.
+extern int root_dir_inumber;
 
 const int FILE_SIZE = SEGMENT_SIZE * TOT_SEGMENTS + IMAP_SIZE + SUMMARY_SIZE;

@@ -6,7 +6,7 @@ int file_handle;
 char segment_buffer[SEGMENT_SIZE];
 int inode_table[MAX_NUM_INODE];
 int count_inode, cur_segment, cur_block;
-int root_dir_inode;
+int root_dir_inumber;
 
 
 /** read_block

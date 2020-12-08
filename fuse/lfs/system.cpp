@@ -85,9 +85,9 @@ void* o_init(struct fuse_conn_info* conn, struct fuse_config* cfg) {
 
         count_inode = 1;
         cur_segment = 0;
-        cur_block = 1;
+        cur_block = 2;
         inode_table[1] = 1;
-        root_dir_inode = 1;
+        root_dir_inumber = 1;
 
         logger(DEBUG, "Successfully initialized the file system.\n");
     } else {
@@ -114,10 +114,10 @@ void* o_init(struct fuse_conn_info* conn, struct fuse_config* cfg) {
         count_inode = ckpt[latest_index].count_inode;
         cur_segment = ckpt[latest_index].cur_segment;
         cur_block = ckpt[latest_index].cur_block;
-        root_dir_inode = ckpt[latest_index].root_dir_inode;
+        root_dir_inumber = ckpt[latest_index].root_dir_inumber;
         if ((count_inode <= 0) || (cur_segment < 0) || (cur_segment >= TOT_SEGMENTS) \
                                || (cur_block < 0) || (cur_block >= BLOCKS_IN_SEGMENT) \
-                               || (root_dir_inode <= 0) || (root_dir_inode >= TOT_INODES)) {
+                               || (root_dir_inumber <= 0) || (root_dir_inumber >= TOT_INODES)) {
             logger(ERROR, "Corrupt file system on disk. Please erase it and re-initiallize.\n");
             exit(-1);
         }

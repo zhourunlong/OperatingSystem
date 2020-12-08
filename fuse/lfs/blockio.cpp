@@ -33,17 +33,71 @@ int locate(char* _path, int &i_number) {
     }
 
     // Traverse split path from LFS root directory.
-    int cur_inode = root_dir_inode;
+    int cur_inumber = root_dir_inumber;
+    inode block_inode;
+    directory block_dir;
+    bool flag;
+    std::string target;
+    for (int d=0; d<split_path.size(); d++) {
+        read_block(block_inode, cur_inumber);
+        target = split_path[d];
+        flag = true;
+        while (flag) {
+            for (int i=0; i<NUM_INODE_DIRECT; i++) {
+                if (block_inode.direct[i] == 0)
+                    continue;
+                read_block(block_dir, block_inode.direct[i]);
+
+                for (int j=0; j<MAX_DIR_ENTRIES; j++) {
+                    if (block_dir.dir_entry[j].i_number <= 0)
+                        continue;
+                    if (block_dir.dir_entry[j].filename == target) {
+                        cur_inumber = block_dir.dir_entry[j].i_number;
+                        flag = false;
+                        break;
+                    }
+                }
+
+                if (flag) break;
+            }
+            if (flag) break;
+
+            if (block_inode.next_indirect == 0)
+                break;
+            read_block(block_inode, block_inode.next_indirect);
+        }
+
+        if (!flag)
+            return -2;  // File or directory does not exist.
+    }
+
+    i_number = cur_inumber;
+    return 0;
+}
+
+int get_block(void* data, int block_addr) {
+    int segment = block_addr / BLOCKS_IN_SEGMENT;
+    int block = block_addr % BLOCKS_IN_SEGMENT;
+
+    if (segment == cur_segment) {    // Data in segment buffer.
+        int buffer_offset = block * BLOCK_SIZE;
+        memcpy(data, segment_buffer + buffer_offset, BLOCKSIZE);
+    } else {    // Data in disk file.
+        read_block(data, block_addr);
+    }
+    return 0;
+}
+
+int new_block(void* data) {
+    int buffer_offset = cur_block * BLOCK_SIZE;
+    memcpy(segment_buffer + buffer_offset, data, BLOCK_SIZE);
     
-
-
-    return 0;
-}
-
-int get_block(int block_addr, void* data){
-    return 0;
-}
-
-int new_block(void* data){
+    if (cur_block == BLOCKS_IN_SEGMENT) {    // Segment buffer is full, and should be flushed to disk file.
+        write_segment(segment_buffer, cur_segment);
+        cur_segment++;
+        cur_block = 0;
+    } else {    // Segment buffer is not full yet.
+        cur_block++;
+    }
     return 0;
 }
