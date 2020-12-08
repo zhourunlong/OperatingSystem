@@ -6,6 +6,7 @@
 const int BLOCK_SIZE = 1024;
 const int SEGMENT_SIZE = 1048576;
 const int BLOCKS_IN_SEGMENT = 1024;
+const int TOT_SEGMENTS = 100;
 
 typedef char block[BLOCK_SIZE];
 
@@ -14,6 +15,7 @@ typedef char block[BLOCK_SIZE];
  * File logical structures.
  ****************************************/
 /** Inode block
+ * CAUTION: Also used as indirect blocks, in which case i_number = -1.
  */
 const int MAX_NUM_INODE = 100000;
 const int NUM_INODE_DIRECT = 240;
@@ -35,13 +37,6 @@ struct inode {
     int next_indirect;             // Pointer to the next indirect block.  
 };
 
-/** Indirect block
- */
-const int NUM_INDIR_DIRECT = 255;
-struct indirect {
-    int direct[NUM_INDIR_DIRECT];  // Array of direct pointers.
-    int next_indirect;             // Pointer to the next indirect block.  
-};
 
 /** Directory data block
  */
@@ -88,10 +83,12 @@ typedef struct summary_entry segment_summary[MAX_SUMMARY_ENTRIES];
 /****************************************
  * File-system logical structures.
  ****************************************/
-extern int TOT_INODES, TOT_BLOCKS, TOT_SEGMENTS;
+extern int TOT_INODES, TOT_BLOCKS;
 
 /** Superblock
  */
+const int SUPERBLOCK_ADDR = BLOCK_SIZE + TOT_SEGMENTS * SEGMENT_SIZE;
+const int SUPERBLOCK_SIZE = 20;
 struct superblock {
     int tot_inodes;    // [CONST] Maximum number of inodes.
     int tot_blocks;    // [CONST] Maximum number of blocks.
@@ -103,9 +100,10 @@ struct superblock {
 /** Checkpoint block
  * CAUTION: we should assign 2 checkpoints and use them in turns.
  */
-const int MAX_NUM_SEGMENTS = 128;
+const int CHECKPOINT_ADDR = BLOCK_SIZE + TOT_SEGMENTS * SEGMENT_SIZE + BLOCK_SIZE;
+const int CHECKPOINT_SIZE = 2 * (16+TOT_SEGMENTS);
 struct checkpoint_entry {
-    char segment_bitmap[MAX_NUM_SEGMENTS];  // Indicate whether each segment is alive.
+    char segment_bitmap[TOT_SEGMENTS]; // Indicate whether each segment is alive.
     int count_inode;                   // Current number of inodes (monotone increasing).
     int cur_segment;                   // Next available segment.
     int cur_block;                     // Next available block (in the segment).
@@ -117,10 +115,12 @@ typedef struct checkpoint_entry checkpoints[2];
 /****************************************
  * Functions for actual file reads / writes.
  ****************************************/
-int read_block();
-int read_segment_imap();
-int read_segment_summary();
-int write_segment();
+int read_block(void* buf, int block_addr);
+int read_segment_imap(void* buf, int segment_addr);
+int read_segment_summary(void* buf, int segment_addr);
+int read_checkpoints(void* buf);
+int write_segment(void* buf, int segment_addr);
+int write_superblock(void* buf);
 
 
 /****************************************
@@ -130,3 +130,5 @@ extern int file_handle;
 extern char segment_buffer[SEGMENT_SIZE];
 extern int inode_table[MAX_NUM_INODE];
 extern int count_inode, cur_segment, cur_block;
+
+const int FILE_SIZE = SEGMENT_SIZE * TOT_SEGMENTS + BLOCK_SIZE + IMAP_SIZE + SUMMARY_SIZE;
