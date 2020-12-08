@@ -1,7 +1,7 @@
 #include "file.h"
 
 #include "logger.h"
-#include "prefix.h"
+#include "path.h"
 #include "index.h"
 
 extern struct options options;

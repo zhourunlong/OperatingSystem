@@ -3,7 +3,7 @@
 #include "logger.h"
 #include "utility.h"
 #include "blockio.h"
-#include "prefix.h"
+#include "path.h"
 
 #include <unistd.h>
 #include <string.h>
@@ -18,17 +18,15 @@ void* o_init(struct fuse_conn_info* conn, struct fuse_config* cfg) {
     (void) conn;
 	cfg->kernel_cache = 1;
 
-    /* ******************************
-     * Initialize segment buffer in memory.
-     * ******************************/
-    memset(segment_buffer, 0, sizeof(segment_buffer));
 
-    /* ******************************
+    memset(segment_buffer, 0, sizeof(segment_buffer));
+    /* ****************************************
      * Create / open LFS from disk.
-     * ******************************/
+     * ****************************************/
     std::string lfs_path = current_working_dir;
     lfs_path += "lfs.data";
-    if (access(lfs_path.c_str(), R_OK) != 0) {
+
+    if (access(lfs_path.c_str(), R_OK) != 0) {    // Disk file does not exist.
         logger(WARN, "Disk file (lfs.data) does not exist. Try to create and initialize to 0.\n");
         
         // Create a file.
@@ -88,6 +86,8 @@ void* o_init(struct fuse_conn_info* conn, struct fuse_config* cfg) {
         cur_block = 2;
         inode_table[1] = 1;
         root_dir_inumber = 1;
+        next_checkpoint = 0;
+        memset(segment_bitmap, 0, sizeof(segment_bitmap));
 
         logger(DEBUG, "Successfully initialized the file system.\n");
     } else {
@@ -100,17 +100,16 @@ void* o_init(struct fuse_conn_info* conn, struct fuse_config* cfg) {
         logger(DEBUG, "Successfully opened an existing file system.\n");
 
 
-        /* ******************************
-        * Read the (newer) checkpoint.
-        * ******************************/
+        // Read the (newer) checkpoint.
         checkpoints ckpt;
         read_checkpoints(&ckpt);
 
         int latest_index = 0;
         if (ckpt[0].timestamp < ckpt[1].timestamp)
             latest_index = 1;
+        next_checkpoint = 1 - latest_index;
 
-        char* seg_bitmap = ckpt[latest_index].segment_bitmap;
+        memcpy(segment_bitmap, ckpt[latest_index].segment_bitmap, sizeof(segment_bitmap));
         count_inode = ckpt[latest_index].count_inode;
         cur_segment = ckpt[latest_index].cur_segment;
         cur_block = ckpt[latest_index].cur_block;
@@ -122,13 +121,10 @@ void* o_init(struct fuse_conn_info* conn, struct fuse_config* cfg) {
             exit(-1);
         }
 
-
-        /* ******************************
-        * Initialize (simulated) inode table in memory.
-        * ******************************/
+        // Initialize inode table in memory (by simulation).
         memset(inode_table, 0, sizeof(inode_table));
         for (int seg=0; seg<TOT_SEGMENTS; seg++) {
-            if (seg_bitmap[seg] == 1) {
+            if (segment_bitmap[seg] == 1) {
                 inode_map imap;
                 imap_entry im_entry;
 
@@ -143,6 +139,10 @@ void* o_init(struct fuse_conn_info* conn, struct fuse_config* cfg) {
                 }
             }
         }
+
+        // Initialize segment buffer in memory.
+        read_segment(segment_buffer, cur_segment);
+        memset(segment_buffer + cur_block*BLOCK_SIZE, 0, (BLOCKS_IN_SEGMENT-cur_block)*BLOCK_SIZE);
     }
     
     
@@ -152,4 +152,7 @@ void* o_init(struct fuse_conn_info* conn, struct fuse_config* cfg) {
 
 void o_destroy(void* private_data) {
     logger(DEBUG, "DESTROY, %p\n", private_data);
+    
+    // Save LFS to disk.
+    generate_checkpoint();
 }

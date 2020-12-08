@@ -4,9 +4,9 @@
 // "empty" inode = 0,
 // "empty" block address = -1.
 
-/****************************************
+/** **************************************
  * Basic physical structure.
- ****************************************/
+ * ***************************************/
 const int BLOCK_SIZE = 1024;
 const int SEGMENT_SIZE = 1048576;
 const int BLOCKS_IN_SEGMENT = 1024;
@@ -16,11 +16,18 @@ const int TOT_INODES = 100000;
 typedef char block[BLOCK_SIZE];
 
 
-/****************************************
+
+/** **************************************
  * File logical structures.
- ****************************************/
-/** Inode block
- * CAUTION: Also used as indirect blocks, in which case i_number = -1.
+ * ***************************************/
+
+/** Inode Block: maintaining metadata of files / directories.
+ * i_number: a positive integer (0 stands for an "empty" inode).
+ * mode: 1 = file, 2 = dir; use -1 to indicate indirect blocks,
+ *       which are not headers and cannot be directly accessed.
+ * direct: direct pointers to data blocks.
+ * next_indirect: [CAUTION] inode number of the next indirect block.
+ *                We use "ghost" inode numbers to facilitate efficient modification of inodes.
  */
 const int MAX_NUM_INODE = 100000;
 const int NUM_INODE_DIRECT = 242;
@@ -39,11 +46,11 @@ struct inode {
     int mtime;         // [VAR] Last modify time.
     int ctime;         // [VAR] Last change time.
     int direct[NUM_INODE_DIRECT];  // Array of direct pointers.
-    int next_indirect;             // Pointer to the next indirect block.  
+    int next_indirect;             // Inode number of the next indirect block.  
 };
 
 
-/** Directory data block
+/** Directory Data Block: maintaining structure within a directory file.
  */
 const int MAX_FILENAME_LEN = 28;
 const int MAX_DIR_ENTRIES = 32;
@@ -54,41 +61,40 @@ struct dir_entry {
 typedef struct dir_entry directory[MAX_DIR_ENTRIES];
 
 
-/****************************************
+/** **************************************
  * Segment logical structures.
- ****************************************/
+ * ***************************************/
 const int IMAP_SIZE = 8 * BLOCK_SIZE;
 const int SUMMARY_SIZE = 8 * BLOCK_SIZE;
 const int IMAP_OFFSET = SEGMENT_SIZE - IMAP_SIZE - SUMMARY_SIZE;
 const int SUMMARY_OFFSET = SEGMENT_SIZE - IMAP_SIZE;
 
-/** Inode-map data block
- * Random storation.
- * CAUTION: we should include 8 inode-map blocks in each segment.
+/** Inode-Map Data Block: tracing all inodes within the segment.
+ * This is a dictionary, where i_number is "key" and inode_block is "value".
+ * Random (and possibly non-consecutive) storation is allowed.
+ * Inode maps are always read and written in chunks (there are 8 of them) for each segment.
  */
-const int MAX_IMAP_ENTRIES = 128;
 struct imap_entry {
     int i_number;          // Inode number.
     int inode_block;       // Index of the inode block.
 };
-typedef struct imap_entry inode_map[MAX_IMAP_ENTRIES];
+typedef struct imap_entry inode_map[BLOCKS_IN_SEGMENT];
 
-/** Segment summary block
- * Sequential storation.
- * CAUTION: we should include 8 summary blocks in each segment.
+/** Segment Summary Block: tracing all blocks within the segment.
+ * This is a vector, so sequential storation is required.
+ * Segment summaries are always read and written in chunks (there are 8 of them) for each segment.
  */
-const int MAX_SUMMARY_ENTRIES = 128;
 struct summary_entry {
     int i_number;          // Inode number of corresponding file.
     int block_offset;      // Block offset in corresponding file.
 };
-typedef struct summary_entry segment_summary[MAX_SUMMARY_ENTRIES];
+typedef struct summary_entry segment_summary[BLOCKS_IN_SEGMENT];
 
 
-/****************************************
+/** **************************************
  * File-system logical structures.
- ****************************************/
-/** Superblock
+ * ***************************************/
+/** Superblock: recording basic information (constants) about LFS.
  */
 const int SUPERBLOCK_ADDR = TOT_SEGMENTS * SEGMENT_SIZE;
 const int SUPERBLOCK_SIZE = 20;
@@ -100,8 +106,8 @@ struct superblock {
     int segment_size;  // [CONST] Size of a segment (in bytes).
 };
 
-/** Checkpoint block
- * CAUTION: we should assign 2 checkpoints and use them in turns.
+/** Checkpoint Block: recording periodical checkpoints of volatile information.
+ * We should assign 2 checkpoints and use them in turns (for failure restoration).
  */
 const int CHECKPOINT_ADDR = TOT_SEGMENTS * SEGMENT_SIZE + BLOCK_SIZE;
 const int CHECKPOINT_SIZE = 2 * (20+TOT_SEGMENTS);
@@ -116,11 +122,13 @@ struct checkpoint_entry {
 typedef struct checkpoint_entry checkpoints[2];
 
 
-/****************************************
+/** **************************************
  * Functions for actual file reads / writes.
- ****************************************/
+ * ***************************************/
 int read_block(void* buf, int block_addr);
 int write_block(void* buf, int block_addr);
+
+int read_segment(void* buf, int segment_addr);
 int write_segment(void* buf, int segment_addr);
 
 int read_segment_imap(void* buf, int segment_addr);
@@ -136,13 +144,14 @@ int read_superblock(void* buf);
 int write_superblock(void* buf);
 
 
-/****************************************
+/** **************************************
  * Global state variables.
- ****************************************/
+ * ***************************************/
 extern int file_handle;
 extern char segment_buffer[SEGMENT_SIZE];
+extern char segment_bitmap[TOT_SEGMENTS];
 extern int inode_table[MAX_NUM_INODE];
 extern int count_inode, cur_segment, cur_block;  // cur_block is the first available block.
-extern int root_dir_inumber;
+extern int root_dir_inumber, next_checkpoint;
 
 const int FILE_SIZE = SEGMENT_SIZE * TOT_SEGMENTS + IMAP_SIZE + SUMMARY_SIZE;

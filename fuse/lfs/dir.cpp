@@ -1,7 +1,7 @@
 #include "dir.h"
 
 #include "logger.h"
-#include "prefix.h"
+#include "path.h"
 #include "utility.h"
 
 int o_opendir(const char* path, struct fuse_file_info* fi) {

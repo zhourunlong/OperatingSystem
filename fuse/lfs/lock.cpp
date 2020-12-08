@@ -1,7 +1,7 @@
 #include "lock.h"
 
 #include "logger.h"
-#include "prefix.h"
+#include "path.h"
 
 int o_lock(const char* path, struct fuse_file_info* fi, int cmd, struct flock* locks) {
     logger(DEBUG, "LOCK, %s, %p, %d, %p\n",

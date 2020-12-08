@@ -5,81 +5,14 @@
 
 #include <unistd.h>
 #include <stdio.h>
-#include <vector>
-#include <string>
+#include <time.h>
 
 
-// Must take an absolute path (from LFS root).
-int locate(char* _path, int &i_number) {
-    if (_path[0] != "/") {
-        logger(ERROR, "Function locate() only accepts absolute path from LFS root.\n");
-        return -1;
-    }
-
-    // Split path.
-    std::string path = _path;
-    std::string temp_str;
-    std::vector<std::string> split_path;
-    int start_pos = 1;
-    for (int i=1; i<path.length(); i++) {
-        if (path[i] == "/") {
-            temp_str = path.substr(start_pos, i-start_pos);
-            i++;
-            start_pos = i;
-
-            if (temp_str == ".") {
-                continue;
-            } else if (temp_str == "..") {
-                split_path.pop_back();
-            } else {
-                split_path.push_back(temp_str);
-            }
-        }
-    }
-
-    // Traverse split path from LFS root directory.
-    int cur_inumber = root_dir_inumber;
-    inode block_inode;
-    directory block_dir;
-    bool flag;
-    std::string target;
-    for (int d=0; d<split_path.size(); d++) {
-        read_block(block_inode, cur_inumber);
-        target = split_path[d];
-        flag = true;
-        while (flag) {
-            for (int i=0; i<NUM_INODE_DIRECT; i++) {
-                if (block_inode.direct[i] == 0)
-                    continue;
-                read_block(block_dir, block_inode.direct[i]);
-
-                for (int j=0; j<MAX_DIR_ENTRIES; j++) {
-                    if (block_dir.dir_entry[j].i_number <= 0)
-                        continue;
-                    if (block_dir.dir_entry[j].filename == target) {
-                        cur_inumber = block_dir.dir_entry[j].i_number;
-                        flag = false;
-                        break;
-                    }
-                }
-
-                if (flag) break;
-            }
-            if (flag) break;
-
-            if (block_inode.next_indirect == 0)
-                break;
-            read_block(block_inode, block_inode.next_indirect);
-        }
-
-        if (!flag)
-            return -2;  // File or directory does not exist.
-    }
-
-    i_number = cur_inumber;
-    return 0;
-}
-
+/** Retrieve block according to the block address.
+ * @param  data: pointer of return data.
+ * @param  block_addr: block address.
+ * @return flag: indicating whether the retrieval is successful.
+ * Note that the block may be in segment buffer, or in disk file. */
 int get_block(void* data, int block_addr) {
     int segment = block_addr / BLOCKS_IN_SEGMENT;
     int block = block_addr % BLOCKS_IN_SEGMENT;
@@ -93,6 +26,11 @@ int get_block(void* data, int block_addr) {
     return 0;
 }
 
+
+/** Create a new block into the segment buffer.
+ * @param  data: pointer of data to be appended.
+ * @return flag: indicating whether appending is successful.
+ * Note that when the segment buffer is full, we have to write it back into disk file. */
 int new_block(void* data) {
     int buffer_offset = cur_block * BLOCK_SIZE;
     memcpy(segment_buffer + buffer_offset, data, BLOCK_SIZE);
@@ -105,4 +43,24 @@ int new_block(void* data) {
         cur_block++;
     }
     return 0;
+}
+
+
+/** Generate a checkpoint and save it to disk file. */
+void generate_checkpoint() {
+    checkpoints ckpt;
+    read_checkpoints(&ckpt);
+
+    time_t cur_time;
+    time(&cur_time);
+
+    memcpy(ckpt[next_checkpoint].segment_bitmap, segment_bitmap, siezof(segment_bitmap));
+    ckpt[next_checkpoint].count_inode = count_inode;
+    ckpt[next_checkpoint].cur_block = cur_block;
+    ckpt[next_checkpoint].cur_segment = cur_segment;
+    ckpt[next_checkpoint].root_dir_inumber = root_dir_inumber;
+    ckpt[next_checkpoint].timestamp = (int) cur_time;
+
+    write_checkpoints(&ckpt);
+    next_checkpoint = 1 - next_checkpoint;
 }

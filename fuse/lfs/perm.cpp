@@ -1,7 +1,7 @@
 #include "perm.h"
 
 #include "logger.h"
-#include "prefix.h"
+#include "path.h"
 
 int o_chmod(const char* path, mode_t mode, struct fuse_file_info *fi) {
     logger(DEBUG, "CHMOD, %s, %d, %p\n",
