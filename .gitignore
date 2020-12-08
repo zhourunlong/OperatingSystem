@@ -2,3 +2,8 @@ fuse/echofs/*.o
 fuse/echofs/*.sh
 fuse/echofs/.sconsign.dblite
 fuse/echofs/fuse
+fuse/lfs/*.o
+fuse/lfs/*.sh
+fuse/lfs/.sconsign.dblite
+fuse/lfs/fuse
+.vscode/settings.json
