@@ -1,6 +1,9 @@
+#include "logger.h" /* logger */
 #include "getattr.h"
 #include "prefix.h"
 #include "index.h"
+
+extern struct options options;
 
 int o_getattr(const char* path, struct stat* sbuf, struct fuse_file_info* fi) {
     logger(DEBUG, "GETATTR, %s, %p, %p\n", resolve_prefix(path), sbuf, fi);
@@ -22,3 +25,8 @@ int o_getattr(const char* path, struct stat* sbuf, struct fuse_file_info* fi) {
 	return res;
 }
 
+
+int o_access(const char* path, int mode) {
+    logger(DEBUG, "ACCESS, %s, %d\n", resolve_prefix(path), mode);
+    return 0;
+}
