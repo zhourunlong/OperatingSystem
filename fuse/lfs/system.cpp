@@ -1,6 +1,6 @@
 #include "system.h"
 
-#include "logger.h" /* logger */
+#include "logger.h"
 #include "utility.h"
 #include "blockio.h"
 #include "prefix.h"

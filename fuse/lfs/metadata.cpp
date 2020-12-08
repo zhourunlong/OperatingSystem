@@ -1,5 +1,6 @@
-#include "logger.h" /* logger */
-#include "getattr.h"
+#include "metadata.h"
+
+#include "logger.h"
 #include "prefix.h"
 #include "index.h"
 

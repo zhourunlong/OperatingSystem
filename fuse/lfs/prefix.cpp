@@ -1,4 +1,12 @@
-#include "prefix.h" /* prefix directory cwd */
+#include "prefix.h"  /* prefix directory cwd */
+
+#include "logger.h"
+
+#include <string.h>  /* strlen strcat strcpy */
+#include <unistd.h>  /* getcwd */
+#include <stdlib.h>  /* malloc free */
+#include <string.h>  /* strcat strcpy */
+#include <errno.h>   /* errno */
 
 char* current_working_dir = NULL;
 char* mount_root_dir = NULL;

@@ -1,4 +1,6 @@
 #include "statfs.h"
+
+#include "logger.h"
 #include "prefix.h"
 
 int o_statfs(const char* path, struct statvfs* stbuf) {
