@@ -1,6 +1,4 @@
 #include "index.h"
-#include "dir.h"
-#include "perm.h"
 
 struct fuse_operations ops = {
     .getattr = o_getattr,

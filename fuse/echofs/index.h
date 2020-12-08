@@ -5,9 +5,15 @@
 #include "init.h" /* o_init */
 #include "getattr.h" /* o_getattr */
 #include "access.h" /* o_access */
+#include "readdir.h" /* o_readdir */
 #include "destroy.h" /* o_destroy */
+#include "opendir.h" /* o_opendir */
+#include "mkdir.h" /* o_mkdir */
 #include "unlink.h" /* o_unlink */
+#include "rmdir.h" /* o_rmdir */
 #include "rename.h" /* o_rename */
+#include "chmod.h" /* o_chmod */
+#include "chown.h" /* o_chown */
 #include "truncate.h" /* o_truncate */
 #include "utimens.h" /* o_utimens */
 #include "open.h" /* o_open */
@@ -15,6 +21,7 @@
 #include "write.h" /* o_write */
 #include "statfs.h" /* o_statfs */
 #include "release.h" /* o_release */
+#include "releasedir.h" /* o_releasedir */
 #include "fsync.h" /* o_fsync */
 #include "fsyncdir.h" /* o_fsyncdir */
 #include "flush.h" /* o_flush */
