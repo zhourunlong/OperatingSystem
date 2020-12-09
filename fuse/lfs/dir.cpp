@@ -163,6 +163,7 @@ int o_mkdir(const char* path, mode_t mode) {
 
     inode append_inode;
     file_initialize(&append_inode, MODE_MID_INODE, 0);
+    int new_block_addr = new_data_block(&block_dir,append_inode.i_number, 0);
     append_inode.direct[0] = new_block_addr;
     append_inode.num_direct = 1;
     new_inode_block(&append_inode, append_inode.i_number);
