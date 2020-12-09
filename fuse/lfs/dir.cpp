@@ -19,6 +19,13 @@ int o_opendir(const char* path, struct fuse_file_info* fi) {
         return locate_err;
     }
 
+    inode block_inode;
+    get_inode_from_inum(&block_inode, fh);
+    if (block_inode.mode != 2) {
+        logger(ERROR, "not a directory!\n");
+        return -ENOTDIR;
+    }
+
     return 0;
 }
 
@@ -48,7 +55,7 @@ int o_readdir(const char* path, void* buf, fuse_fill_dir_t filler, off_t offset,
     get_inode_from_inum(&block_inode, fi->fh);
     while (1) {
         for (int i = 0; i < NUM_INODE_DIRECT; ++i) {
-            if (block_inode.direct[i] == 0)
+            if (block_inode.direct[i] == -1)
                 continue;
             directory block_dir;
             get_block(&block_dir, block_inode.direct[i]);
@@ -79,19 +86,39 @@ int o_mkdir(const char* path, mode_t mode) {
     }
     int par_inum;
     int locate_err = locate(parent_dir, par_inum);
-    if (locate_err != 0)
+    if (locate_err != 0) {
+        logger(ERROR, "error loading parent dir!\n");
         return locate_err;
+    }
     
+    inode block_inode;
+    get_inode_from_inum(&block_inode, par_inum);
+    if (block_inode.mode != MODE_DIR) {
+        logger(ERROR, "%s is not a directory!\n", parent_dir);
+        return -ENOTDIR;
+    }
+
+    int tmp_inum;
+    locate_err = locate(path, tmp_inum);
+    if (locate_err == 0) {
+        inode tmp_inode;
+        get_inode_from_inum(&tmp_inode, tmp_inum);
+        if (tmp_inode.mode == MODE_FILE)
+            logger(ERROR, "there is a file with same name!\n");
+        if (tmp_inode.mode == MODE_DIR)
+            logger(ERROR, "directory already exists!\n");
+        return -EEXIST;
+    }
+
     inode dir_inode;
     file_initialize(&dir_inode, MODE_DIR, mode);
 
     int avail_direct_idx = 0;
     bool rec_avail_for_ins = false;
-    inode block_inode, avail_for_ins, tail_inode;
-    get_inode_from_inum(&block_inode, par_inum);
+    inode avail_for_ins, tail_inode;
     while (1) {
         for (int i = 0; i < NUM_INODE_DIRECT; ++i) {
-            if (block_inode.direct[i] == 0) {
+            if (block_inode.direct[i] == -1) {
                 if (!rec_avail_for_ins) {
                     rec_avail_for_ins = true;
                     avail_for_ins = block_inode;
@@ -105,8 +132,9 @@ int o_mkdir(const char* path, mode_t mode) {
                 if (block_dir[j].i_number == 0) {
                     block_dir[j].i_number = dir_inode.i_number;
                     memcpy(block_dir[j].filename, dirname, strlen(dirname) * sizeof(char));
-                    int new_block_addr = new_data_block(&block_dir, par_inum, i);
+                    int new_block_addr = new_data_block(&block_dir, block_inode.i_number, i);
                     block_inode.direct[i] = new_block_addr;
+                    ++block_inode.num_direct;
                     new_inode_block(&block_inode, block_inode.i_number);
                     return 0;
                 }
@@ -121,12 +149,13 @@ int o_mkdir(const char* path, mode_t mode) {
     memset(block_dir, 0, sizeof(block_dir));
     block_dir[0].i_number = dir_inode.i_number;
     memcpy(block_dir[0].filename, dirname, strlen(dirname) * sizeof(char));
-    int new_block_addr = new_data_block(&block_dir, par_inum, avail_direct_idx);
 
     if (rec_avail_for_ins) {
         for (int i = 0; i < NUM_INODE_DIRECT; ++i)
-            if (avail_for_ins.direct[i] == 0) {
+            if (avail_for_ins.direct[i] == -1) {
+                int new_block_addr = new_data_block(&block_dir, avail_for_ins.i_number, avail_direct_idx);
                 avail_for_ins.direct[i] = new_block_addr;
+                ++avail_for_ins.num_direct;
                 new_inode_block(&avail_for_ins, avail_for_ins.i_number);
                 return 0;
             }
@@ -134,7 +163,9 @@ int o_mkdir(const char* path, mode_t mode) {
 
     inode append_inode;
     file_initialize(&append_inode, MODE_MID_INODE, 0);
+    int new_block_addr = new_data_block(&block_dir,append_inode.i_number, 0);
     append_inode.direct[0] = new_block_addr;
+    append_inode.num_direct = 1;
     new_inode_block(&append_inode, append_inode.i_number);
     tail_inode.next_indirect = append_inode.i_number;
     new_inode_block(&tail_inode, tail_inode.i_number);
@@ -144,5 +175,68 @@ int o_mkdir(const char* path, mode_t mode) {
 
 int o_rmdir(const char* path) {
     logger(DEBUG, "RMDIR, %s\n", resolve_prefix(path));
-    return 0;
+
+    char* parent_dir = relative_to_absolute(path, "../", 0);
+    char* dirname = current_fname(path);
+
+    int par_inum;
+    int locate_err = locate(parent_dir, par_inum);
+    if (locate_err != 0) {
+        logger(ERROR, "error loading parent dir!\n");
+        return locate_err;
+    }
+    
+    inode block_inode;
+    get_inode_from_inum(&block_inode, par_inum);
+    if (block_inode.mode != MODE_DIR) {
+        logger(ERROR, "%s is not a directory!\n", parent_dir);
+        return -ENOTDIR;
+    }
+
+    inode tail_inode;
+    while (1) {
+        for (int i = 0; i < NUM_INODE_DIRECT; ++i) {
+            if (block_inode.direct[i] == -1)
+                continue;
+            directory block_dir;
+            get_block(&block_dir, block_inode.direct[i]);
+            for (int j = 0; j < MAX_DIR_ENTRIES; ++j)
+                if (block_dir[j].i_number && !strcmp(block_dir[j].filename, dirname)) {
+                    inode tmp_inode;
+                    get_inode_from_inum(&tmp_inode, block_dir[j].i_number);
+                    if (tmp_inode.mode != MODE_DIR) {
+                        logger(ERROR, "%s is not a directory!\n", path);
+                        return -ENOTDIR;
+                    }
+                    int cnt = 0;
+                    for (int k = 0; k < MAX_DIR_ENTRIES; ++k)
+                        cnt += (block_dir[k].i_number != 0);
+                    if (cnt == 1) {
+                        if (block_inode.num_direct != 1 || block_inode.mode == 2) {
+                            --block_inode.num_direct;
+                            block_inode.direct[i] = -1;
+                            new_inode_block(&block_inode, block_inode.i_number);
+                            return 0;
+                        } else {
+                            tail_inode.next_indirect = block_inode.next_indirect;
+                            new_inode_block(&tail_inode, tail_inode.i_number);
+                        }
+                    } else {
+                        block_dir[j].i_number = 0;
+                        memset(block_dir[j].filename, 0, sizeof(block_dir[j].filename));
+                        int new_block_addr = new_data_block(&block_dir, block_inode.i_number, i);
+                        block_inode.direct[i] = new_block_addr;
+                        new_inode_block(&block_inode, block_inode.i_number);
+                        return 0;
+                    }
+                }
+        }
+        tail_inode = block_inode;
+        if (block_inode.next_indirect == 0)
+            break;
+        get_inode_from_inum(&block_inode, block_inode.next_indirect);
+    }
+
+    logger(ERROR, "directory not exist!\n");
+    return -ENOENT;
 }

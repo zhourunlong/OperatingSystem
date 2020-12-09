@@ -3,6 +3,7 @@
 #include "logger.h"
 #include "path.h"
 #include "index.h"
+#include "errno.h"
 #include "blockio.h"
 #include "utility.h"
 

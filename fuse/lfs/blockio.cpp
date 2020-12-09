@@ -6,9 +6,10 @@
 #include <unistd.h>
 #include <stdio.h>
 #include <stdlib.h>
-#include <time.h>
 #include <cstring>
-
+#include <time.h>
+#include <sys/stat.h>
+#include <fuse.h>
 
 
 /** Retrieve block according to the block address.
@@ -140,6 +141,7 @@ void add_segbuf_imap(int _i_number, int _block_addr) {
  * [CAUTION] It is required to use malloc to create cur_inode (see file_add_data() below). */
 void file_initialize(struct inode* cur_inode, int _mode, int _permission) {
     count_inode++;
+    struct fuse_context* user_info = fuse_get_context();  // Get information (uid, gid) of the user who calls LFS interface.
 
     cur_inode->i_number     = count_inode;
     cur_inode->mode         = _mode;
@@ -148,8 +150,8 @@ void file_initialize(struct inode* cur_inode, int _mode, int _permission) {
     cur_inode->fsize_block  = 1;
     cur_inode->io_block     = 1;
     cur_inode->permission   = _permission;
-    cur_inode->perm_uid     = USER_UID;
-    cur_inode->perm_gid     = USER_GID;
+    cur_inode->perm_uid     = user_info.uid;
+    cur_inode->perm_gid     = user_info.gid;
     cur_inode->device       = USER_DEVICE;
     cur_inode->num_direct   = 0;
     memset(cur_inode->direct, -1, sizeof(cur_inode->direct));
@@ -168,11 +170,11 @@ void file_add_data(struct inode* cur_inode, void* data) {
         file_initialize(next_inode, MODE_MID_INODE, cur_inode->permission);
 
         // Update current inode and commit it.
-        time_t cur_time;
-        time(&cur_time);
-        cur_inode->atime = (int)cur_time;
-        cur_inode->mtime = (int)cur_time;
-        cur_inode->ctime = (int)cur_time;
+        struct timespec cur_time;
+        clock_gettime(CLOCK_REALTIME, &cur_time);
+        cur_inode->atime = cur_time;
+        cur_inode->mtime = cur_time;
+        cur_inode->ctime = cur_time;
 
         cur_inode->num_direct--;
         cur_inode->next_indirect = next_inode->i_number;
@@ -209,11 +211,11 @@ void file_modify(struct inode* cur_inode, int direct_index, void* data) {
  * @param  cur_inode: struct for the file inode. */
 void file_commit(struct inode* cur_inode) {
     // Update current inode (non-empty), commit it and release the memory.
-    time_t cur_time;
-    time(&cur_time);
-    cur_inode->atime = (int)cur_time;
-    cur_inode->mtime = (int)cur_time;
-    cur_inode->ctime = (int)cur_time;
+    struct timespec cur_time;
+    clock_gettime(CLOCK_REALTIME, &cur_time);
+    cur_inode->atime = cur_time;
+    cur_inode->mtime = cur_time;
+    cur_inode->ctime = cur_time;
 
     cur_inode->next_indirect = 0;
     new_inode_block(cur_inode, cur_inode->i_number);

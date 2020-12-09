@@ -1,5 +1,7 @@
 #pragma once
 
+#include <sys/stat.h>  /* struct timespec */
+
 // [CAUTION] to represent "empty" values, we follow the following convention:
 // (1) "empty" inode = 0;
 // (2) "empty" block address = -1.
@@ -22,7 +24,7 @@ typedef char block[BLOCK_SIZE];
  * ***************************************/
 
 const int MAX_NUM_INODE = 100000;
-const int NUM_INODE_DIRECT = 241;
+const int NUM_INODE_DIRECT = 232;
 /** Inode Block: maintaining metadata of files / directories.
  * i_number: a positive integer (0 stands for an "empty" inode).
  * mode: 1 = file, 2 = dir; use -1 to indicate indirect blocks,
@@ -32,20 +34,20 @@ const int NUM_INODE_DIRECT = 241;
  *                We use "ghost" inode numbers to facilitate efficient modification of inodes.
  */
 struct inode {
-    int i_number;      // [CONST] Inode number.
-    int mode;          // [CONST] Mode of the file (file = 1, dir = 2; non-head = -1).
-    int num_links;     // [VAR] Number of hard links.
-    int fsize_byte;    // [VAR] File size (in bytes).
-    int fsize_block;   // [VAR] File size (in blocks, rounded up).
-    int io_block;      // [CONST] Size of disk data transmission unit.
-    int permission;    // [VAR] Permission (lowest 9 bits, UGO x RWX)
-    int perm_uid;      // [CONST] ID of the owner.
-    int perm_gid;      // [CONST] Group ID of the owner.
-    int device;        // [CONST] Device identifier.
-    int atime;         // [VAR] Last access time.
-    int mtime;         // [VAR] Last modify time.
-    int ctime;         // [VAR] Last change time.
-    int num_direct;    // [VAR] Index of last valid entry in direct[].
+    int i_number;           // [CONST] Inode number.
+    int mode;               // [CONST] Mode of the file (file = 1, dir = 2; non-head = -1).
+    int num_links;          // [VAR] Number of hard links.
+    int fsize_byte;         // [VAR] File size (in bytes).
+    int fsize_block;        // [VAR] File size (in blocks, rounded up).
+    int io_block;           // [CONST] Size of disk data transmission unit.
+    int permission;         // [VAR] Permission (lowest 9 bits, UGO x RWX)
+    int perm_uid;           // [CONST] ID of the owner.
+    int perm_gid;           // [CONST] Group ID of the owner.
+    int device;             // [CONST] Device identifier.
+    struct timespec atime;  // [VAR] Last access time (2*long = 4*int).
+    struct timespec mtime;  // [VAR] Last modify time (2*long = 4*int).
+    struct timespec ctime;  // [VAR] Last change time (2*long = 4*int).
+    int num_direct;         // [VAR] Index of last valid entry in direct[].
     int direct[NUM_INODE_DIRECT];  // Array of direct pointers.
     int next_indirect;             // Inode number of the next indirect block.  
 };

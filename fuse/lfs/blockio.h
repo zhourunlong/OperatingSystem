@@ -1,8 +1,6 @@
 #ifndef blockio_h
 #define blockio_h
 
-const int USER_UID = 0;
-const int USER_GID = 0;
 const long USER_DEVICE = 0;
 
 /* High-level functions should ONLY call these interfaces for data transfer. */
