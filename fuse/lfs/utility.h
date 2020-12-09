@@ -49,6 +49,9 @@ struct inode {
     int direct[NUM_INODE_DIRECT];  // Array of direct pointers.
     int next_indirect;             // Inode number of the next indirect block.  
 };
+const int MODE_FILE = 1;
+const int MODE_DIR = 2;
+const int MODE_MID_INODE = -1;
 
 
 const int MAX_FILENAME_LEN = 28;

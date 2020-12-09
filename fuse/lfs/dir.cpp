@@ -83,7 +83,7 @@ int o_mkdir(const char* path, mode_t mode) {
         return locate_err;
     
     inode dir_inode;
-    file_initialize(&dir_inode, 2, mode);
+    file_initialize(&dir_inode, MODE_DIR, mode);
 
     int avail_direct_idx = 0;
     bool rec_avail_for_ins = false;
@@ -133,7 +133,7 @@ int o_mkdir(const char* path, mode_t mode) {
     }
 
     inode append_inode;
-    file_initialize(&append_inode, -1, 0);
+    file_initialize(&append_inode, MODE_MID_INODE, 0);
     append_inode.direct[0] = new_block_addr;
     new_inode_block(&append_inode, append_inode.i_number);
     tail_inode.next_indirect = append_inode.i_number;
