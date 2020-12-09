@@ -1,8 +1,8 @@
 #pragma once
 
-// CAUTION: to represent "empty" values, we use the convention:
-// "empty" inode = 0,
-// "empty" block address = -1.
+// [CAUTION] to represent "empty" values, we follow the following convention:
+// (1) "empty" inode = 0;
+// (2) "empty" block address = -1.
 
 /** **************************************
  * Basic physical structure.
@@ -86,7 +86,7 @@ typedef struct imap_entry inode_map[BLOCKS_IN_SEGMENT];
  */
 struct summary_entry {
     int i_number;          // Inode number of corresponding file.
-    int block_offset;      // Block offset in corresponding file.
+    int direct_index;      // The index of direct[] in that inode, pointing to the block.
 };
 typedef struct summary_entry segment_summary[BLOCKS_IN_SEGMENT];
 

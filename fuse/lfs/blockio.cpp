@@ -27,14 +27,20 @@ int get_block(void* data, int block_addr) {
 }
 
 
-/** Create a new block into the segment buffer.
+/** Create a new data block into the segment buffer.
  * @param  data: pointer of data to be appended.
  * @return flag: indicating whether appending is successful.
  * Note that when the segment buffer is full, we have to write it back into disk file. */
-int new_block(void* data) {
+int new_data_block(void* data, int i_number, int direct_index) {
     int buffer_offset = cur_block * BLOCK_SIZE;
+
+    // Append data block.
     memcpy(segment_buffer + buffer_offset, data, BLOCK_SIZE);
+
+    // Append segment summary for this block.
+    add_segbuf_summary(cur_block, i_number, direct_index);
     
+    // Increment cur_block, and flush segment buffer if it is full.
     if (cur_block == BLOCKS_IN_SEGMENT) {    // Segment buffer is full, and should be flushed to disk file.
         write_segment(segment_buffer, cur_segment);
         cur_segment++;
@@ -42,6 +48,72 @@ int new_block(void* data) {
     } else {    // Segment buffer is not full yet.
         cur_block++;
     }
+    
+    return 0;
+}
+
+
+/** Create a new inode block into the segment buffer.
+ * @param  data: pointer of data to be appended.
+ * @param  i_number: i_number of the added inode.
+ * @return flag: indicating whether appending is successful.
+ * Note that when the segment buffer is full, we have to write it back into disk file. */
+int new_inode_block(void* data, int i_number) {
+    int buffer_offset = cur_block * BLOCK_SIZE;
+
+    // Append data block.
+    memcpy(segment_buffer + buffer_offset, data, BLOCK_SIZE);
+
+    // Append segment summary for this block.
+    // [CAUTION] We use index -1 to represent an inode, rather than a direct[] pointer.
+    add_segbuf_summary(cur_block, i_number, -1);
+
+    // Append imap entry for this inode, and update inode_table.
+    int block_addr = cur_segment * BLOCKS_IN_SEGMENT + cur_block;
+    add_imap_entry(i_number, block_addr);
+    inode_table[i_number] = block_addr;
+    
+    // Increment cur_block, and flush segment buffer if it is full.
+    if (cur_block == BLOCKS_IN_SEGMENT) {    // Segment buffer is full, and should be flushed to disk file.
+        write_segment(segment_buffer, cur_segment);
+        cur_segment++;
+        cur_block = 0;
+    } else {    // Segment buffer is not full yet.
+        cur_block++;
+    }
+    return 0;
+}
+
+
+/** Append a segment summary entry for a given block.
+ * @param  block_index: index of the new block.
+ * @param  i_number: i_number of the added  block.
+ * @param  direct_index: the index of direct[] in that inode, pointing to the new block.
+ * @return flag: indicating whether appending is successful. */
+int add_segbuf_summary(int block_index, int i_number, int direct_index) {
+    int entry_size = sizeof(struct summary_entry);
+    int buffer_offset = SUMMARY_OFFSET + block_index * entry_size;
+    summary_entry blk_summary = {
+        i_number     : i_number,
+        direct_index : direct_index
+    };
+    memcpy(segment_buffer + buffer_offset, blk_summary, entry_size);
+    return 0;
+}
+
+
+/** Append a imap entry for a given inode block.
+ * @param  i_number: i_number of the added inode.
+ * @param  block: the index of direct[] in that inode, pointing to the new block.
+ * @return flag: indicating whether appending is successful. */
+int add_segbuf_summary(int i_number, int block_addr) {
+    int entry_size = sizeof(struct summary_entry);
+    int buffer_offset = SUMMARY_OFFSET + block_index * entry_size;
+    summary_entry blk_summary = {
+        i_number     : i_number,
+        direct_index : direct_index
+    };
+    memcpy(segment_buffer + buffer_offset, blk_summary, entry_size);
     return 0;
 }
 
