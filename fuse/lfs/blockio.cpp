@@ -9,6 +9,7 @@
 #include <cstring>
 #include <time.h>
 #include <sys/stat.h>
+#include <fuse.h>
 
 
 /** Retrieve block according to the block address.
@@ -140,6 +141,7 @@ void add_segbuf_imap(int _i_number, int _block_addr) {
  * [CAUTION] It is required to use malloc to create cur_inode (see file_add_data() below). */
 void file_initialize(struct inode* cur_inode, int _mode, int _permission) {
     count_inode++;
+    struct fuse_context* user_info = fuse_get_context();  // Get information (uid, gid) of the user who calls LFS interface.
 
     cur_inode->i_number     = count_inode;
     cur_inode->mode         = _mode;
@@ -148,8 +150,8 @@ void file_initialize(struct inode* cur_inode, int _mode, int _permission) {
     cur_inode->fsize_block  = 1;
     cur_inode->io_block     = 1;
     cur_inode->permission   = _permission;
-    cur_inode->perm_uid     = USER_UID;
-    cur_inode->perm_gid     = USER_GID;
+    cur_inode->perm_uid     = user_info.uid;
+    cur_inode->perm_gid     = user_info.gid;
     cur_inode->device       = USER_DEVICE;
     cur_inode->num_direct   = 0;
     memset(cur_inode->direct, -1, sizeof(cur_inode->direct));
