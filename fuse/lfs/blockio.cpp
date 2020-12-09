@@ -160,11 +160,8 @@ void file_initialize(struct inode* cur_inode, int _mode, int _permission) {
  * @param  cur_inode: struct for the file inode.
  * @param  data: buffer for the file data block to be appended. */
 void file_add_data(struct inode* cur_inode, void* data) {
-
-    int block_addr = new_data_block(data, cur_inode->i_number, cur_inode->num_direct);
-    cur_inode->direct[cur_inode->num_direct] = block_addr;
-
-    if (cur_inode->num_direct == NUM_INODE_DIRECT-1) {    // File is too large, so another (pseudo) inode is necessary.
+    // If the file is too large, another (pseudo) inode is necessary.
+    if (cur_inode->num_direct == NUM_INODE_DIRECT) {
         // Create the next inode.
         struct inode* next_inode = (struct inode*) malloc(sizeof(struct inode));
         file_initialize(next_inode, -1, cur_inode->permission);
@@ -176,22 +173,25 @@ void file_add_data(struct inode* cur_inode, void* data) {
         cur_inode->mtime = (int)cur_time;
         cur_inode->ctime = (int)cur_time;
 
+        cur_inode->num_direct--;
         cur_inode->next_indirect = next_inode->i_number;
         new_inode_block(cur_inode, cur_inode->i_number);
 
         // Release current inode, and replace the pointer with next inode.
         free(cur_inode);
         cur_inode = next_inode;
-    } else {
-        cur_inode->num_direct++;
     }
+
+    int block_addr = new_data_block(data, cur_inode->i_number, cur_inode->num_direct);
+    cur_inode->direct[cur_inode->num_direct] = block_addr;
+    cur_inode->num_direct++;
 }
 
 
 /** Commit a new file by storing its inode in log.
  * @param  cur_inode: struct for the file inode. */
 void file_commit(struct inode* cur_inode) {
-    // Update current inode, commit it and release the memory.
+    // Update current inode (non-empty), commit it and release the memory.
     time_t cur_time;
     time(&cur_time);
     cur_inode->atime = (int)cur_time;
