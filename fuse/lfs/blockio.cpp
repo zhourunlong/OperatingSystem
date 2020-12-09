@@ -44,8 +44,9 @@ int new_data_block(void* data, int i_number, int direct_index) {
     add_segbuf_summary(cur_block, i_number, direct_index);
     
     // Increment cur_block, and flush segment buffer if it is full.
-    if (cur_block == BLOCKS_IN_SEGMENT) {    // Segment buffer is full, and should be flushed to disk file.
+    if (cur_block == BLOCKS_IN_SEGMENT-1) {    // Segment buffer is full, and should be flushed to disk file.
         write_segment(segment_buffer, cur_segment);
+        memset(segment_buffer, 0, sizeof(segment_buffer));
         cur_segment++;
         cur_block = 0;
         next_imap_index = 0;
@@ -78,10 +79,12 @@ int new_inode_block(void* data, int i_number) {
     inode_table[i_number] = block_addr;
     
     // Increment cur_block, and flush segment buffer if it is full.
-    if (cur_block == BLOCKS_IN_SEGMENT) {    // Segment buffer is full, and should be flushed to disk file.
+    if (cur_block == BLOCKS_IN_SEGMENT-1) {    // Segment buffer is full, and should be flushed to disk file.
         write_segment(segment_buffer, cur_segment);
+        memset(segment_buffer, 0, sizeof(segment_buffer));
         cur_segment++;
         cur_block = 0;
+        next_imap_index = 0;
     } else {    // Segment buffer is not full yet.
         cur_block++;
     }
@@ -153,9 +156,22 @@ void file_add_data(struct inode* cur_inode, void* data) {
     cur_inode->direct[cur_inode->num_direct] = block_addr;
 
     if (cur_inode->num_direct == NUM_INODE_DIRECT-1) {    // File is too large, so another (pseudo) inode is necessary.
+        // Create the next inode.
         struct inode* next_inode = (struct inode*) malloc(sizeof(struct inode));
         file_initialize(next_inode, -1, cur_inode->permission);
-        next_inode->device = (long) cur_inode;          // [CAUTION] We temporarily use next_indirect field for parent inode address.
+
+        // Update current inode and commit it.
+        time_t cur_time;
+        time(&cur_time);
+        cur_inode->atime = (int)cur_time;
+        cur_inode->mtime = (int)cur_time;
+        cur_inode->ctime = (int)cur_time;
+
+        cur_inode->next_indirect = next_inode->i_number;
+        new_inode_block(cur_inode, cur_inode->i_number);
+
+        // Release current inode, and replace the pointer with next inode.
+        free(cur_inode);
         cur_inode = next_inode;
     } else {
         cur_inode->num_direct++;
@@ -166,38 +182,15 @@ void file_add_data(struct inode* cur_inode, void* data) {
 /** Commit a new file by storing its inode in log.
  * @param  cur_inode: struct for the file inode. */
 void file_commit(struct inode* cur_inode) {
-    // The (possible) chain of inodes should be traversed and stored in reverse order.
-    int prev_inode_addr = cur_inode->next_indirect;
-    int cur_inode_number = cur_inode->i_number;
-    cur_inode->next_indirect = -1;
-    cur_inode->device = USER_DEVICE;                    // [CAUTION] Restore device information.
-    new_inode_block(cur_inode, cur_inode->i_number);
-
+    // Update current inode, commit it and release the memory.
     time_t cur_time;
-    if (prev_inode_addr == -1) {    // If the file contains only as single inode, maintain timestamps.
-        time(&cur_time);
-        cur_inode->atime = (int)cur_time;
-        cur_inode->mtime = (int)cur_time;
-        cur_inode->ctime = (int)cur_time;
-        block_addr = new_inode_block(cur_inode, cur_inode->i_number);
-    } else {
-        while (prev_inode_addr != -1) {
-            free(cur_inode);
-            cur_inode = (struct inode*) prev_inode_addr;
-            prev_inode_addr = cur_inode->next_indirect;
-            cur_inode_number = cur_inode->i_number;
-            cur_inode->next_indirect = cur_inode_number;        // [CAUTION] Here we obtain the actual block_addr and modify next_indirect.
-            cur_inode->device = USER_DEVICE;                    // [CAUTION] Restore device information.
+    time(&cur_time);
+    cur_inode->atime = (int)cur_time;
+    cur_inode->mtime = (int)cur_time;
+    cur_inode->ctime = (int)cur_time;
 
-            if (prev_inode_addr == -1) {    // For the first inode (real file inode), maintain timestamps.
-                time(&cur_time);
-                cur_inode->atime = (int)cur_time;
-                cur_inode->mtime = (int)cur_time;
-                cur_inode->ctime = (int)cur_time;
-            }
-            new_inode_block(cur_inode, cur_inode->i_number);
-        }
-    }
+    cur_inode->next_indirect = 0;
+    new_inode_block(cur_inode, cur_inode->i_number);
     free(cur_inode);
 }
 
