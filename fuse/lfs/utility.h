@@ -124,12 +124,21 @@ struct checkpoint_entry {
     int count_inode;                   // Current number of inodes (monotone increasing).
     int cur_segment;                   // Next available segment.
     int cur_block;                     // Next available block (in the segment).
-    int root_dir_inumber;              // Current inode number of root directory.
     int next_imap_index;               // Index of next free imap entry (within the segment).
     int timestamp;                     // Timestamp of last change to this checkpoint.
 };
 typedef struct checkpoint_entry checkpoints[2];
 
+
+/** **************************************
+ * Pretty-print functions.
+ * ***************************************/
+void print(struct inode* node);
+void print(directory dir);
+void print(inode_map imap);
+void print(segment_summary segsum);
+void print(superblock sblk);
+void print(checkpoints ckpt);
 
 /** **************************************
  * Functions for actual file reads / writes.
@@ -161,6 +170,7 @@ extern char segment_buffer[SEGMENT_SIZE];
 extern char segment_bitmap[TOT_SEGMENTS];
 extern int inode_table[MAX_NUM_INODE];
 extern int count_inode, cur_segment, cur_block;  // cur_block is the first available block.
-extern int root_dir_inumber, next_checkpoint, next_imap_index;
+extern int next_checkpoint, next_imap_index;
 
 const int FILE_SIZE = SEGMENT_SIZE * TOT_SEGMENTS + IMAP_SIZE + SUMMARY_SIZE;
+const int ROOT_DIR_INUMBER = 1;

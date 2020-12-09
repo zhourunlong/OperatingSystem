@@ -1,6 +1,7 @@
 #include <unistd.h>
 
 #include "utility.h"
+#include "logger.h"
 #include <stdio.h>
 
 int file_handle;
@@ -8,7 +9,7 @@ char segment_buffer[SEGMENT_SIZE];
 char segment_bitmap[TOT_SEGMENTS];
 int inode_table[MAX_NUM_INODE];
 int count_inode, cur_segment, cur_block;
-int root_dir_inumber, next_checkpoint, next_imap_index;
+int next_checkpoint, next_imap_index;
 
 
 /** **************************************
@@ -114,4 +115,65 @@ int read_superblock(void* buf) {
 int write_superblock(void* buf) {
     int write_length = pwrite(file_handle, buf, SUPERBLOCK_SIZE, SUPERBLOCK_ADDR);
     return write_length;
+}
+
+
+
+/** **************************************
+ * Pretty-print functions.
+ * ***************************************/
+void print(struct inode* node){
+    logger(DEBUG, "[DEBUG] ******************** PRINT INODE ********************\n");
+    logger(DEBUG, "ITEM\tCONTENT\n");
+    logger(DEBUG, "======\t============\n");
+    logger(DEBUG, "I_NUM\t%d\n", node->i_number);
+    switch (node->mode) {
+        case (MODE_FILE):
+            logger(DEBUG, "MODE\tfile (1)\n");
+            break;
+        case (MODE_DIR):
+            logger(DEBUG, "MODE\tdirectory (2)\n");
+            break;
+        case (MODE_MID_INODE):
+            logger(DEBUG, "MODE\tnon-head inode (-1)\n");
+            break;
+        default:
+            logger(DEBUG, "MODE\tunknown (%d)\n", node->mode);
+            break;
+    }
+    logger(DEBUG, "N_LINK\t%d\n", node->num_links);
+    logger(DEBUG, "SIZE\t%d B = %d blocks (IO = %d blocks)\n", node->fsize_byte, node->fsize_block, node->io_block);
+    logger(DEBUG, "PERM\t%o (uid = %d, gid = %d)\n", node->permission, node->perm_uid, node->perm_gid);
+    logger(DEBUG, "DEVICE\t%d\n", node->device);
+    logger(DEBUG, "TIME\tatime = %d.%d\n\tmtime = %d.%d\n\tctime = %d.%d\n",\
+                  node->atime.tv_sec, node->atime.tv_nsec,\
+                  node->mtime.tv_sec, node->mtime.tv_nsec,\
+                  node->ctime.tv_sec, node->ctime.tv_nsec);
+
+    logger(DEBUG, "\ndirect[] (num = %d): ", node->num_direct);
+    for (int i=0; i<node->num_direct; i++)
+        logger(DEBUG, "%d ", node->direct[i]);
+    logger(DEBUG, ".\n");
+    logger(DEBUG, "next_indirect = %d.\n", node->next_indirect);
+    logger(DEBUG, "        ==================== PRINT INODE ====================\n");
+}
+
+void print(directory dir) {
+
+}
+
+void print(inode_map imap) {
+    
+}
+
+void print(segment_summary segsum) {
+    
+}
+
+void print(superblock sblk) {
+
+}
+
+void print(checkpoints ckpt){
+    
 }

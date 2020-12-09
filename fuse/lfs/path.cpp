@@ -2,6 +2,7 @@
 
 #include "logger.h"
 #include "utility.h"
+#include "blockio.h"
 
 #include <string.h>  /* strlen strcat strcpy */
 #include <unistd.h>  /* getcwd */
@@ -97,16 +98,15 @@ char* current_fname(const char* path) {
  * @param  _path: an absolute path from LFS root.
  * @param  i_number: return variable.
  * @return flag: indicating whether the traversal is successful. */
-
-// !!! return value should conform to fuse standard. see echofs/readdir.cpp
 int locate(const char* _path, int &i_number) {
     if (_path[0] != '/') {
-        logger(ERROR, "Function locate() only accepts absolute path from LFS root.\n");
-        return -1;
+        logger(ERROR, "[ERROR] Function locate() only accepts absolute path from LFS root.\n");
+        return -EPERM;
     }
 
     // Split path.
     std::string path = _path;
+    path += "/";
     std::string temp_str;
     std::vector<std::string> split_path;
     int start_pos = 1;
@@ -116,7 +116,7 @@ int locate(const char* _path, int &i_number) {
             i++;
             start_pos = i;
 
-            if (temp_str == ".") {
+            if ((temp_str == ".") || (temp_str == "")) {
                 continue;
             } else if (temp_str == "..") {
                 split_path.pop_back();
@@ -126,28 +126,42 @@ int locate(const char* _path, int &i_number) {
         }
     }
 
+    logger(DEBUG, "[DEBUG] in locate(): path = '%s', size = %d: ", _path, split_path.size());
+    for (int d=0; d<split_path.size(); d++) {
+        printf("%s; ", split_path[d].c_str());
+    }
+    printf("\n");
+
     // Traverse split path from LFS root directory.
-    int cur_inumber = root_dir_inumber;
+    int cur_inumber = ROOT_DIR_INUMBER;
     inode block_inode;
     directory block_dir;
     bool flag;
     std::string target;
     for (int d=0; d<split_path.size(); d++) {
-        read_block(&block_inode, cur_inumber);
+        get_block(&block_inode, cur_inumber);
         target = split_path[d];
-        flag = true;
-        while (flag) {
+        flag = false;
+        while (!flag) {
             for (int i=0; i<NUM_INODE_DIRECT; i++) {
-                if (block_inode.direct[i] == -1)
+                if (block_inode.direct[i] <= -1)
                     continue;
-                read_block(block_dir, block_inode.direct[i]);
+                if (block_inode.direct[i] > FILE_SIZE) {
+                    if (block_inode.num_direct > i)
+                        logger(ERROR, "[FATAL ERROR] Corrupt file system on disk: invalid direct[%d] of inode #%d.\n", i, block_inode.i_number);
+                    continue;
+                }
+                get_block(block_dir, block_inode.direct[i]);
 
                 for (int j=0; j<MAX_DIR_ENTRIES; j++) {
                     if (block_dir[j].i_number <= 0)
                         continue;
+                    if (block_dir[j].i_number > MAX_NUM_INODE)
+                        logger(ERROR, "[FATAL ERROR] Corrupt file system on disk: invalid i_number #%d.\n", block_dir[j].i_number);
+                    
                     if (block_dir[j].filename == target) {
                         cur_inumber = block_dir[j].i_number;
-                        flag = false;
+                        flag = true;
                         break;
                     }
                 }
@@ -158,7 +172,7 @@ int locate(const char* _path, int &i_number) {
 
             if (block_inode.next_indirect == 0)
                 break;
-            read_block(&block_inode, block_inode.next_indirect);
+            get_block(&block_inode, block_inode.next_indirect);
         }
 
         if (!flag)
@@ -166,5 +180,12 @@ int locate(const char* _path, int &i_number) {
     }
 
     i_number = cur_inumber;
+    logger(DEBUG, "[DEBUG] in locate(): i_number for '%s' = %d.\n", _path, i_number);
+    
+    struct inode* node = (struct inode*) malloc(sizeof(struct inode));
+    get_inode_from_inum(node, i_number);
+    print(node);
+    free(node);
+
     return 0;
 }

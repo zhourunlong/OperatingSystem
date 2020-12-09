@@ -34,7 +34,7 @@ void* o_init(struct fuse_conn_info* conn, struct fuse_config* cfg) {
             logger(ERROR, "[FATAL ERROR] Fail to create a new disk file (lfs.data).\n");
             exit(-1);
         }
-        logger(DEBUG, "]INFO] Successfully created a new disk file (lfs.data).\n");
+        logger(DEBUG, "[INFO] Successfully created a new disk file (lfs.data).\n");
 
         // Fill 0 into the file.
         char* buf = (char*) malloc(FILE_SIZE);
@@ -47,7 +47,6 @@ void* o_init(struct fuse_conn_info* conn, struct fuse_config* cfg) {
         count_inode = 0; 
         cur_segment = 0;
         cur_block = 0;
-        root_dir_inumber = 0;
         next_checkpoint = 0;
         next_imap_index = 0;
         memset(segment_buffer, 0, sizeof(segment_buffer));
@@ -74,6 +73,7 @@ void* o_init(struct fuse_conn_info* conn, struct fuse_config* cfg) {
         
         file_commit(root_inode);
 
+
         logger(DEBUG, "[INFO] Successfully initialized the file system.\n");
     } else {
         // Open an existing file.
@@ -98,12 +98,10 @@ void* o_init(struct fuse_conn_info* conn, struct fuse_config* cfg) {
         count_inode = ckpt[latest_index].count_inode;
         cur_segment = ckpt[latest_index].cur_segment;
         cur_block = ckpt[latest_index].cur_block;
-        root_dir_inumber = ckpt[latest_index].root_dir_inumber;
         next_imap_index = ckpt[latest_index].next_imap_index;
         if ((count_inode <= 0) || (cur_segment < 0) || (cur_segment >= TOT_SEGMENTS) \
-                               || (cur_block < 0) || (cur_block >= BLOCKS_IN_SEGMENT) \
-                               || (root_dir_inumber <= 0) || (root_dir_inumber >= TOT_INODES)) {
-            logger(ERROR, "[FATAL ERROR] Corrupt file system on disk. Please erase it and re-initiallize.\n");
+                               || (cur_block < 0) || (cur_block >= BLOCKS_IN_SEGMENT)) {
+            logger(ERROR, "[FATAL ERROR] Corrupt file system on disk: invalid checkpoint entry.\n");
             exit(-1);
         }
 

@@ -21,8 +21,8 @@ int o_opendir(const char* path, struct fuse_file_info* fi) {
 
     inode block_inode;
     get_inode_from_inum(&block_inode, fh);
-    if (block_inode.mode != 2) {
-        logger(ERROR, "not a directory!\n");
+    if (block_inode.mode != MODE_DIR) {
+        logger(ERROR, "[ERROR] Not a directory!\n");
         return -ENOTDIR;
     }
 

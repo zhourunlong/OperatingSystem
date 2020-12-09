@@ -150,8 +150,8 @@ void file_initialize(struct inode* cur_inode, int _mode, int _permission) {
     cur_inode->fsize_block  = 1;
     cur_inode->io_block     = 1;
     cur_inode->permission   = _permission;
-    cur_inode->perm_uid     = user_info.uid;
-    cur_inode->perm_gid     = user_info.gid;
+    cur_inode->perm_uid     = user_info->uid;
+    cur_inode->perm_gid     = user_info->gid;
     cur_inode->device       = USER_DEVICE;
     cur_inode->num_direct   = 0;
     memset(cur_inode->direct, -1, sizeof(cur_inode->direct));
@@ -236,7 +236,6 @@ void generate_checkpoint() {
     ckpt[next_checkpoint].cur_block = cur_block;
     ckpt[next_checkpoint].cur_segment = cur_segment;
     ckpt[next_checkpoint].next_imap_index = next_imap_index;
-    ckpt[next_checkpoint].root_dir_inumber = root_dir_inumber;
     ckpt[next_checkpoint].timestamp = (int)cur_time;
 
     write_checkpoints(&ckpt);
