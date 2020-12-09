@@ -42,7 +42,7 @@ void* o_init(struct fuse_conn_info* conn, struct fuse_config* cfg) {
         pwrite(file_handle, buf, FILE_SIZE, 0);
         free(buf);
 
-        // Initialize global state variables (1).
+        // Initialize global state variables.
         memset(segment_bitmap, 0, sizeof(segment_bitmap));
         count_inode = 0; 
         cur_segment = 0;
@@ -64,15 +64,15 @@ void* o_init(struct fuse_conn_info* conn, struct fuse_config* cfg) {
         write_superblock(&init_sblock);
 
         // Initialize root directory (i_number = 1).
-        struct inode root_inode;
-        file_initialize(&root_inode);
+        struct inode* root_inode = (struct inode*) malloc(sizeof(struct inode));
+        file_initialize(root_inode);
 
         char* buf = (char*) malloc(BLOCK_SIZE);
         memset(buf, 0, BLOCK_SIZE);
-        file_add_data(&root_inode, buf);
+        file_add_data(root_inode, buf);
         free(buf);
         
-        file_commit(&root_inode);
+        file_commit(root_inode);
 
         logger(DEBUG, "Successfully initialized the file system.\n");
     } else {
@@ -140,5 +140,6 @@ void o_destroy(void* private_data) {
     logger(DEBUG, "DESTROY, %p\n", private_data);
     
     // Save LFS to disk.
+    write_segment(segment_buffer, cur_segment);
     generate_checkpoint();
 }

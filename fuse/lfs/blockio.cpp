@@ -47,6 +47,7 @@ int new_data_block(void* data, int i_number, int direct_index) {
         write_segment(segment_buffer, cur_segment);
         cur_segment++;
         cur_block = 0;
+        next_imap_index = 0;
     } else {    // Segment buffer is not full yet.
         cur_block++;
     }
@@ -93,12 +94,12 @@ int new_inode_block(void* data, int i_number) {
  * @param  i_number: i_number of the file (that the data belongs to).
  * @param  direct_index: the index of direct[] in that inode, pointing to the new block. 
  * [CAUTION] We use index -1 to represent an inode, which is NOT a direct[] pointer. */
-void add_segbuf_summary(int block_index, int i_number, int direct_index) {
+void add_segbuf_summary(int block_index, int _i_number, int _direct_index) {
     int entry_size = sizeof(struct summary_entry);
     int buffer_offset = SUMMARY_OFFSET + block_index * entry_size;
     summary_entry blk_summary = {
-        i_number     : i_number,
-        direct_index : direct_index
+        i_number     : _i_number,
+        direct_index : _direct_index
     };
     memcpy(segment_buffer + buffer_offset, blk_summary, entry_size);
 }
@@ -107,12 +108,12 @@ void add_segbuf_summary(int block_index, int i_number, int direct_index) {
 /** Append a imap entry for a given inode block.
  * @param  i_number: i_number of the added inode.
  * @param  block_addr: global block address of the added inode. */
-void add_segbuf_imap(int i_number, int block_addr) {
+void add_segbuf_imap(int _i_number, int _block_addr) {
     int entry_size = sizeof(struct imap_entry);
     int buffer_offset = IMAP_OFFSET + next_imap_index * entry_size;
     imap_entry blk_imentry = {
-        i_number     : i_number,
-        inode_block  : block_addr
+        i_number     : _i_number,
+        inode_block  : _block_addr
     };
     memcpy(segment_buffer + buffer_offset, blk_imentry, entry_size);
     next_imap_index++;
@@ -122,17 +123,18 @@ void add_segbuf_imap(int i_number, int block_addr) {
 /** Initialize a new file by creating its inode.
  * @param  cur_inode: struct for the new inode (should be manually allocated before function call).
  * @param  mode: type of the file (1 = file, 2 = dir; -1 = non-head).
- * @param  permission: using UGO x RWX format in base-8 (e.g., 0777). */
-void file_initialize(struct inode* cur_inode, int mode, int permission) {
+ * @param  permission: using UGO x RWX format in base-8 (e.g., 0777). 
+ * [CAUTION] It is required to use malloc to create cur_inode (see file_add_data() below). */
+void file_initialize(struct inode* cur_inode, int _mode, int _permission) {
     count_inode++;
 
     cur_inode->i_number     = count_inode;
-    cur_inode->mode         = mode;
+    cur_inode->mode         = _mode;
     cur_inode->num_links    = 1;
     cur_inode->fsize_byte   = 0;
     cur_inode->fsize_block  = 1;
     cur_inode->io_block     = 1;
-    cur_inode->permission   = permission;
+    cur_inode->permission   = _permission;
     cur_inode->perm_uid     = USER_UID;
     cur_inode->perm_gid     = USER_GID;
     cur_inode->device       = USER_DEVICE;
@@ -149,7 +151,7 @@ void file_add_data(struct inode* cur_inode, void* data) {
     int block_addr = new_data_block(data, cur_inode->i_number, cur_inode->num_direct);
     cur_inode->direct[cur_inode->num_direct] = block_addr;
 
-    if (cur_inode->num_direct == NUM_INODE_DIRECT) {    // File is too large, so another inode is necessary.
+    if (cur_inode->num_direct == NUM_INODE_DIRECT) {    // File is too large, so another (pseudo) inode is necessary.
         struct inode* next_inode = (struct inode*) malloc(sizeof(struct inode));
         int next_inumber = file_initialize(next_inode, -1, cur_inode->permission);
         next_inode->next_indirect = (int) cur_inode;    // [CAUTION] We temporarily use next_indirect field for parent inode address.
@@ -191,7 +193,7 @@ void file_commit(struct inode* cur_inode) {
             block_addr = new_inode_block(cur_inode, cur_inode->i_number);
         }
     }
-    free(cur_inode)
+    free(cur_inode);
 }
 
 
@@ -207,8 +209,9 @@ void generate_checkpoint() {
     ckpt[next_checkpoint].count_inode = count_inode;
     ckpt[next_checkpoint].cur_block = cur_block;
     ckpt[next_checkpoint].cur_segment = cur_segment;
+    ckpt[next_checkpoint].next_imap_index = next_imap_index;
     ckpt[next_checkpoint].root_dir_inumber = root_dir_inumber;
-    ckpt[next_checkpoint].timestamp = (int) cur_time;
+    ckpt[next_checkpoint].timestamp = (int)cur_time;
 
     write_checkpoints(&ckpt);
     next_checkpoint = 1 - next_checkpoint;

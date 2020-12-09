@@ -21,6 +21,8 @@ typedef char block[BLOCK_SIZE];
  * File logical structures.
  * ***************************************/
 
+const int MAX_NUM_INODE = 100000;
+const int NUM_INODE_DIRECT = 241;
 /** Inode Block: maintaining metadata of files / directories.
  * i_number: a positive integer (0 stands for an "empty" inode).
  * mode: 1 = file, 2 = dir; use -1 to indicate indirect blocks,
@@ -29,8 +31,6 @@ typedef char block[BLOCK_SIZE];
  * next_indirect: [CAUTION] inode number of the next indirect block.
  *                We use "ghost" inode numbers to facilitate efficient modification of inodes.
  */
-const int MAX_NUM_INODE = 100000;
-const int NUM_INODE_DIRECT = 241;
 struct inode {
     int i_number;      // [CONST] Inode number.
     int mode;          // [CONST] Mode of the file (file = 1, dir = 2; non-head = -1).
@@ -51,14 +51,14 @@ struct inode {
 };
 
 
-/** Directory Data Block: maintaining structure within a directory file.
- */
 const int MAX_FILENAME_LEN = 28;
 const int MAX_DIR_ENTRIES = 32;
 struct dir_entry {
     char filename[MAX_FILENAME_LEN];    // Filename (const-length C-style string, end with '\0').
     int i_number;                  // Inode number.
 };
+/** Directory Data Block: maintaining structure within a directory file.
+ */
 typedef struct dir_entry directory[MAX_DIR_ENTRIES];
 
 
@@ -82,7 +82,7 @@ struct imap_entry {
 typedef struct imap_entry inode_map[BLOCKS_IN_SEGMENT];
 
 /** Segment Summary Block: tracing all blocks within the segment.
- * This is a vector, so sequential storation is required.
+ * This is an array, so sequential storation is required.
  * Segment summaries are always read and written in chunks (there are 8 of them) for each segment.
  */
 struct summary_entry {
@@ -95,10 +95,11 @@ typedef struct summary_entry segment_summary[BLOCKS_IN_SEGMENT];
 /** **************************************
  * File-system logical structures.
  * ***************************************/
-/** Superblock: recording basic information (constants) about LFS.
- */
+
 const int SUPERBLOCK_ADDR = TOT_SEGMENTS * SEGMENT_SIZE;
 const int SUPERBLOCK_SIZE = 20;
+/** Superblock: recording basic information (constants) about LFS.
+ */
 struct superblock {
     int tot_inodes;    // [CONST] Maximum number of inodes.
     int tot_blocks;    // [CONST] Maximum number of blocks.
@@ -107,11 +108,12 @@ struct superblock {
     int segment_size;  // [CONST] Size of a segment (in bytes).
 };
 
+
+const int CHECKPOINT_ADDR = TOT_SEGMENTS * SEGMENT_SIZE + BLOCK_SIZE;
+const int CHECKPOINT_SIZE = 2 * (24+TOT_SEGMENTS);
 /** Checkpoint Block: recording periodical checkpoints of volatile information.
  * We should assign 2 checkpoints and use them in turns (for failure restoration).
  */
-const int CHECKPOINT_ADDR = TOT_SEGMENTS * SEGMENT_SIZE + BLOCK_SIZE;
-const int CHECKPOINT_SIZE = 2 * (24+TOT_SEGMENTS);
 struct checkpoint_entry {
     char segment_bitmap[TOT_SEGMENTS]; // Indicate whether each segment is alive.
     int count_inode;                   // Current number of inodes (monotone increasing).
