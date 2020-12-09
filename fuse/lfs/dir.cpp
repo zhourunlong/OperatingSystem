@@ -93,7 +93,7 @@ int o_mkdir(const char* path, mode_t mode) {
     
     inode block_inode;
     get_inode_from_inum(&block_inode, par_inum);
-    if (block_inode.mode != 2) {
+    if (block_inode.mode != MODE_DIR) {
         logger(ERROR, "%s is not a directory!\n", parent_dir);
         return -ENOTDIR;
     }
@@ -103,15 +103,15 @@ int o_mkdir(const char* path, mode_t mode) {
     if (locate_err == 0) {
         inode tmp_inode;
         get_inode_from_inum(&tmp_inode, tmp_inum);
-        if (tmp_inode.mode == 1)
+        if (tmp_inode.mode == MODE_FILE)
             logger(ERROR, "there is a file with same name!\n");
-        if (tmp_inode.mode == 2)
+        if (tmp_inode.mode == MODE_DIR)
             logger(ERROR, "directory already exists!\n");
         return -EEXIST;
     }
 
     inode dir_inode;
-    file_initialize(&dir_inode, 2, mode);
+    file_initialize(&dir_inode, MODE_DIR, mode);
 
     int avail_direct_idx = 0;
     bool rec_avail_for_ins = false;
@@ -162,8 +162,7 @@ int o_mkdir(const char* path, mode_t mode) {
     }
 
     inode append_inode;
-    file_initialize(&append_inode, -1, 0);
-    int new_block_addr = new_data_block(&block_dir, append_inode.i_number, avail_direct_idx);
+    file_initialize(&append_inode, MODE_MID_INODE, 0);
     append_inode.direct[0] = new_block_addr;
     append_inode.num_direct = 1;
     new_inode_block(&append_inode, append_inode.i_number);
@@ -188,7 +187,7 @@ int o_rmdir(const char* path) {
     
     inode block_inode;
     get_inode_from_inum(&block_inode, par_inum);
-    if (block_inode.mode != 2) {
+    if (block_inode.mode != MODE_DIR) {
         logger(ERROR, "%s is not a directory!\n", parent_dir);
         return -ENOTDIR;
     }
@@ -204,7 +203,7 @@ int o_rmdir(const char* path) {
                 if (block_dir[j].i_number && !strcmp(block_dir[j].filename, dirname)) {
                     inode tmp_inode;
                     get_inode_from_inum(&tmp_inode, block_dir[j].i_number);
-                    if (tmp_inode.mode != 2) {
+                    if (tmp_inode.mode != MODE_DIR) {
                         logger(ERROR, "%s is not a directory!\n", path);
                         return -ENOTDIR;
                     }
