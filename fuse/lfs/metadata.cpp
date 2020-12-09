@@ -10,6 +10,7 @@
 #include <stdlib.h>
 #include <errno.h>
 #include <cstring>
+#include <fuse.h>
 
 extern struct options options;
 
@@ -85,6 +86,9 @@ int o_getattr(const char* path, struct stat* sbuf, struct fuse_file_info* fi) {
 int o_access(const char* path, int mode) {
     logger(DEBUG, "ACCESS, %s, %d\n", resolve_prefix(path), mode);
 
+    /* Get information (uid, gid) of the user who calls LFS interface. */
+    struct fuse_context* user_info = fuse_get_context();
+
     /* Mode 0 (F_OK): test whether file exists (by default). */
     int i_number;
     int locate_error = locate(path, i_number);
@@ -100,10 +104,24 @@ int o_access(const char* path, int mode) {
     }
 
     // Mode 4 (R_OK): test read permission.
-    if ((mode & R_OK) && (f_inode.permission)) {
-        
-    }
+    if ((mode & R_OK) && !( (f_inode.permission & 0004)
+                      || ((user_info.gid == f_inode.perm_gid) && (f_inode.permission & 0040))
+                      || ((user_info.uid == f_inode.perm_uid) && (f_inode.permission & 0400)) ))
+            return -EACCES;
     
+    // Mode 2 (W_OK): test write permission.
+    if ((mode & W_OK) && !( (f_inode.permission & 0002)
+                      || ((user_info.gid == f_inode.perm_gid) && (f_inode.permission & 0020))
+                      || ((user_info.uid == f_inode.perm_uid) && (f_inode.permission & 0200)) ))
+            return -EACCES;
+    
+    // Mode 1 (X_OK): test write permission.
+    if ((mode & X_OK) && !( (f_inode.permission & 0001)
+                      || ((user_info.gid == f_inode.perm_gid) && (f_inode.permission & 0010))
+                      || ((user_info.uid == f_inode.perm_uid) && (f_inode.permission & 0100)) ))
+            return -EACCES;
 
+
+    /* If it survives till here, the requested permission is granted. */
     return 0;
 }
