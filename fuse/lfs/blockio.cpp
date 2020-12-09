@@ -7,7 +7,6 @@
 #include <stdio.h>
 #include <time.h>
 #include <cstring>
-#include <vector>
 
 
 /** Retrieve block according to the block address.
@@ -151,9 +150,10 @@ void file_add_data(struct inode* cur_inode, void* data) {
     cur_inode->direct[cur_inode->num_direct] = block_addr;
 
     if (cur_inode->num_direct == NUM_INODE_DIRECT) {    // File is too large, so another inode is necessary.
-        struct inode next_inode;
+        struct inode* next_inode = (struct inode*) malloc(sizeof(struct inode));
         int next_inumber = file_initialize(next_inode, -1, cur_inode->permission);
-        cur_inode->next_indirect = &next_inode;         // Here we temporarily use next_indirect field for next_inode address.
+        next_inode->next_indirect = (int) cur_inode;    // [CAUTION] We temporarily use next_indirect field for parent inode address.
+        cur_inode = next_inode;
     } else {
         cur_inode->num_direct++;
     }
@@ -163,30 +163,35 @@ void file_add_data(struct inode* cur_inode, void* data) {
 /** Commit a new file by storing its inode in log.
  * @param  cur_inode: struct for the file inode. */
 void file_commit(struct inode* cur_inode) {
+    // The (possible) chain of inodes should be traversed and stored in reverse order.
+    int prev_inode_addr = cur_inode->next_indirect;
+    cur_inode->next_indirect = -1;
+    int block_addr = new_inode_block(cur_inode, cur_inode->i_number);
+
     time_t cur_time;
-    time(&cur_time);
-    cur_inode->atime = (int)cur_time;
-    cur_inode->mtime = (int)cur_time;
-    cur_inode->ctime = (int)cur_time;
+    if (prev_inode_addr == -1) {    // If the file contains only as single inode, maintain timestamps.
+        time(&cur_time);
+        cur_inode->atime = (int)cur_time;
+        cur_inode->mtime = (int)cur_time;
+        cur_inode->ctime = (int)cur_time;
+        block_addr = new_inode_block(cur_inode, cur_inode->i_number);
+    } else {
+        while (prev_inode_addr != -1) {
+            free(cur_inode);
+            cur_inode = (struct inode*) prev_inode_addr;
+            prev_inode_addr = cur_inode->next_indirect;
+            cur_inode->next_indirect = block_addr;      // [CAUTION] Here we obtain the actual block_addr and modify next_indirect.
 
-    // The (possible) chain of inodes should be stored in reverse order.
-    std::vector<struct inode*> inode_chain;
-    struct inode* temp_inode = cur_inode;
-    inode_chain.push_back(cur_inode);
-    while (temp_inode->next_indirect != -1) {
-        temp_inode = (struct inode*) temp_inode->next_indirect;
-        inode_chain.push_back(temp_inode);
+            if (prev_inode_addr == -1) {    // For the first inode (real file inode), maintain timestamps.
+                time(&cur_time);
+                cur_inode->atime = (int)cur_time;
+                cur_inode->mtime = (int)cur_time;
+                cur_inode->ctime = (int)cur_time;
+            }
+            block_addr = new_inode_block(cur_inode, cur_inode->i_number);
+        }
     }
-
-    int block_addr = -1;
-    for (int i=inode_chain.size()-1; i>=0; i--) {
-        temp_inode = inode_chain[i];
-        if (block_addr != -1)
-            temp_inode->next_indirect = block_addr;
-        
-        block_addr = new_inode_block(temp_inode, temp_inode->i_number);
-        free(temp_inode);
-    }
+    free(cur_inode)
 }
 
 
