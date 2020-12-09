@@ -19,7 +19,6 @@ void* o_init(struct fuse_conn_info* conn, struct fuse_config* cfg) {
 	cfg->kernel_cache = 1;
 
 
-    memset(segment_buffer, 0, sizeof(segment_buffer));
     /* ****************************************
      * Create / open LFS from disk.
      * ****************************************/
@@ -43,6 +42,17 @@ void* o_init(struct fuse_conn_info* conn, struct fuse_config* cfg) {
         pwrite(file_handle, buf, FILE_SIZE, 0);
         free(buf);
 
+        // Initialize global state variables (1).
+        memset(segment_bitmap, 0, sizeof(segment_bitmap));
+        count_inode = 0; 
+        cur_segment = 0;
+        cur_block = 0;
+        root_dir_inumber = 0;
+        next_checkpoint = 0;
+        next_imap_index = 0;
+        memset(segment_buffer, 0, sizeof(segment_buffer));
+        memset(inode_table, 0, sizeof(inode_table));
+
         // Initialize superblock.
         struct superblock init_sblock = {
             tot_inodes   : TOT_INODES,
@@ -54,40 +64,15 @@ void* o_init(struct fuse_conn_info* conn, struct fuse_config* cfg) {
         write_superblock(&init_sblock);
 
         // Initialize root directory (i_number = 1).
+        struct inode root_inode;
+        file_initialize(&root_inode);
+
         char* buf = (char*) malloc(BLOCK_SIZE);
         memset(buf, 0, BLOCK_SIZE);
-        new_data_block(buf);
+        file_add_data(&root_inode, buf);
         free(buf);
-
-        time_t cur_time;
-        time(&cur_time);
-        struct inode root_inode = {
-            i_number       : 1,
-            mode           : 2,
-            num_links      : 1,
-            fsize_byte     : 0,
-            fsize_block    : 1,
-            io_block       : 1,
-            permission     : 0777,
-            perm_uid       : 0,    // ????
-            perm_gid       : 0,    // ????
-            device         : 0,    // ????
-            atime          : 0,    // ????
-            mtime          : (int) cur_time,
-            ctime          : (int) cur_time
-        };
-        memset(root_inode.direct, -1, sizeof(root_inode.direct));
-        root_inode.direct[0] = 0;
-        root_inode.next_indirect = -1;
-        new_inode_block(&root_inode, root_inode.i_number);
-
-        count_inode = 1;
-        cur_segment = 0;
-        cur_block = 2;
-        inode_table[1] = 1;
-        root_dir_inumber = 1;
-        next_checkpoint = 0;
-        memset(segment_bitmap, 0, sizeof(segment_bitmap));
+        
+        file_commit(&root_inode);
 
         logger(DEBUG, "Successfully initialized the file system.\n");
     } else {
@@ -114,6 +99,7 @@ void* o_init(struct fuse_conn_info* conn, struct fuse_config* cfg) {
         cur_segment = ckpt[latest_index].cur_segment;
         cur_block = ckpt[latest_index].cur_block;
         root_dir_inumber = ckpt[latest_index].root_dir_inumber;
+        next_imap_index = ckpt[latest_index].next_imap_index;
         if ((count_inode <= 0) || (cur_segment < 0) || (cur_segment >= TOT_SEGMENTS) \
                                || (cur_block < 0) || (cur_block >= BLOCKS_IN_SEGMENT) \
                                || (root_dir_inumber <= 0) || (root_dir_inumber >= TOT_INODES)) {

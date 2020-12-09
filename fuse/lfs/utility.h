@@ -30,7 +30,7 @@ typedef char block[BLOCK_SIZE];
  *                We use "ghost" inode numbers to facilitate efficient modification of inodes.
  */
 const int MAX_NUM_INODE = 100000;
-const int NUM_INODE_DIRECT = 242;
+const int NUM_INODE_DIRECT = 241;
 struct inode {
     int i_number;      // [CONST] Inode number.
     int mode;          // [CONST] Mode of the file (file = 1, dir = 2; non-head = -1).
@@ -45,6 +45,7 @@ struct inode {
     int atime;         // [VAR] Last access time.
     int mtime;         // [VAR] Last modify time.
     int ctime;         // [VAR] Last change time.
+    int num_direct;    // [VAR] Index of last valid entry in direct[].
     int direct[NUM_INODE_DIRECT];  // Array of direct pointers.
     int next_indirect;             // Inode number of the next indirect block.  
 };
@@ -110,13 +111,14 @@ struct superblock {
  * We should assign 2 checkpoints and use them in turns (for failure restoration).
  */
 const int CHECKPOINT_ADDR = TOT_SEGMENTS * SEGMENT_SIZE + BLOCK_SIZE;
-const int CHECKPOINT_SIZE = 2 * (20+TOT_SEGMENTS);
+const int CHECKPOINT_SIZE = 2 * (24+TOT_SEGMENTS);
 struct checkpoint_entry {
     char segment_bitmap[TOT_SEGMENTS]; // Indicate whether each segment is alive.
     int count_inode;                   // Current number of inodes (monotone increasing).
     int cur_segment;                   // Next available segment.
     int cur_block;                     // Next available block (in the segment).
     int root_dir_inumber;              // Current inode number of root directory.
+    int next_imap_index;               // Index of next free imap entry (within the segment).
     int timestamp;                     // Timestamp of last change to this checkpoint.
 };
 typedef struct checkpoint_entry checkpoints[2];
@@ -152,6 +154,6 @@ extern char segment_buffer[SEGMENT_SIZE];
 extern char segment_bitmap[TOT_SEGMENTS];
 extern int inode_table[MAX_NUM_INODE];
 extern int count_inode, cur_segment, cur_block;  // cur_block is the first available block.
-extern int root_dir_inumber, next_checkpoint;
+extern int root_dir_inumber, next_checkpoint, next_imap_index;
 
 const int FILE_SIZE = SEGMENT_SIZE * TOT_SEGMENTS + IMAP_SIZE + SUMMARY_SIZE;
