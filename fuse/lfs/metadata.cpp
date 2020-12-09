@@ -88,7 +88,7 @@ int o_access(const char* path, int mode) {
     /* Mode 0 (F_OK): test whether file exists (by default). */
     int i_number;
     int locate_error = locate(path, i_number);
-    if (locate_eror != 0) 
+    if (locate_error != 0) 
         return -ENOENT;
     
     /* Mode 1~7 (in base-8): test file permissions; may be ORed toghether. */ 
@@ -100,7 +100,7 @@ int o_access(const char* path, int mode) {
     }
 
     // Mode 4 (R_OK): test read permission.
-    if (mode & R_OK) && (f_inode.permission) {
+    if ((mode & R_OK) && (f_inode.permission)) {
         
     }
     
