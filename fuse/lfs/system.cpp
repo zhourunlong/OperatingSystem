@@ -66,9 +66,9 @@ void* o_init(struct fuse_conn_info* conn, struct fuse_config* cfg) {
 
         // Initialize root directory (i_number = 1).
         struct inode* root_inode = (struct inode*) malloc(sizeof(struct inode));
-        file_initialize(root_inode);
+        file_initialize(root_inode, 2, 0777);
 
-        char* buf = (char*) malloc(BLOCK_SIZE);
+        buf = (char*) malloc(BLOCK_SIZE);
         memset(buf, 0, BLOCK_SIZE);
         file_add_data(root_inode, buf);
         free(buf);

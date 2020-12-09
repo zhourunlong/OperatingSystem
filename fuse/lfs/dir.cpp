@@ -85,14 +85,14 @@ int o_mkdir(const char* path, mode_t mode) {
     inode dir_inode;
     file_initialize(&dir_inode, 2, mode);
 
-    int par_inum, avail_direct_idx = 0;
+    int avail_direct_idx = 0;
     bool rec_avail_for_ins = false;
     inode block_inode, avail_for_ins, tail_inode;
     get_inode_from_inum(&block_inode, par_inum);
     while (1) {
         for (int i = 0; i < NUM_INODE_DIRECT; ++i) {
             if (block_inode.direct[i] == 0) {
-                if (!rec_afi) {
+                if (!rec_avail_for_ins) {
                     rec_avail_for_ins = true;
                     avail_for_ins = block_inode;
                     avail_direct_idx = i;
@@ -105,9 +105,9 @@ int o_mkdir(const char* path, mode_t mode) {
                 if (block_dir[j].i_number == 0) {
                     block_dir[j].i_number = dir_inode.i_number;
                     memcpy(block_dir[j].filename, dirname, strlen(dirname) * sizeof(char));
-                    int new_block_addr = new_data_block(block_dir, par_inum, i);
+                    int new_block_addr = new_data_block(&block_dir, par_inum, i);
                     block_inode.direct[i] = new_block_addr;
-                    new_inode_block(block_inode, block_inode.i_number);
+                    new_inode_block(&block_inode, block_inode.i_number);
                     return 0;
                 }
         }
@@ -119,15 +119,15 @@ int o_mkdir(const char* path, mode_t mode) {
     
     directory block_dir;
     memset(block_dir, 0, sizeof(block_dir));
-    block_dir.dir_entry[0].i_number = dir_inode.i_number;
+    block_dir[0].i_number = dir_inode.i_number;
     memcpy(block_dir[0].filename, dirname, strlen(dirname) * sizeof(char));
-    int new_block_addr = new_data_block(block_dir, par_inum, avail_direct_idx);
+    int new_block_addr = new_data_block(&block_dir, par_inum, avail_direct_idx);
 
     if (rec_avail_for_ins) {
         for (int i = 0; i < NUM_INODE_DIRECT; ++i)
             if (avail_for_ins.direct[i] == 0) {
                 avail_for_ins.direct[i] = new_block_addr;
-                new_inode_block(avail_for_ins, avail_for_ins.i_number);
+                new_inode_block(&avail_for_ins, avail_for_ins.i_number);
                 return 0;
             }
     }
@@ -135,9 +135,9 @@ int o_mkdir(const char* path, mode_t mode) {
     inode append_inode;
     file_initialize(&append_inode, -1, 0);
     append_inode.direct[0] = new_block_addr;
-    new_inode_block(append_inode, append_inode.i_number);
-    tail_inode.indirect = append_inode.i_number;
-    new_inode_block(tail_inode, tail_inode.i_number);
+    new_inode_block(&append_inode, append_inode.i_number);
+    tail_inode.next_indirect = append_inode.i_number;
+    new_inode_block(&tail_inode, tail_inode.i_number);
 
     return 0;
 }

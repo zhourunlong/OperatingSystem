@@ -27,7 +27,7 @@ void get_block(void* data, int block_addr) {
     }
 }
 
-/** Retrieve block according to the i_number of block.
+/** Retrieve block according to the i_number of inode block.
  * @param  data: pointer of return data.
  * @param  i_number: i_number of block.
  * Note that the block may be in segment buffer, or in disk file. */
@@ -75,7 +75,7 @@ int new_inode_block(void* data, int i_number) {
     int buffer_offset = cur_block * BLOCK_SIZE;
     int block_addr = cur_segment * BLOCKS_IN_SEGMENT + cur_block;
 
-    // Append data block.
+    // Append inode block.
     memcpy(segment_buffer + buffer_offset, data, BLOCK_SIZE);
 
     // Append segment summary for this block.
@@ -156,7 +156,7 @@ void file_initialize(struct inode* cur_inode, int _mode, int _permission) {
 }
 
 
-/** Append to the new file by adding new data blocks.
+/** Append to the new file by adding new data blocks (possibly storing full inodes in log).
  * @param  cur_inode: struct for the file inode.
  * @param  data: buffer for the file data block to be appended. */
 void file_add_data(struct inode* cur_inode, void* data) {
@@ -185,6 +185,22 @@ void file_add_data(struct inode* cur_inode, void* data) {
     int block_addr = new_data_block(data, cur_inode->i_number, cur_inode->num_direct);
     cur_inode->direct[cur_inode->num_direct] = block_addr;
     cur_inode->num_direct++;
+}
+
+
+/** Modify an existing file by replacing a data block at given index.
+ * @param  cur_inode: existing struct for the file inode.
+ * [CAUTION] Inodes already in log cannot be directly modified. It must be read out by get_block() first.
+ * @param  direct_index: index of the modification (w.r.t. direct[] of the inode).
+ * @param  data: a new data block. */
+void file_modify(struct inode* cur_inode, int direct_index, void* data) {
+    if (direct_index >= cur_inode->num_direct) {
+        logger(ERROR, "Cannot modify a block that does not exist yet.\n");
+        exit(-1);
+    }
+
+    int block_addr = new_data_block(data, cur_inode->i_number, direct_index);
+    cur_inode->direct[direct_index] = block_addr;
 }
 
 
