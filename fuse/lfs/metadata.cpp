@@ -4,6 +4,8 @@
 #include "path.h"
 #include "index.h"
 
+#include <cstring>
+
 extern struct options options;
 
 int o_getattr(const char* path, struct stat* sbuf, struct fuse_file_info* fi) {
