@@ -61,7 +61,7 @@ void* o_init(struct fuse_conn_info* conn, struct fuse_config* cfg) {
             segment_size : SEGMENT_SIZE
         };
         write_superblock(&init_sblock);
-        print(init_sblock);
+        print(&init_sblock);
 
         // Initialize root directory (i_number = 1).
         struct inode* root_inode = (struct inode*) malloc(sizeof(struct inode));

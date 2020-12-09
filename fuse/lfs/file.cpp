@@ -209,6 +209,7 @@ int o_create(const char *path, mode_t mode, struct fuse_file_info *fi) {
     int avail_direct_idx = 0;
     bool rec_avail_for_ins = false;
     inode avail_for_ins, tail_inode;
+    directory block_dir;
     while (1) {
         for (int i = 0; i < NUM_INODE_DIRECT; ++i) {
             if (block_inode.direct[i] == -1) {
@@ -219,7 +220,7 @@ int o_create(const char *path, mode_t mode, struct fuse_file_info *fi) {
                 }
                 continue;
             }
-            directory block_dir;
+            
             get_block(&block_dir, block_inode.direct[i]);
             for (int j = 0; j < MAX_DIR_ENTRIES; ++j)
                 if (block_dir[j].i_number == 0) {
@@ -238,12 +239,10 @@ int o_create(const char *path, mode_t mode, struct fuse_file_info *fi) {
         get_inode_from_inum(&block_inode, block_inode.next_indirect);
     }
     
-    directory block_dir;
     memset(block_dir, 0, sizeof(block_dir));
     block_dir[0].i_number = file_inode.i_number;
     memcpy(block_dir[0].filename, dirname, strlen(dirname) * sizeof(char));
 
-    directory block_dir;
     memset(block_dir, 0, sizeof(block_dir));
     block_dir[0].i_number = file_inode.i_number;
     memcpy(block_dir[0].filename, dirname, strlen(dirname) * sizeof(char));
