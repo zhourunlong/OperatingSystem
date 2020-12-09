@@ -6,6 +6,7 @@
 #include <unistd.h>
 #include <stdio.h>
 #include <time.h>
+#include <cstring>
 
 
 /** Retrieve block according to the block address.
@@ -19,7 +20,7 @@ int get_block(void* data, int block_addr) {
 
     if (segment == cur_segment) {    // Data in segment buffer.
         int buffer_offset = block * BLOCK_SIZE;
-        memcpy(data, segment_buffer + buffer_offset, BLOCKSIZE);
+        memcpy(data, segment_buffer + buffer_offset, BLOCK_SIZE);
     } else {    // Data in disk file.
         read_block(data, block_addr);
     }
@@ -54,7 +55,7 @@ void generate_checkpoint() {
     time_t cur_time;
     time(&cur_time);
 
-    memcpy(ckpt[next_checkpoint].segment_bitmap, segment_bitmap, siezof(segment_bitmap));
+    memcpy(ckpt[next_checkpoint].segment_bitmap, segment_bitmap, sizeof(segment_bitmap));
     ckpt[next_checkpoint].count_inode = count_inode;
     ckpt[next_checkpoint].cur_block = cur_block;
     ckpt[next_checkpoint].cur_segment = cur_segment;

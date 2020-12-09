@@ -4,6 +4,8 @@
 #include "path.h"
 #include "index.h"
 
+#include <cstring>
+
 extern struct options options;
 
 
