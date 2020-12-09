@@ -1,7 +1,6 @@
-#include <unistd.h>
-
 #include "utility.h"
 #include <stdio.h>
+#include <unistd.h>
 
 int file_handle;
 char segment_buffer[SEGMENT_SIZE];
