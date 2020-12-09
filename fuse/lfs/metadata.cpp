@@ -4,8 +4,11 @@
 #include "path.h"
 #include "utility.h"
 #include "index.h"
-#include "errno.h"
+#include "blockio.h"
 
+#include <unistd.h>
+#include <stdlib.h>
+#include <errno.h>
 #include <cstring>
 
 extern struct options options;

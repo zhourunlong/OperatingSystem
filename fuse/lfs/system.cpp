@@ -9,7 +9,6 @@
 #include <stdlib.h>
 #include <string.h>
 #include <string>
-#include <time.h>
 
 extern char* current_working_dir;
 

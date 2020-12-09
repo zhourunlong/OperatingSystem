@@ -6,9 +6,8 @@
 #include <unistd.h>
 #include <stdio.h>
 #include <stdlib.h>
-#include <time.h>
 #include <cstring>
-
+#include <sys/stat.h>
 
 
 /** Retrieve block according to the block address.
@@ -168,11 +167,11 @@ void file_add_data(struct inode* cur_inode, void* data) {
         file_initialize(next_inode, MODE_MID_INODE, cur_inode->permission);
 
         // Update current inode and commit it.
-        time_t cur_time;
-        time(&cur_time);
-        cur_inode->atime = (int)cur_time;
-        cur_inode->mtime = (int)cur_time;
-        cur_inode->ctime = (int)cur_time;
+        struct timespec cur_time;
+        clock_gettime(CLOCK_REALTIME, &cur_time);
+        cur_inode->atime = cur_time;
+        cur_inode->mtime = cur_time;
+        cur_inode->ctime = cur_time;
 
         cur_inode->num_direct--;
         cur_inode->next_indirect = next_inode->i_number;
@@ -209,11 +208,11 @@ void file_modify(struct inode* cur_inode, int direct_index, void* data) {
  * @param  cur_inode: struct for the file inode. */
 void file_commit(struct inode* cur_inode) {
     // Update current inode (non-empty), commit it and release the memory.
-    time_t cur_time;
-    time(&cur_time);
-    cur_inode->atime = (int)cur_time;
-    cur_inode->mtime = (int)cur_time;
-    cur_inode->ctime = (int)cur_time;
+    struct timespec cur_time;
+    clock_gettime(CLOCK_REALTIME, &cur_time);
+    cur_inode->atime = cur_time;
+    cur_inode->mtime = cur_time;
+    cur_inode->ctime = cur_time;
 
     cur_inode->next_indirect = 0;
     new_inode_block(cur_inode, cur_inode->i_number);
