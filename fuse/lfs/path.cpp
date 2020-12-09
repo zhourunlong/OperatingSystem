@@ -138,7 +138,7 @@ int locate(const char* _path, int &i_number) {
         flag = true;
         while (flag) {
             for (int i=0; i<NUM_INODE_DIRECT; i++) {
-                if (block_inode.direct[i] == 0)
+                if (block_inode.direct[i] == -1)
                     continue;
                 read_block(block_dir, block_inode.direct[i]);
 

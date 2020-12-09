@@ -27,15 +27,15 @@ void* o_init(struct fuse_conn_info* conn, struct fuse_config* cfg) {
     lfs_path += "lfs.data";
 
     if (access(lfs_path.c_str(), R_OK) != 0) {    // Disk file does not exist.
-        logger(WARN, "Disk file (lfs.data) does not exist. Try to create and initialize to 0.\n");
+        logger(WARN, "[WARNING] Disk file (lfs.data) does not exist. Try to create and initialize to 0.\n");
         
         // Create a file.
         file_handle = open(lfs_path.c_str(), O_RDWR | O_CREAT, 0777);
         if (file_handle <= 0) {
-            logger(ERROR, "Fail to create a new disk file (lfs.data).\n");
+            logger(ERROR, "[FATAL ERROR] Fail to create a new disk file (lfs.data).\n");
             exit(-1);
         }
-        logger(DEBUG, "Successfully created a new disk file (lfs.data).\n");
+        logger(DEBUG, "]INFO] Successfully created a new disk file (lfs.data).\n");
 
         // Fill 0 into the file.
         char* buf = (char*) malloc(FILE_SIZE);
@@ -75,15 +75,15 @@ void* o_init(struct fuse_conn_info* conn, struct fuse_config* cfg) {
         
         file_commit(root_inode);
 
-        logger(DEBUG, "Successfully initialized the file system.\n");
+        logger(DEBUG, "[INFO] Successfully initialized the file system.\n");
     } else {
         // Open an existing file.
         file_handle = open(lfs_path.c_str(), O_RDWR);
         if (file_handle <= 0) {
-            logger(ERROR, "Fail to open existing disk file (lfs.data).\n");
+            logger(ERROR, "[FATAL ERROR] Fail to open existing disk file (lfs.data). Please contact administrator.\n");
             exit(-1);
         }
-        logger(DEBUG, "Successfully opened an existing file system.\n");
+        logger(DEBUG, "[INFO] Successfully opened an existing file system.\n");
 
 
         // Read the (newer) checkpoint.
@@ -104,7 +104,7 @@ void* o_init(struct fuse_conn_info* conn, struct fuse_config* cfg) {
         if ((count_inode <= 0) || (cur_segment < 0) || (cur_segment >= TOT_SEGMENTS) \
                                || (cur_block < 0) || (cur_block >= BLOCKS_IN_SEGMENT) \
                                || (root_dir_inumber <= 0) || (root_dir_inumber >= TOT_INODES)) {
-            logger(ERROR, "Corrupt file system on disk. Please erase it and re-initiallize.\n");
+            logger(ERROR, "[FATAL ERROR] Corrupt file system on disk. Please erase it and re-initiallize.\n");
             exit(-1);
         }
 
