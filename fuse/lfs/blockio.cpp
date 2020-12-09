@@ -10,6 +10,7 @@
 #include <cstring>
 
 
+
 /** Retrieve block according to the block address.
  * @param  data: pointer of return data.
  * @param  block_addr: block address.
@@ -26,6 +27,13 @@ void get_block(void* data, int block_addr) {
     }
 }
 
+/** Retrieve block according to the i_number of block.
+ * @param  data: pointer of return data.
+ * @param  i_number: i_number of block.
+ * Note that the block may be in segment buffer, or in disk file. */
+void get_inode_from_inum(void* data, int i_number) {
+    get_block(data, inode_table[i_number]);
+}
 
 /** Create a new data block into the segment buffer.
  * @param  data: pointer of data to be appended.
@@ -152,6 +160,7 @@ void file_initialize(struct inode* cur_inode, int _mode, int _permission) {
  * @param  cur_inode: struct for the file inode.
  * @param  data: buffer for the file data block to be appended. */
 void file_add_data(struct inode* cur_inode, void* data) {
+
     int block_addr = new_data_block(data, cur_inode->i_number, cur_inode->num_direct);
     cur_inode->direct[cur_inode->num_direct] = block_addr;
 
