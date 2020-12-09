@@ -11,8 +11,8 @@ extern struct options options;
 int o_getattr(const char* path, struct stat* sbuf, struct fuse_file_info* fi) {
     logger(DEBUG, "GETATTR, %s, %p, %p\n", resolve_prefix(path), sbuf, fi);
     
-	(void) fi;
-	int res = 0;
+
+	int flag = 0;
 
 	memset(sbuf, 0, sizeof(struct stat));
 	if (strcmp(path, "/") == 0) {
@@ -23,9 +23,9 @@ int o_getattr(const char* path, struct stat* sbuf, struct fuse_file_info* fi) {
 		sbuf->st_nlink = 1;
 		sbuf->st_size = strlen(options.contents);
 	} else
-		res = -ENOENT;
+		flag = -ENOENT;
 
-	return res;
+	return flag;
 }
 
 
