@@ -61,6 +61,7 @@ void* o_init(struct fuse_conn_info* conn, struct fuse_config* cfg) {
             segment_size : SEGMENT_SIZE
         };
         write_superblock(&init_sblock);
+        print(init_sblock);
 
         // Initialize root directory (i_number = 1).
         struct inode* root_inode = (struct inode*) malloc(sizeof(struct inode));
@@ -73,6 +74,12 @@ void* o_init(struct fuse_conn_info* conn, struct fuse_config* cfg) {
         
         file_commit(root_inode);
 
+        // Generate first checkpoint.
+        generate_checkpoint();
+        checkpoints ckpt;
+        read_checkpoints(&ckpt);
+        print(ckpt);
+        
 
         logger(DEBUG, "[INFO] Successfully initialized the file system.\n");
     } else {

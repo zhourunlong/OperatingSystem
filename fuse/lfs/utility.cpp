@@ -123,7 +123,7 @@ int write_superblock(void* buf) {
  * ***************************************/
 void print(struct inode* node){
     logger(DEBUG, "[DEBUG] ******************** PRINT INODE ********************\n");
-    logger(DEBUG, "ITEM\tCONTENT\n");
+    logger(DEBUG, "ITEM  \tCONTENT     \n");
     logger(DEBUG, "======\t============\n");
     logger(DEBUG, "I_NUM\t%d\n", node->i_number);
     switch (node->mode) {
@@ -158,21 +158,81 @@ void print(struct inode* node){
 }
 
 void print(directory dir) {
-
+    logger(DEBUG, "[DEBUG] ******************** PRINT DIRECTORY ********************\n");
+    logger(DEBUG, "IDX\tI_NUM \tNAME        \n");
+    logger(DEBUG, "===\t======\t============\n");
+    int count = 0;
+    for (int i=0; i<MAX_DIR_ENTRIES; i++)
+        if (dir[i].i_number > 0) {
+            logger(DEBUG, "%d\t%d\t\t%s\n", i, dir[i].i_number, dir[i].filename);
+            count++;
+        }
+    logger(DEBUG, "\nThere are %d files / sub-directories in this directory.\n", count);
+    logger(DEBUG, "        ==================== PRINT DIRECTORY ====================\n");
 }
 
 void print(inode_map imap) {
-    
+    logger(DEBUG, "[DEBUG] ******************** PRINT INODE MAP ********************\n");
+    logger(DEBUG, "IDX\tI_NUM \tBLOCK_ADDR  \n");
+    logger(DEBUG, "===\t======\t============\n");
+    int count = 0;
+    for (int i=0; i<BLOCKS_IN_SEGMENT; i++)
+        if ((imap[i].i_number > 0) && (imap[i].inode_block >= 0)) {
+            logger(DEBUG, "%d\t%d\t\t%s\n", i, imap[i].i_number, imap[i].inode_block);
+            count++;
+        }
+    logger(DEBUG, "\nThere are %d inodes in this segment.\n", count);
+    logger(DEBUG, "        ==================== PRINT INODE MAP ====================\n");
 }
 
 void print(segment_summary segsum) {
-    
+    logger(DEBUG, "[DEBUG] ******************** PRINT SEGMENT SUMMARY ********************\n");
+    logger(DEBUG, "IDX\tI_NUM \tDIRECT[?]   \n");
+    logger(DEBUG, "===\t======\t============\n");
+    int count = 0;
+    for (int i=0; i<BLOCKS_IN_SEGMENT; i++)
+        if (segsum[i].i_number > 0) {
+            logger(DEBUG, "%d\t%d\t\t%s\n", i, segsum[i].i_number, segsum[i].direct_index);
+            count++;
+        }
+    logger(DEBUG, "\nThere are %d non-empty blocks in this segment.\n", count);
+    logger(DEBUG, "        ==================== PRINT SEGMENT SUMMARY ====================\n");
 }
 
-void print(superblock sblk) {
-
+void print(struct superblock* sblk) {
+    logger(DEBUG, "[DEBUG] ******************** PRINT SUPERBLOCK ********************\n");
+    logger(DEBUG, "ITEM      \tCONTENT     \n");
+    logger(DEBUG, "==========\t============\n");
+    logger(DEBUG, "TOT_INODES  \t%d\n", sblk->tot_inodes);
+    logger(DEBUG, "TOT_BLOCKS  \t%d\n", sblk->tot_blocks);
+    logger(DEBUG, "TOT_SEGMENTS\t%d\n", sblk->tot_segments);
+    logger(DEBUG, "BLOCK_SIZE  \t%d\n", sblk->block_size);
+    logger(DEBUG, "SEGMENT_SIZE\t%d\n", sblk->segment_size);
+    logger(DEBUG, "        ==================== PRINT SUPERBLOCK ====================\n");
 }
 
 void print(checkpoints ckpt){
+    logger(DEBUG, "[DEBUG] ******************** PRINT CHECKPOINTS ********************\n");
+    logger(DEBUG, "ITEM       \tCKPT[0]     \tCKPT[1]     \n");
+    logger(DEBUG, "========== \t============\t============\n");
+
+    logger(DEBUG, "SEG_BITMAP\n");
+    int i = 0;
+    while (i < TOT_SEGMENTS) {
+        logger(DEBUG, "           \t");
+        for (int j=0; j<10; j++)
+            logger(DEBUG, "%d", ckpt[0].segment_bitmap[i+j]);
+        logger(DEBUG, "  \t");
+        for (int j=0; j<10; j++)
+            logger(DEBUG, "%d", ckpt[1].segment_bitmap[i+j]);
+        logger(DEBUG, "\n");
+        i += 10;
+    }
     
+    logger(DEBUG, "COUNT_INODE\t%d   \t\t\t%d\n", ckpt[0].count_inode, ckpt[1].count_inode);
+    logger(DEBUG, "CUR_SEGMENT\t%d   \t\t\t%d\n", ckpt[0].cur_segment, ckpt[1].cur_segment);
+    logger(DEBUG, "CUR_BLOCK  \t%d   \t\t\t%d\n", ckpt[0].cur_block, ckpt[1].cur_block);
+    logger(DEBUG, "NXT_IMAP_ID\t%d   \t\t\t%d\n", ckpt[0].next_imap_index, ckpt[1].next_imap_index);
+    logger(DEBUG, "TIMESTAMP  \t%d\t%d\n", ckpt[0].timestamp, ckpt[1].timestamp);
+    logger(DEBUG, "        ==================== PRINT CHECKPOINTS ====================\n");
 }

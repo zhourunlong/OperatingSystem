@@ -137,7 +137,7 @@ void print(struct inode* node);
 void print(directory dir);
 void print(inode_map imap);
 void print(segment_summary segsum);
-void print(superblock sblk);
+void print(struct superblock* sblk);
 void print(checkpoints ckpt);
 
 /** **************************************
