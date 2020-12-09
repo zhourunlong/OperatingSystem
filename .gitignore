@@ -8,3 +8,4 @@ fuse/lfs/.sconsign.dblite
 fuse/lfs/fuse
 .vscode/settings.json
 fuse/lfs/lfs.data
+.vscode/*.json

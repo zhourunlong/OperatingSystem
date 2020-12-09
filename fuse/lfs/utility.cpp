@@ -5,7 +5,7 @@
 
 int file_handle;
 char segment_buffer[SEGMENT_SIZE];
-char segment_bitmap[TOT_SEGMENTS]
+char segment_bitmap[TOT_SEGMENTS];
 int inode_table[MAX_NUM_INODE];
 int count_inode, cur_segment, cur_block;
 int root_dir_inumber, next_checkpoint;

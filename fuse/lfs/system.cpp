@@ -56,12 +56,12 @@ void* o_init(struct fuse_conn_info* conn, struct fuse_config* cfg) {
         // Initialize root directory (i_number = 1).
         char* buf = (char*) malloc(BLOCK_SIZE);
         memset(buf, 0, BLOCK_SIZE);
-        new_block(buf);
+        new_data_block(buf);
         free(buf);
 
         time_t cur_time;
         time(&cur_time);
-        inode root_inode = {
+        struct inode root_inode = {
             i_number       : 1,
             mode           : 2,
             num_links      : 1,
@@ -75,11 +75,11 @@ void* o_init(struct fuse_conn_info* conn, struct fuse_config* cfg) {
             atime          : 0,    // ????
             mtime          : (int) cur_time,
             ctime          : (int) cur_time
-        }
+        };
         memset(root_inode.direct, -1, sizeof(root_inode.direct));
         root_inode.direct[0] = 0;
         root_inode.next_indirect = -1;
-        new_block(&root_inode);
+        new_inode_block(&root_inode, root_inode.i_number);
 
         count_inode = 1;
         cur_segment = 0;
@@ -129,7 +129,7 @@ void* o_init(struct fuse_conn_info* conn, struct fuse_config* cfg) {
                 imap_entry im_entry;
 
                 read_segment_imap(imap, seg);
-                for (int i=0; i<MAX_IMAP_ENTRIES; i++) {
+                for (int i=0; i < BLOCKS_IN_SEGMENT; i++) {
                     im_entry = imap[i];
                     if ((im_entry.i_number > 0) && (im_entry.inode_block > 0)) {
                         // Here we simply regard that segments on the right are newer than those on the left.
