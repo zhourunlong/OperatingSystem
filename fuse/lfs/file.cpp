@@ -169,6 +169,105 @@ int o_write(const char* path, const char* buf, size_t size, off_t offset, struct
 int o_create(const char *path, mode_t mode, struct fuse_file_info *fi) {
     logger(DEBUG, "CREATE, %s, %d, %p\n",
         resolve_prefix(path), mode, fi);
+    mode |= S_IFREG;
+    char* parent_dir = relative_to_absolute(path, "../", 0);
+    char* dirname = current_fname(path);
+    if (strlen(dirname) >= MAX_FILENAME_LEN) {
+        logger(ERROR, "dirname too long (%d), should < %d!\n", strlen(dirname), MAX_FILENAME_LEN);
+        return -E2BIG;
+    }
+    int par_inum;
+    int locate_err = locate(parent_dir, par_inum);
+    if (locate_err != 0) {
+        logger(ERROR, "error loading parent dir!\n");
+        return locate_err;
+    }
+    
+    inode block_inode;
+    get_inode_from_inum(&block_inode, par_inum);
+    if (block_inode.mode != MODE_DIR) {
+        logger(ERROR, "%s is not a directory!\n", parent_dir);
+        return -ENOTDIR;
+    }
+
+    int tmp_inum;
+    locate_err = locate(path, tmp_inum);
+    if (locate_err == 0) {
+        inode tmp_inode;
+        get_inode_from_inum(&tmp_inode, tmp_inum);
+        if (tmp_inode.mode == MODE_FILE)
+            logger(ERROR, "there is a file with same name!\n");
+        if (tmp_inode.mode == MODE_DIR)
+            logger(ERROR, "directory already exists!\n");
+        return -EEXIST;
+    }
+
+    inode file_inode;
+    file_initialize(&file_inode, MODE_DIR, mode);
+    file_commit(&file_inode);
+    
+    int avail_direct_idx = 0;
+    bool rec_avail_for_ins = false;
+    inode avail_for_ins, tail_inode;
+    while (1) {
+        for (int i = 0; i < NUM_INODE_DIRECT; ++i) {
+            if (block_inode.direct[i] == -1) {
+                if (!rec_avail_for_ins) {
+                    rec_avail_for_ins = true;
+                    avail_for_ins = block_inode;
+                    avail_direct_idx = i;
+                }
+                continue;
+            }
+            directory block_dir;
+            get_block(&block_dir, block_inode.direct[i]);
+            for (int j = 0; j < MAX_DIR_ENTRIES; ++j)
+                if (block_dir[j].i_number == 0) {
+                    block_dir[j].i_number = file_inode.i_number;
+                    memcpy(block_dir[j].filename, dirname, strlen(dirname) * sizeof(char));
+                    int new_block_addr = new_data_block(&block_dir, block_inode.i_number, i);
+                    block_inode.direct[i] = new_block_addr;
+                    ++block_inode.num_direct;
+                    new_inode_block(&block_inode, block_inode.i_number);
+                    return 0;
+                }
+        }
+        tail_inode = block_inode;
+        if (block_inode.next_indirect == 0)
+            break;
+        get_inode_from_inum(&block_inode, block_inode.next_indirect);
+    }
+    
+    directory block_dir;
+    memset(block_dir, 0, sizeof(block_dir));
+    block_dir[0].i_number = file_inode.i_number;
+    memcpy(block_dir[0].filename, dirname, strlen(dirname) * sizeof(char));
+
+    directory block_dir;
+    memset(block_dir, 0, sizeof(block_dir));
+    block_dir[0].i_number = file_inode.i_number;
+    memcpy(block_dir[0].filename, dirname, strlen(dirname) * sizeof(char));
+
+    if (rec_avail_for_ins) {
+        for (int i = 0; i < NUM_INODE_DIRECT; ++i)
+            if (avail_for_ins.direct[i] == -1) {
+                int new_block_addr = new_data_block(&block_dir, avail_for_ins.i_number, avail_direct_idx);
+                avail_for_ins.direct[i] = new_block_addr;
+                ++avail_for_ins.num_direct;
+                new_inode_block(&avail_for_ins, avail_for_ins.i_number);
+                return 0;
+            }
+    }
+
+    inode append_inode;
+    file_initialize(&append_inode, MODE_MID_INODE, 0);
+    int new_block_addr = new_data_block(&block_dir,append_inode.i_number, 0);
+    append_inode.direct[0] = new_block_addr;
+    append_inode.num_direct = 1;
+    new_inode_block(&append_inode, append_inode.i_number);
+    tail_inode.next_indirect = append_inode.i_number;
+    new_inode_block(&tail_inode, tail_inode.i_number);
+
     return 0;
 }
 
