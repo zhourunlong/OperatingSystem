@@ -5,6 +5,7 @@
 
 #include <unistd.h>
 #include <stdio.h>
+#include <stdlib.h>
 #include <time.h>
 #include <cstring>
 
@@ -101,7 +102,7 @@ void add_segbuf_summary(int block_index, int _i_number, int _direct_index) {
         i_number     : _i_number,
         direct_index : _direct_index
     };
-    memcpy(segment_buffer + buffer_offset, blk_summary, entry_size);
+    memcpy(segment_buffer + buffer_offset, &blk_summary, entry_size);
 }
 
 
@@ -115,7 +116,7 @@ void add_segbuf_imap(int _i_number, int _block_addr) {
         i_number     : _i_number,
         inode_block  : _block_addr
     };
-    memcpy(segment_buffer + buffer_offset, blk_imentry, entry_size);
+    memcpy(segment_buffer + buffer_offset, &blk_imentry, entry_size);
     next_imap_index++;
 }
 
@@ -140,7 +141,7 @@ void file_initialize(struct inode* cur_inode, int _mode, int _permission) {
     cur_inode->device       = USER_DEVICE;
     cur_inode->num_direct   = 0;
     memset(cur_inode->direct, -1, sizeof(cur_inode->direct));
-    cur_inode->next_indirect = -1;
+    cur_inode->next_indirect = 0;
 }
 
 
@@ -151,10 +152,10 @@ void file_add_data(struct inode* cur_inode, void* data) {
     int block_addr = new_data_block(data, cur_inode->i_number, cur_inode->num_direct);
     cur_inode->direct[cur_inode->num_direct] = block_addr;
 
-    if (cur_inode->num_direct == NUM_INODE_DIRECT) {    // File is too large, so another (pseudo) inode is necessary.
+    if (cur_inode->num_direct == NUM_INODE_DIRECT-1) {    // File is too large, so another (pseudo) inode is necessary.
         struct inode* next_inode = (struct inode*) malloc(sizeof(struct inode));
-        int next_inumber = file_initialize(next_inode, -1, cur_inode->permission);
-        next_inode->next_indirect = (int) cur_inode;    // [CAUTION] We temporarily use next_indirect field for parent inode address.
+        file_initialize(next_inode, -1, cur_inode->permission);
+        next_inode->device = (long) cur_inode;          // [CAUTION] We temporarily use next_indirect field for parent inode address.
         cur_inode = next_inode;
     } else {
         cur_inode->num_direct++;
@@ -167,8 +168,10 @@ void file_add_data(struct inode* cur_inode, void* data) {
 void file_commit(struct inode* cur_inode) {
     // The (possible) chain of inodes should be traversed and stored in reverse order.
     int prev_inode_addr = cur_inode->next_indirect;
+    int cur_inode_number = cur_inode->i_number;
     cur_inode->next_indirect = -1;
-    int block_addr = new_inode_block(cur_inode, cur_inode->i_number);
+    cur_inode->device = USER_DEVICE;                    // [CAUTION] Restore device information.
+    new_inode_block(cur_inode, cur_inode->i_number);
 
     time_t cur_time;
     if (prev_inode_addr == -1) {    // If the file contains only as single inode, maintain timestamps.
@@ -182,7 +185,9 @@ void file_commit(struct inode* cur_inode) {
             free(cur_inode);
             cur_inode = (struct inode*) prev_inode_addr;
             prev_inode_addr = cur_inode->next_indirect;
-            cur_inode->next_indirect = block_addr;      // [CAUTION] Here we obtain the actual block_addr and modify next_indirect.
+            cur_inode_number = cur_inode->i_number;
+            cur_inode->next_indirect = cur_inode_number;        // [CAUTION] Here we obtain the actual block_addr and modify next_indirect.
+            cur_inode->device = USER_DEVICE;                    // [CAUTION] Restore device information.
 
             if (prev_inode_addr == -1) {    // For the first inode (real file inode), maintain timestamps.
                 time(&cur_time);
@@ -190,7 +195,7 @@ void file_commit(struct inode* cur_inode) {
                 cur_inode->mtime = (int)cur_time;
                 cur_inode->ctime = (int)cur_time;
             }
-            block_addr = new_inode_block(cur_inode, cur_inode->i_number);
+            new_inode_block(cur_inode, cur_inode->i_number);
         }
     }
     free(cur_inode);

@@ -3,7 +3,7 @@
 
 const int USER_UID = 0;
 const int USER_GID = 0;
-const int USER_DEVICE = 0;
+const long USER_DEVICE = 0;
 
 /* High-level functions should ONLY call these interfaces for data transfer. */
 void get_block(void* data, int block_addr);
