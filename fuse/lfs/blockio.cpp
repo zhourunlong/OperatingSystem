@@ -67,7 +67,7 @@ int new_inode_block(void* data, int i_number) {
     int buffer_offset = cur_block * BLOCK_SIZE;
     int block_addr = cur_segment * BLOCKS_IN_SEGMENT + cur_block;
 
-    // Append data block.
+    // Append inode block.
     memcpy(segment_buffer + buffer_offset, data, BLOCK_SIZE);
 
     // Append segment summary for this block.
@@ -148,7 +148,7 @@ void file_initialize(struct inode* cur_inode, int _mode, int _permission) {
 }
 
 
-/** Append to the new file by adding new data blocks.
+/** Append to the new file by adding new data blocks (possibly storing full inodes in log).
  * @param  cur_inode: struct for the file inode.
  * @param  data: buffer for the file data block to be appended. */
 void file_add_data(struct inode* cur_inode, void* data) {
@@ -180,7 +180,7 @@ void file_add_data(struct inode* cur_inode, void* data) {
 }
 
 
-/** Commit a new file by storing its inode in log.
+/** Commit a new file by storing its last inode in log.
  * @param  cur_inode: struct for the file inode. */
 void file_commit(struct inode* cur_inode) {
     // Update current inode (non-empty), commit it and release the memory.
