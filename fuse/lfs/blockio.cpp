@@ -152,7 +152,7 @@ void file_add_data(struct inode* cur_inode, void* data) {
 
     if (cur_inode->num_direct == NUM_INODE_DIRECT) {    // File is too large, so another inode is necessary.
         struct inode next_inode;
-        int next_inumber = file_initialize(next_inode);
+        int next_inumber = file_initialize(next_inode, -1, cur_inode->permission);
         cur_inode->next_indirect = &next_inode;         // Here we temporarily use next_indirect field for next_inode address.
     } else {
         cur_inode->num_direct++;
@@ -171,8 +171,22 @@ void file_commit(struct inode* cur_inode) {
 
     // The (possible) chain of inodes should be stored in reverse order.
     std::vector<struct inode*> inode_chain;
+    struct inode* temp_inode = cur_inode;
     inode_chain.push_back(cur_inode);
-    while 
+    while (temp_inode->next_indirect != -1) {
+        temp_inode = (struct inode*) temp_inode->next_indirect;
+        inode_chain.push_back(temp_inode);
+    }
+
+    int block_addr = -1;
+    for (int i=inode_chain.size()-1; i>=0; i--) {
+        temp_inode = inode_chain[i];
+        if (block_addr != -1)
+            temp_inode->next_indirect = block_addr;
+        
+        block_addr = new_inode_block(temp_inode, temp_inode->i_number);
+        free(temp_inode);
+    }
 }
 
 

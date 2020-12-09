@@ -98,7 +98,7 @@ char* current_fname(const char* path) {
  * @param  i_number: return variable.
  * @return flag: indicating whether the traversal is successful. */
 
-!!! // return value should conform to fuse standard. see echofs/readdir.cpp
+// !!! return value should conform to fuse standard. see echofs/readdir.cpp
 int locate(char* _path, int &i_number) {
     if (_path[0] != '/') {
         logger(ERROR, "Function locate() only accepts absolute path from LFS root.\n");
