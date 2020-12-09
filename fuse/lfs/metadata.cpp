@@ -18,21 +18,20 @@ int o_getattr(const char* path, struct stat* sbuf, struct fuse_file_info* fi) {
     logger(DEBUG, "GETATTR, %s, %p, %p\n", resolve_prefix(path), sbuf, fi);
     
 
-    int flag = 0;
     /* ****************************************
      * Resolve path and find file inode structure.
      * ****************************************/
     int i_number;
     int locate_error = locate(path, i_number);
     if (locate_error != 0) {
-        logger(ERROR, "No such file or directory.\n");
-        flag = -ENOENT;
+        logger(ERROR, "[ERROR] Error #%d.\n", locate_error);
+        return locate_error;
     }
 
     struct inode f_inode;
     get_inode_from_inum((void*)&f_inode, i_number);
     if (f_inode.i_number != i_number) {
-        logger(ERROR, "[FATAL ERROR] Corrupt file system on disk: inode inconsistent with inumber. Please erase it and re-initiallize.\n");
+        logger(ERROR, "[FATAL ERROR] Corrupt file system on disk: inode inconsistent with inumber.\n");
         exit(-1);
     }
 
@@ -40,6 +39,7 @@ int o_getattr(const char* path, struct stat* sbuf, struct fuse_file_info* fi) {
     /* ****************************************
      * Fill all "struct stat" fields.
      * ****************************************/
+    int flag = 0;
     memset(sbuf, 0, sizeof(struct stat));
 
     // Basic information.
@@ -99,26 +99,26 @@ int o_access(const char* path, int mode) {
     struct inode f_inode;
     get_inode_from_inum((void*)&f_inode, i_number);
     if (f_inode.i_number != i_number) {
-        logger(ERROR, "[FATAL ERROR] Corrupt file system on disk: inode inconsistent with inumber. Please erase it and re-initiallize.\n");
+        logger(ERROR, "[FATAL ERROR] Corrupt file system on disk: inode inconsistent with inumber.\n");
         exit(-1);
     }
 
     // Mode 4 (R_OK): test read permission.
     if ((mode & R_OK) && !( (f_inode.permission & 0004)
-                      || ((user_info.gid == f_inode.perm_gid) && (f_inode.permission & 0040))
-                      || ((user_info.uid == f_inode.perm_uid) && (f_inode.permission & 0400)) ))
+                      || ((user_info->gid == f_inode.perm_gid) && (f_inode.permission & 0040))
+                      || ((user_info->uid == f_inode.perm_uid) && (f_inode.permission & 0400)) ))
             return -EACCES;
     
     // Mode 2 (W_OK): test write permission.
     if ((mode & W_OK) && !( (f_inode.permission & 0002)
-                      || ((user_info.gid == f_inode.perm_gid) && (f_inode.permission & 0020))
-                      || ((user_info.uid == f_inode.perm_uid) && (f_inode.permission & 0200)) ))
+                      || ((user_info->gid == f_inode.perm_gid) && (f_inode.permission & 0020))
+                      || ((user_info->uid == f_inode.perm_uid) && (f_inode.permission & 0200)) ))
             return -EACCES;
     
     // Mode 1 (X_OK): test write permission.
     if ((mode & X_OK) && !( (f_inode.permission & 0001)
-                      || ((user_info.gid == f_inode.perm_gid) && (f_inode.permission & 0010))
-                      || ((user_info.uid == f_inode.perm_uid) && (f_inode.permission & 0100)) ))
+                      || ((user_info->gid == f_inode.perm_gid) && (f_inode.permission & 0010))
+                      || ((user_info->uid == f_inode.perm_uid) && (f_inode.permission & 0100)) ))
             return -EACCES;
 
 
