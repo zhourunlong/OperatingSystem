@@ -20,7 +20,7 @@ const int SC = sizeof(char);
 char* relative_to_absolute(const char* root, const char* path, const int bgi = 0) {
     int rlen = strlen(root), plen = strlen(path);
 
-    char* ret = (char *)malloc((rlen + plen + 10) * SC);
+    char* ret = (char*) malloc((rlen + plen + 10) * SC);
     memcpy(ret, root, rlen * SC);
     ret[rlen] = 0;
     int rend = rlen;
@@ -50,7 +50,7 @@ char* relative_to_absolute(const char* root, const char* path, const int bgi = 0
     }
     if (path[plen - 1] != '/')
         --rend;
-    char* nret = (char *)malloc((rend + 1)* SC);
+    char* nret = (char*) malloc((rend + 1) * SC);
     memcpy(nret, ret, rend * SC);
     nret[rend] = 0;
     return nret;
@@ -66,7 +66,7 @@ void generate_prefix(const char* path) {
         cwd_len += 10;
         if (current_working_dir != NULL)
             free(current_working_dir);
-        current_working_dir = (char *)malloc(cwd_len * SC);
+        current_working_dir = (char*) malloc(cwd_len * SC);
         errno = 0;
         getcwd(current_working_dir, cwd_len * SC);
     } while (errno == ERANGE);
@@ -77,11 +77,28 @@ void generate_prefix(const char* path) {
     logger(DEBUG, "mount root dir =\t%s\n", mount_root_dir);
 }
 
+char* current_fname(const char* path) {
+    int plen = strlen(path);
+    while (plen && path[plen - 1] == '/')
+        --plen;
+    if (!plen) {
+        logger(ERROR, "current file is root directory!");
+        return NULL;
+    }
+    int i = plen - 1;
+    while (i && path[i] != '/')
+        --i;
+    char* ret = (char*) malloc((plen - i) * SC);
+    memcpy(ret, path + i + 1, (plen - i - 1) * SC);
+    return ret;
+}
 
 /** Traverse an absolute path to retrieve inode number.
  * @param  _path: an absolute path from LFS root.
  * @param  i_number: return variable.
  * @return flag: indicating whether the traversal is successful. */
+
+!!! // return value should conform to fuse standard. see echofs/readdir.cpp
 int locate(char* _path, int &i_number) {
     if (_path[0] != '/') {
         logger(ERROR, "Function locate() only accepts absolute path from LFS root.\n");
