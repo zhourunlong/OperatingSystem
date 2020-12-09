@@ -162,7 +162,7 @@ int locate(const char* _path, int &i_number) {
         }
 
         if (!flag)
-            return -2;  // File or directory does not exist.
+            return -ENOENT;
     }
 
     i_number = cur_inumber;
