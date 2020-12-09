@@ -35,6 +35,7 @@ void get_inode_from_inum(void* data, int i_number) {
     get_block(data, inode_table[i_number]);
 }
 
+
 /** Create a new data block into the segment buffer.
  * @param  data: pointer of data to be appended.
  * @param  i_number: i_number of the file (that the data belongs to).
@@ -164,7 +165,7 @@ void file_add_data(struct inode* cur_inode, void* data) {
     if (cur_inode->num_direct == NUM_INODE_DIRECT) {
         // Create the next inode.
         struct inode* next_inode = (struct inode*) malloc(sizeof(struct inode));
-        file_initialize(next_inode, -1, cur_inode->permission);
+        file_initialize(next_inode, MODE_MID_INODE, cur_inode->permission);
 
         // Update current inode and commit it.
         time_t cur_time;
