@@ -81,7 +81,7 @@ int o_mkdir(const char* path, mode_t mode) {
     char* dirname = current_fname(path);
     if (strlen(dirname) >= MAX_FILENAME_LEN) {
         logger(ERROR, "dirname too long (%d), should < %d!\n", strlen(dirname), MAX_FILENAME_LEN);
-        return -E2BIG;
+        return -ENAMETOOLONG;
     }
     int par_inum;
     int locate_err = locate(parent_dir, par_inum);
@@ -130,15 +130,9 @@ int o_mkdir(const char* path, mode_t mode) {
                 if (block_dir[j].i_number == 0) {
                     block_dir[j].i_number = dir_inode.i_number;
                     memcpy(block_dir[j].filename, dirname, strlen(dirname) * sizeof(char));
-                    //print(block_dir);
                     int new_block_addr = new_data_block(&block_dir, block_inode.i_number, i);
                     block_inode.direct[i] = new_block_addr;
-                    //print(&block_inode);
-                    int t_in_addr = new_inode_block(&block_inode, block_inode.i_number);
-
-                    get_inode_from_inum(&block_inode, par_inum);
-                    print(&block_inode);
-
+                    new_inode_block(&block_inode, block_inode.i_number);
                     return 0;
                 }
         }
@@ -154,17 +148,12 @@ int o_mkdir(const char* path, mode_t mode) {
     memcpy(block_dir[0].filename, dirname, strlen(dirname) * sizeof(char));
 
     if (rec_avail_for_ins) {
-        logger(DEBUG, "empty block\n");
         for (int i = 0; i < NUM_INODE_DIRECT; ++i)
             if (avail_for_ins.direct[i] == -1) {
                 int new_block_addr = new_data_block(&block_dir, avail_for_ins.i_number, i);
                 avail_for_ins.direct[i] = new_block_addr;
                 ++avail_for_ins.num_direct;
                 new_inode_block(&avail_for_ins, avail_for_ins.i_number);
-
-                get_inode_from_inum(&block_inode, par_inum);
-                print(&block_inode);
-
                 return 0;
             }
     }
@@ -178,10 +167,6 @@ int o_mkdir(const char* path, mode_t mode) {
     new_inode_block(&append_inode, append_inode.i_number);
     tail_inode.next_indirect = append_inode.i_number;
     new_inode_block(&tail_inode, tail_inode.i_number);
-
-    get_inode_from_inum(&block_inode, par_inum);
-    print(&block_inode);
-
     return 0;
 }
 
@@ -220,6 +205,23 @@ int o_rmdir(const char* path) {
                         logger(ERROR, "%s is not a directory!\n", path);
                         return -ENOTDIR;
                     }
+                    while (1) {
+                        for (int l = 0; l < NUM_INODE_DIRECT; ++l) {
+                            if (tmp_inode.direct[l] == -1)
+                                continue;
+                            directory tmp_dir;
+                            get_block(&tmp_dir, tmp_inode.direct[l]);
+                            for (int s = 0; s < MAX_DIR_ENTRIES; ++s)
+                                if (tmp_dir[s].i_number != 0) {
+                                    logger(ERROR, "%s is not empty!\n", path);
+                                    return -ENOTEMPTY;
+                                }
+                        }
+                        if (tmp_inode.next_indirect == 0)
+                            break;
+                        get_inode_from_inum(&tmp_inode, tmp_inode.next_indirect);
+                    }
+
                     int cnt = 0;
                     for (int k = 0; k < MAX_DIR_ENTRIES; ++k)
                         cnt += (block_dir[k].i_number != 0);
@@ -228,7 +230,6 @@ int o_rmdir(const char* path) {
                             --block_inode.num_direct;
                             block_inode.direct[i] = -1;
                             new_inode_block(&block_inode, block_inode.i_number);
-                            return 0;
                         } else {
                             tail_inode.next_indirect = block_inode.next_indirect;
                             new_inode_block(&tail_inode, tail_inode.i_number);
@@ -239,8 +240,8 @@ int o_rmdir(const char* path) {
                         int new_block_addr = new_data_block(&block_dir, block_inode.i_number, i);
                         block_inode.direct[i] = new_block_addr;
                         new_inode_block(&block_inode, block_inode.i_number);
-                        return 0;
                     }
+                    return 0;
                 }
         }
         tail_inode = block_inode;
