@@ -7,11 +7,14 @@
 #include <string.h>  /* strlen strcat strcpy */
 #include <unistd.h>  /* getcwd */
 #include <stdlib.h>  /* malloc free */
+#include <stdio.h>
 #include <string.h>  /* strcat strcpy */
 #include <errno.h>   /* errno */
-#include <stdio.h>
 #include <vector>
 #include <string>
+
+#include <time.h>       /* clock_gettime */
+#include <sys/stat.h>   /* struct timespec */
 
 char* current_working_dir = NULL;
 char* mount_root_dir = NULL;
@@ -108,6 +111,10 @@ int locate(const char* _path, int &i_number) {
         return -EPERM;
     }
 
+    /* Generate report: for debugging only. */
+    if (DEBUG_LOCATE_REPORT)
+        logger(DEBUG, "\n[DEBUG] ******************** PRINT LOCATE() REPORT ********************\n");
+
     // Split path.
     std::string path = _path;
     path += "/";
@@ -130,15 +137,38 @@ int locate(const char* _path, int &i_number) {
         }
     }
 
+    // Retrive system time (for atime updates).
+    struct timespec cur_time;
+    clock_gettime(CLOCK_REALTIME, &cur_time);
+
     // Traverse split path from LFS root directory.
-    int cur_inumber = ROOT_DIR_INUMBER;
-    inode block_inode;
+    struct inode block_inode;
     directory block_dir;
     bool flag;
     std::string target;
+
+    int cur_inumber = ROOT_DIR_INUMBER;
     for (int d=0; d<split_path.size(); d++) {
         get_inode_from_inum(&block_inode, cur_inumber);
+        if (FUNC_ATIME_DIR)
+            update_atime(block_inode, cur_time);  // Update atime according to FUNC_ATIME_ flags.
+        
         target = split_path[d];
+        if (DEBUG_LOCATE_REPORT) {
+            logger(DEBUG, "Access #%d: target = %s ...\n", d, target.c_str());
+            logger(DEBUG, "-- Searching inode #%d.\n", cur_inumber);
+        }
+
+        if (block_inode.mode != MODE_DIR) {
+            if (DEBUG_LOCATE_REPORT) {
+                logger(DEBUG, "-x Failed to read the inode: %s is not a directory. Procedure aborted.\n", target.c_str());
+                logger(DEBUG, "============================ PRINT LOCATE() REPORT ====================\n\n");
+            } else if (ERROR_PATH) {
+                logger(ERROR, "[ERROR] %s is not a directory.\n", target.c_str());
+            }
+            return -ENOTDIR;
+        }
+
         flag = false;
         while (!flag) {
             for (int i=0; i<NUM_INODE_DIRECT; i++) {
@@ -172,18 +202,28 @@ int locate(const char* _path, int &i_number) {
             if (flag) break;
 
             if (block_inode.next_indirect == 0) break;
+
             get_inode_from_inum(&block_inode, block_inode.next_indirect);
+            if (DEBUG_LOCATE_REPORT)
+                logger(DEBUG, "-- Searching (non-head) inode #%d.\n", block_inode.next_indirect);
         }
+
+        if (DEBUG_LOCATE_REPORT)
+            if (flag) {
+                logger(DEBUG, "=> Successfully retrieved next-level inode entry: '%s' ====> #%d.\n\n", target.c_str(), cur_inumber);
+            } else {
+                logger(DEBUG, "-x Failed to retrieve next-level inode entry. Procedure aborted.\n");
+                logger(DEBUG, "============================ PRINT LOCATE() REPORT ====================\n\n");
+            }
 
         if (!flag)
             return -ENOENT;
     }
-
     i_number = cur_inumber;
 
     /* Generate report: for debugging only. */
     if (DEBUG_LOCATE_REPORT) {
-        logger(DEBUG, "[DEBUG] ******************** PRINT LOCATE() REPORT ********************\n");
+        logger(DEBUG, ">>> traversal succeeded <<<\n");
         logger(DEBUG, "PATH = %s\n", _path);
         logger(DEBUG, "I_NUMBER = %d\n", i_number);
         logger(DEBUG, "INODE_BLOCK_ADDR = %d\n", inode_table[i_number]);
@@ -194,7 +234,7 @@ int locate(const char* _path, int &i_number) {
         print(node);
         free(node);
 
-        logger(DEBUG, "============================ PRINT LOCATE() REPORT ====================\n");
+        logger(DEBUG, "============================ PRINT LOCATE() REPORT ====================\n\n");
     }
 
     return 0;

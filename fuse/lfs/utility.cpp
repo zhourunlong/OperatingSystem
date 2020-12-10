@@ -388,3 +388,19 @@ void print_inode_table() {
     logger(DEBUG, "\nThere are %d active inodes in LFS now.\n", count);
     logger(DEBUG, "============================ PRINT INODE TABLE ====================\n\n");
 }
+
+
+/** **************************************
+ * Miscallenous functionalities.
+ * ***************************************/
+/** Update atime according to FUNC_ATIME_ flags */
+void update_atime(struct inode &cur_inode, struct timespec &new_time) {
+    if (FUNC_ATIME_REL) {
+        if ((cur_inode.atime.tv_sec < cur_inode.mtime.tv_sec)
+            || (cur_inode.atime.tv_sec < cur_inode.ctime.tv_sec)
+            || (cur_inode.atime.tv_sec - new_time.tv_sec > FUNC_ATIME_REL_THRES))
+            { cur_inode.atime = new_time; }
+    } else {
+        cur_inode.atime = new_time;
+    }
+}
