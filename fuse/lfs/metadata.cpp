@@ -28,8 +28,11 @@ int o_getattr(const char* path, struct stat* sbuf, struct fuse_file_info* fi) {
         return locate_error;
     }
 
+    logger(DEBUG, "inum = %d\n", i_number);
+
     struct inode f_inode;
     get_inode_from_inum((void*)&f_inode, i_number);
+    //print(&f_inode);
     if (f_inode.i_number != i_number) {
         logger(ERROR, "[FATAL ERROR] Corrupt file system on disk: inode inconsistent with inumber.\n");
         exit(-1);
