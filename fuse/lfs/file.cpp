@@ -16,8 +16,6 @@ extern struct options options;
 extern int file_handle;
 
 int o_open(const char* path, struct fuse_file_info* fi) {
-    // sleep(2);
-
     if (DEBUG_PRINT_COMMAND)
         logger(DEBUG, "OPEN, %s, %p\n", resolve_prefix(path), fi);
     
@@ -30,8 +28,6 @@ int o_open(const char* path, struct fuse_file_info* fi) {
 }
 
 int o_release(const char* path, struct fuse_file_info* fi) {
-    // sleep(2);
-
     if (DEBUG_PRINT_COMMAND)
         logger(DEBUG, "RELEASE, %s, %p\n", resolve_prefix(path), fi);
 
@@ -39,8 +35,6 @@ int o_release(const char* path, struct fuse_file_info* fi) {
 }
 
 int o_read(const char* path, char *buf, size_t size, off_t offset, struct fuse_file_info* fi) {
-    // sleep(2);
-
     if (DEBUG_PRINT_COMMAND)
         logger(DEBUG, "READ, %s, %p, %d, %d, %p\n",
                resolve_prefix(path), buf, size, offset, fi);
@@ -102,8 +96,6 @@ int o_read(const char* path, char *buf, size_t size, off_t offset, struct fuse_f
 }
 
 int o_write(const char* path, const char* buf, size_t size, off_t offset, struct fuse_file_info* fi) {
-    // sleep(2);
-
     if (DEBUG_PRINT_COMMAND)
         logger(DEBUG, "WRITE, %s, %p, %d, %d, %p\n",
                resolve_prefix(path), buf, size, offset, fi);
@@ -218,8 +210,6 @@ int o_write(const char* path, const char* buf, size_t size, off_t offset, struct
 }
 
 int o_create(const char *path, mode_t mode, struct fuse_file_info *fi) {
-    // sleep(2);
-
     if (DEBUG_PRINT_COMMAND)
         logger(DEBUG, "CREATE, %s, %d, %p\n",
                resolve_prefix(path), mode, fi);
@@ -345,8 +335,6 @@ int o_create(const char *path, mode_t mode, struct fuse_file_info *fi) {
 }
 
 int o_rename(const char* from, const char* to, unsigned int flags) {
-    // sleep(2);
-
     if (DEBUG_PRINT_COMMAND)
         logger(DEBUG, "RENAME, %s, %s, %d\n",
                resolve_prefix(from), resolve_prefix(to), flags);
@@ -517,8 +505,6 @@ int o_rename(const char* from, const char* to, unsigned int flags) {
 }
 
 int o_unlink(const char* path) {
-    // sleep(2);
-
     if (DEBUG_PRINT_COMMAND)
         logger(DEBUG, "UNLINK, %s\n", resolve_prefix(path));
 
@@ -526,8 +512,6 @@ int o_unlink(const char* path) {
 }
 
 int o_link(const char* src, const char* dest) {
-    // sleep(2);
-
     if (DEBUG_PRINT_COMMAND)
         logger(DEBUG, "LINK, %s, %s\n", resolve_prefix(src), resolve_prefix(dest));
 
@@ -535,8 +519,6 @@ int o_link(const char* src, const char* dest) {
 }
 
 int o_truncate(const char* path, off_t size, struct fuse_file_info *fi) {
-    // sleep(2);
-
     if (DEBUG_PRINT_COMMAND)
         logger(DEBUG, "TRUNCATE, %s, %d, %p\n",
                resolve_prefix(path), size, fi);
