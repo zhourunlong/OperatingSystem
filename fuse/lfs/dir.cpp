@@ -7,6 +7,7 @@
 #include "errno.h"
 
 #include <cstring>
+#include <time.h>
 
 int o_opendir(const char* path, struct fuse_file_info* fi) {
     if (DEBUG_PRINT_COMMAND)
@@ -57,14 +58,17 @@ int o_readdir(const char* path, void* buf, fuse_fill_dir_t filler, off_t offset,
     filler(buf, ".", NULL, 0, (fuse_fill_dir_flags) 0);
     filler(buf, "..", NULL, 0, (fuse_fill_dir_flags) 0);
     
-    inode block_inode;
-    get_inode_from_inum(&block_inode, fi->fh);
+    inode block_inode, head_inode;
+    get_inode_from_inum(&head_inode, fi->fh);
+    block_inode = head_inode;
+    bool accessed = false;
     while (1) {
         for (int i = 0; i < NUM_INODE_DIRECT; ++i) {
             if (block_inode.direct[i] == -1)
                 continue;
             directory block_dir;
             get_block(&block_dir, block_inode.direct[i]);
+            accessed = true;
             for (int j = 0; j < MAX_DIR_ENTRIES; ++j) {
                 if (block_dir[j].i_number == 0)
                     continue;
@@ -76,6 +80,13 @@ int o_readdir(const char* path, void* buf, fuse_fill_dir_t filler, off_t offset,
         get_inode_from_inum(&block_inode, block_inode.next_indirect);
     }
     
+    if (accessed && FUNC_ATIME_DIR) {
+        struct timespec cur_time;
+        clock_gettime(CLOCK_REALTIME, &cur_time);
+        update_atime(head_inode, cur_time);
+        new_inode_block(&head_inode, head_inode.i_number);
+    }
+
     return 0;
 }
 
@@ -83,6 +94,9 @@ int o_mkdir(const char* path, mode_t mode) {
     if (DEBUG_PRINT_COMMAND)
         logger(DEBUG, "MKDIR, %s, %d\n", resolve_prefix(path), mode);
     
+    struct timespec cur_time;
+    clock_gettime(CLOCK_REALTIME, &cur_time);
+
     mode |= S_IFDIR;
     char* parent_dir = relative_to_absolute(path, "../", 0);
     char* dirname = current_fname(path);
@@ -99,8 +113,9 @@ int o_mkdir(const char* path, mode_t mode) {
         return locate_err;
     }
     
-    inode block_inode;
-    get_inode_from_inum(&block_inode, par_inum);
+    inode block_inode, head_inode;
+    get_inode_from_inum(&head_inode, par_inum);
+    block_inode = head_inode;
     if (block_inode.mode != MODE_DIR) {
         if (ERROR_DIRECTORY)
             logger(ERROR, "[ERROR] %s is not a directory.\n", parent_dir);
@@ -123,7 +138,7 @@ int o_mkdir(const char* path, mode_t mode) {
     file_initialize(&dir_inode, MODE_DIR, mode);
     new_inode_block(&dir_inode, dir_inode.i_number);
 
-    bool rec_avail_for_ins = false;
+    bool rec_avail_for_ins = false, accessed = false, firblk = true, afi_firblk, tail_firblk;
     inode avail_for_ins, tail_inode;
     while (1) {
         for (int i = 0; i < NUM_INODE_DIRECT; ++i) {
@@ -131,27 +146,42 @@ int o_mkdir(const char* path, mode_t mode) {
                 if (!rec_avail_for_ins) {
                     rec_avail_for_ins = true;
                     avail_for_ins = block_inode;
+                    afi_firblk = firblk;
                 }
                 continue;
             }
             directory block_dir;
             get_block(&block_dir, block_inode.direct[i]);
+            accessed = true;
             for (int j = 0; j < MAX_DIR_ENTRIES; ++j)
                 if (block_dir[j].i_number == 0) {
                     block_dir[j].i_number = dir_inode.i_number;
                     memcpy(block_dir[j].filename, dirname, strlen(dirname) * sizeof(char));
                     int new_block_addr = new_data_block(&block_dir, block_inode.i_number, i);
                     block_inode.direct[i] = new_block_addr;
+                    
+                    if (firblk) {
+                        if (FUNC_ATIME_DIR)
+                            update_atime(block_inode, cur_time);
+                        block_inode.mtime = block_inode.ctime = cur_time;
+                    } else {
+                        if (FUNC_ATIME_DIR)
+                            update_atime(head_inode, cur_time);
+                        head_inode.mtime = head_inode.ctime = cur_time;
+                        new_inode_block(&head_inode, head_inode.i_number);
+                    }
                     new_inode_block(&block_inode, block_inode.i_number);
                     return 0;
                 }
         }
         tail_inode = block_inode;
+        tail_firblk = firblk;
+        firblk = false;
         if (block_inode.next_indirect == 0)
             break;
         get_inode_from_inum(&block_inode, block_inode.next_indirect);
     }
-    
+
     directory block_dir;
     memset(block_dir, 0, sizeof(block_dir));
     block_dir[0].i_number = dir_inode.i_number;
@@ -163,19 +193,37 @@ int o_mkdir(const char* path, mode_t mode) {
                 int new_block_addr = new_data_block(&block_dir, avail_for_ins.i_number, i);
                 avail_for_ins.direct[i] = new_block_addr;
                 ++avail_for_ins.num_direct;
+                
+                if (afi_firblk) {
+                    if (FUNC_ATIME_DIR)
+                        update_atime(avail_for_ins, cur_time);
+                    avail_for_ins.mtime = avail_for_ins.ctime = cur_time;
+                } else {
+                    if (FUNC_ATIME_DIR)
+                        update_atime(head_inode, cur_time);
+                    head_inode.mtime = head_inode.ctime = cur_time;
+                    new_inode_block(&head_inode, head_inode.i_number);
+                }
                 new_inode_block(&avail_for_ins, avail_for_ins.i_number);
                 return 0;
             }
     }
 
-    if (DEBUG_DIRECTORY) logger(DEBUG, "create new inode");
+    if (DEBUG_DIRECTORY)
+        logger(DEBUG, "create new inode");
     inode append_inode;
     file_initialize(&append_inode, MODE_MID_INODE, 0);
-    int new_block_addr = new_data_block(&block_dir,append_inode.i_number, 0);
+    int new_block_addr = new_data_block(&block_dir, append_inode.i_number, 0);
     append_inode.direct[0] = new_block_addr;
     append_inode.num_direct = 1;
     new_inode_block(&append_inode, append_inode.i_number);
     tail_inode.next_indirect = append_inode.i_number;
+    if (tail_firblk)
+        tail_inode.ctime = cur_time;
+    else {
+        head_inode.ctime = cur_time;
+        new_inode_block(&head_inode, head_inode.i_number);
+    }
     new_inode_block(&tail_inode, tail_inode.i_number);
     return 0;
 }
@@ -183,6 +231,9 @@ int o_mkdir(const char* path, mode_t mode) {
 int o_rmdir(const char* path) {
     if (DEBUG_PRINT_COMMAND)
         logger(DEBUG, "RMDIR, %s\n", resolve_prefix(path));
+
+    struct timespec cur_time;
+    clock_gettime(CLOCK_REALTIME, &cur_time);
 
     char* parent_dir = relative_to_absolute(path, "../", 0);
     char* dirname = current_fname(path);
@@ -194,15 +245,17 @@ int o_rmdir(const char* path) {
             logger(ERROR, "[ERROR] Cannot open the parent directory (error #%d).\n", locate_err);
         return locate_err;
     }
-    
-    inode block_inode;
-    get_inode_from_inum(&block_inode, par_inum);
+
+    inode block_inode, head_inode;
+    get_inode_from_inum(&head_inode, par_inum);
+    block_inode = head_inode;
     if (block_inode.mode != MODE_DIR) {
         if (ERROR_DIRECTORY)
             logger(ERROR, "[ERROR] %s is not a directory.\n", parent_dir);
         return -ENOTDIR;
     }
 
+    bool accessed = false, firblk = true, tail_firblk;
     inode tail_inode;
     while (1) {
         for (int i = 0; i < NUM_INODE_DIRECT; ++i) {
@@ -210,15 +263,17 @@ int o_rmdir(const char* path) {
                 continue;
             directory block_dir;
             get_block(&block_dir, block_inode.direct[i]);
+            accessed = true;
             for (int j = 0; j < MAX_DIR_ENTRIES; ++j)
                 if (block_dir[j].i_number && !strcmp(block_dir[j].filename, dirname)) {
-                    inode tmp_inode;
-                    get_inode_from_inum(&tmp_inode, block_dir[j].i_number);
-                    if (tmp_inode.mode != MODE_DIR) {
+                    inode tmp_inode, tmp_head_inode;
+                    get_inode_from_inum(&tmp_head_inode, block_dir[j].i_number);
+                    if (tmp_head_inode.mode != MODE_DIR) {
                         if (ERROR_DIRECTORY)
                             logger(ERROR, "[ERROR] %s is not a directory.\n", path);
                         return -ENOTDIR;
                     }
+                    tmp_inode = tmp_head_inode;
                     while (1) {
                         for (int l = 0; l < NUM_INODE_DIRECT; ++l) {
                             if (tmp_inode.direct[l] == -1)
@@ -227,7 +282,12 @@ int o_rmdir(const char* path) {
                             get_block(&tmp_dir, tmp_inode.direct[l]);
                             for (int s = 0; s < MAX_DIR_ENTRIES; ++s)
                                 if (tmp_dir[s].i_number != 0) {
-                                    logger(ERROR, "%s is not empty!\n", path);
+                                    if (ERROR_DIRECTORY)
+                                        logger(ERROR, "%s is not empty!\n", path);
+                                    if (FUNC_ATIME_DIR) {
+                                        update_atime(tmp_head_inode, cur_time);
+                                        new_inode_block(&tmp_head_inode, tmp_head_inode.i_number);
+                                    }
                                     return -ENOTEMPTY;
                                 }
                         }
@@ -243,9 +303,29 @@ int o_rmdir(const char* path) {
                         if (block_inode.num_direct != 1 || block_inode.mode == 2) {
                             --block_inode.num_direct;
                             block_inode.direct[i] = -1;
+                            if (firblk) {
+                                if (FUNC_ATIME_DIR)
+                                    update_atime(block_inode, cur_time);
+                                block_inode.mtime = block_inode.ctime = cur_time;
+                            } else {
+                                if (FUNC_ATIME_DIR)
+                                    update_atime(head_inode, cur_time);
+                                head_inode.mtime = head_inode.ctime = cur_time;
+                                new_inode_block(&head_inode, head_inode.i_number);
+                            }
                             new_inode_block(&block_inode, block_inode.i_number);
                         } else {
                             tail_inode.next_indirect = block_inode.next_indirect;
+                            if (tail_firblk) {
+                                if (FUNC_ATIME_DIR)
+                                    update_atime(tail_inode, cur_time);
+                                tail_inode.mtime = tail_inode.ctime = cur_time;
+                            } else {
+                                if (FUNC_ATIME_DIR)
+                                    update_atime(head_inode, cur_time);
+                                head_inode.mtime = head_inode.ctime = cur_time;
+                                new_inode_block(&head_inode, head_inode.i_number);
+                            }
                             new_inode_block(&tail_inode, tail_inode.i_number);
                         }
                     } else {
@@ -253,12 +333,25 @@ int o_rmdir(const char* path) {
                         memset(block_dir[j].filename, 0, sizeof(block_dir[j].filename));
                         int new_block_addr = new_data_block(&block_dir, block_inode.i_number, i);
                         block_inode.direct[i] = new_block_addr;
+                        if (firblk) {
+                            if (FUNC_ATIME_DIR)
+                                update_atime(block_inode, cur_time);
+                            block_inode.mtime = block_inode.ctime = cur_time;
+                        } else {
+                            if (FUNC_ATIME_DIR)
+                                update_atime(head_inode, cur_time);
+                            head_inode.mtime = head_inode.ctime = cur_time;
+                            new_inode_block(&head_inode, head_inode.i_number);
+                        }
                         new_inode_block(&block_inode, block_inode.i_number);
                     }
+                    inode_table[block_dir[j].i_number] = -1;
                     return 0;
                 }
         }
         tail_inode = block_inode;
+        tail_firblk = firblk;
+        firblk = false;
         if (block_inode.next_indirect == 0)
             break;
         get_inode_from_inum(&block_inode, block_inode.next_indirect);
@@ -266,5 +359,9 @@ int o_rmdir(const char* path) {
 
     if (ERROR_DIRECTORY)
         logger(ERROR, "[ERROR] Directory does not exist.\n");
+    if (accessed && FUNC_ATIME_DIR) {
+        update_atime(head_inode, cur_time);
+        new_inode_block(&head_inode, head_inode.i_number);
+    }
     return -ENOENT;
 }
