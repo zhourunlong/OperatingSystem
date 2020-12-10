@@ -206,7 +206,7 @@ void file_add_data(struct inode* cur_inode, void* data) {
  * @param  data: a new data block. */
 void file_modify(struct inode* cur_inode, int direct_index, void* data) {
     if (direct_index >= cur_inode->num_direct) {
-        logger(ERROR, "Cannot modify a block that does not exist yet.\n");
+        logger(ERROR, "Cannot modify a block that does not exist yet. Request ind: %d\n", direct_index);
         exit(-1);
     }
 
@@ -230,6 +230,19 @@ void file_commit(struct inode* cur_inode) {
     free(cur_inode);
 }
 
+/** Commit a new file by storing its inode in log.
+ * @param  cur_inode: struct for the file inode. */
+void file_commit(inode &cur_inode) {
+    // Update current inode (non-empty), commit it and release the memory.
+    struct timespec cur_time;
+    clock_gettime(CLOCK_REALTIME, &cur_time);
+    cur_inode.atime = cur_time;
+    cur_inode.mtime = cur_time;
+    cur_inode.ctime = cur_time;
+
+    cur_inode.next_indirect = 0;
+    new_inode_block(&cur_inode, cur_inode.i_number);
+}
 
 /** Generate a checkpoint and save it to disk file. */
 void generate_checkpoint() {
