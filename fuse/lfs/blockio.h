@@ -11,6 +11,7 @@ void file_initialize(struct inode* cur_inode, int _mode, int _permission);
 void file_add_data(struct inode* cur_inode, void* data);
 void file_modify(struct inode* cur_inode, int direct_index, void* data);
 void file_commit(struct inode* cur_inode);
+void file_commit(inode &cur_inode);
 
 /* A typical procedure to add new files:
  * struct inode* cur_inode = (struct inode*) malloc(sizeof(struct inode));

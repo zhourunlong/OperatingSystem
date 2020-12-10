@@ -94,7 +94,7 @@ int o_write(const char* path, const char* buf, size_t size, off_t offset, struct
     int inode_num = fi -> fh;
     inode cur_inode;
     get_inode_from_inum(&cur_inode, inode_num);
-    inode head_inode = cur_inode;
+    inode head_inode;
     len = cur_inode.fsize_byte;
     int t_offset = offset;
     if (cur_inode.mode != 1)
@@ -103,12 +103,15 @@ int o_write(const char* path, const char* buf, size_t size, off_t offset, struct
         return 0;
     }
     //locate the inode
-    while (t_offset > 0) {
-        if(t_offset < cur_inode.num_direct * BLOCK_SIZE) {
-            break;
+    printf("%d\n", cur_inode.num_direct);
+    if (t_offset < len) {
+        while (t_offset > 0) {
+            if(t_offset < cur_inode.num_direct * BLOCK_SIZE) {
+                break;
+            }
+            t_offset -= cur_inode.num_direct * BLOCK_SIZE;
+            get_inode_from_inum(&cur_inode, cur_inode.next_indirect);
         }
-        t_offset -= cur_inode.num_direct * BLOCK_SIZE;
-        get_inode_from_inum(&cur_inode, cur_inode.next_indirect);
     }
 
     int cur_block_offset = t_offset, cur_block_ind;
@@ -119,7 +122,8 @@ int o_write(const char* path, const char* buf, size_t size, off_t offset, struct
     int cur_buf_pos = 0;
     int copy_size = BLOCK_SIZE;
     char loader[BLOCK_SIZE + 10];
-    while (cur_buf_pos < size && cur_buf_pos + offset < ((len - 1) / BLOCK_SIZE + 1) * BLOCK_SIZE) {
+    while (cur_buf_pos < size && cur_buf_pos + offset < ((int) len / BLOCK_SIZE) * BLOCK_SIZE) {
+        printf("%d %d\n", cur_buf_pos + offset, len);
         get_block(loader, cur_inode.direct[cur_block_ind]);
         copy_size = BLOCK_SIZE - cur_block_offset;
         if(size - cur_buf_pos < copy_size)
@@ -127,12 +131,13 @@ int o_write(const char* path, const char* buf, size_t size, off_t offset, struct
         memcpy(loader + cur_block_offset, buf + cur_buf_pos, copy_size);
         cur_buf_pos += copy_size;
         cur_block_offset += copy_size;
+        printf("%d\n", copy_size);
         file_modify(&cur_inode, cur_block_ind, loader);
         if (cur_buf_pos == size)
             break;
-        if(cur_block_offset == BLOCK_SIZE && cur_buf_pos + offset != ((len - 1) / BLOCK_SIZE + 1) * BLOCK_SIZE) {
+        if(cur_block_offset == BLOCK_SIZE && cur_buf_pos + offset != (len / BLOCK_SIZE) * BLOCK_SIZE) {
             if(cur_block_ind + 1 == cur_inode.num_direct) {
-                file_commit(&cur_inode);
+                file_commit(cur_inode);
                 get_inode_from_inum(&cur_inode, cur_inode.next_indirect);
                 cur_block_ind = cur_block_offset = 0;
             }
@@ -142,14 +147,16 @@ int o_write(const char* path, const char* buf, size_t size, off_t offset, struct
             }
         }
     }
-    file_commit(&cur_inode);
+    file_commit(cur_inode);
     if (cur_buf_pos == size) {
         if(cur_buf_pos + offset > len) {
             head_inode.fsize_byte = cur_buf_pos + offset;
-            file_commit(&head_inode);
+            file_commit(head_inode);
         }
         return size;
     }
+
+    inode *cur_inode_t = new inode(cur_inode);
     
     len = ((len - 1) / BLOCK_SIZE + 1) * BLOCK_SIZE;
     while (cur_buf_pos < size) {
@@ -157,13 +164,16 @@ int o_write(const char* path, const char* buf, size_t size, off_t offset, struct
         if(size - cur_buf_pos < copy_size)
             copy_size = size - cur_buf_pos;
         memcpy(loader, buf + cur_buf_pos, copy_size);
-        file_add_data(&cur_inode, loader);
-        file_commit(&cur_inode);
+        file_add_data(cur_inode_t, loader);
         cur_buf_pos += copy_size;
         len += copy_size;
     }
+    printf("aaa%d\n", cur_inode_t -> num_direct);
+    file_commit(cur_inode_t);
+    get_inode_from_inum(&head_inode, inode_num);
     head_inode.fsize_byte = len;
-    file_commit(&head_inode);
+    file_commit(head_inode);
+    return cur_buf_pos;
 }
 
 int o_create(const char *path, mode_t mode, struct fuse_file_info *fi) {
@@ -174,7 +184,7 @@ int o_create(const char *path, mode_t mode, struct fuse_file_info *fi) {
     char* parent_dir = relative_to_absolute(path, "../", 0);
     char* dirname = current_fname(path);
     if (strlen(dirname) >= MAX_FILENAME_LEN) {
-        logger(ERROR, "dirname too long (%d), should < %d!\n", strlen(dirname), MAX_FILENAME_LEN);
+        logger(ERROR, "filename too long (%d), should < %d!\n", strlen(dirname), MAX_FILENAME_LEN);
         return -E2BIG;
     }
     int par_inum;
@@ -285,6 +295,30 @@ int o_create(const char *path, mode_t mode, struct fuse_file_info *fi) {
 int o_rename(const char* from, const char* to, unsigned int flags) {
     logger(DEBUG, "RENAME, %s, %s, %d\n",
         resolve_prefix(from), resolve_prefix(to), flags);
+    
+    char* from_parent_dir = relative_to_absolute(from, "../", 0);
+    char* to_parent_dir = relative_to_absolute(to, "../", 0);
+    char* from_name = current_fname(from);
+    char* to_name = current_fname(to);
+    if (strlen(to_name) >= MAX_FILENAME_LEN) {
+        logger(ERROR, "dirname too long (%d), should < %d!\n", strlen(to_name), MAX_FILENAME_LEN);
+        return -ENAMETOOLONG;
+    }
+    int from_par_inum;
+    int to_par_inum;
+    int locate_err;
+
+    locate_err = locate(from_parent_dir, from_par_inum);
+    if (locate_err != 0) {
+        logger(ERROR, "error loading parent dir!\n");
+        return locate_err;
+    }
+    locate_err = locate(to_parent_dir, to_par_inum);
+    if (locate_err != 0) {
+        logger(ERROR, "error loading parent dir!\n");
+        return locate_err;
+    }
+
     return 0;
 }
 
