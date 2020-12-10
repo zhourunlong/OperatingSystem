@@ -169,6 +169,7 @@ int o_write(const char* path, const char* buf, size_t size, off_t offset, struct
 int o_create(const char *path, mode_t mode, struct fuse_file_info *fi) {
     logger(DEBUG, "CREATE, %s, %d, %p\n",
         resolve_prefix(path), mode, fi);
+    
     mode |= S_IFREG;
     char* parent_dir = relative_to_absolute(path, "../", 0);
     char* dirname = current_fname(path);
@@ -189,7 +190,7 @@ int o_create(const char *path, mode_t mode, struct fuse_file_info *fi) {
         logger(ERROR, "%s is not a directory!\n", parent_dir);
         return -ENOTDIR;
     }
-
+    
     int tmp_inum;
     locate_err = locate(path, tmp_inum);
     if (locate_err == 0) {
@@ -201,35 +202,37 @@ int o_create(const char *path, mode_t mode, struct fuse_file_info *fi) {
             logger(ERROR, "directory already exists!\n");
         return -EEXIST;
     }
-
-    inode file_inode;
-    file_initialize(&file_inode, MODE_DIR, mode);
-    file_commit(&file_inode);
     
-    int avail_direct_idx = 0;
+    inode *file_inode = new inode;
+    file_initialize(file_inode, MODE_FILE, mode);
+    print(file_inode);
+    
     bool rec_avail_for_ins = false;
     inode avail_for_ins, tail_inode;
-    directory block_dir;
     while (1) {
         for (int i = 0; i < NUM_INODE_DIRECT; ++i) {
             if (block_inode.direct[i] == -1) {
                 if (!rec_avail_for_ins) {
                     rec_avail_for_ins = true;
                     avail_for_ins = block_inode;
-                    avail_direct_idx = i;
                 }
                 continue;
             }
-            
+            directory block_dir;
             get_block(&block_dir, block_inode.direct[i]);
             for (int j = 0; j < MAX_DIR_ENTRIES; ++j)
                 if (block_dir[j].i_number == 0) {
-                    block_dir[j].i_number = file_inode.i_number;
+                    block_dir[j].i_number = file_inode -> i_number;
                     memcpy(block_dir[j].filename, dirname, strlen(dirname) * sizeof(char));
+                    //print(block_dir);
                     int new_block_addr = new_data_block(&block_dir, block_inode.i_number, i);
                     block_inode.direct[i] = new_block_addr;
-                    ++block_inode.num_direct;
-                    new_inode_block(&block_inode, block_inode.i_number);
+                    //print(&block_inode);
+                    int t_in_addr = new_inode_block(&block_inode, block_inode.i_number);
+
+                    get_inode_from_inum(&block_inode, par_inum);
+                    print(&block_inode);
+                    file_commit(file_inode);
                     return 0;
                 }
         }
@@ -237,27 +240,31 @@ int o_create(const char *path, mode_t mode, struct fuse_file_info *fi) {
         if (block_inode.next_indirect == 0)
             break;
         get_inode_from_inum(&block_inode, block_inode.next_indirect);
+        
     }
     
+    directory block_dir;
     memset(block_dir, 0, sizeof(block_dir));
-    block_dir[0].i_number = file_inode.i_number;
-    memcpy(block_dir[0].filename, dirname, strlen(dirname) * sizeof(char));
-
-    memset(block_dir, 0, sizeof(block_dir));
-    block_dir[0].i_number = file_inode.i_number;
+    block_dir[0].i_number = file_inode -> i_number;
     memcpy(block_dir[0].filename, dirname, strlen(dirname) * sizeof(char));
 
     if (rec_avail_for_ins) {
+        logger(DEBUG, "empty block\n");
         for (int i = 0; i < NUM_INODE_DIRECT; ++i)
             if (avail_for_ins.direct[i] == -1) {
-                int new_block_addr = new_data_block(&block_dir, avail_for_ins.i_number, avail_direct_idx);
+                int new_block_addr = new_data_block(&block_dir, avail_for_ins.i_number, i);
                 avail_for_ins.direct[i] = new_block_addr;
                 ++avail_for_ins.num_direct;
                 new_inode_block(&avail_for_ins, avail_for_ins.i_number);
+
+                get_inode_from_inum(&block_inode, par_inum);
+                print(&block_inode);
+                file_commit(file_inode);
                 return 0;
             }
     }
 
+    logger(DEBUG, "create new inode");
     inode append_inode;
     file_initialize(&append_inode, MODE_MID_INODE, 0);
     int new_block_addr = new_data_block(&block_dir,append_inode.i_number, 0);
@@ -266,6 +273,11 @@ int o_create(const char *path, mode_t mode, struct fuse_file_info *fi) {
     new_inode_block(&append_inode, append_inode.i_number);
     tail_inode.next_indirect = append_inode.i_number;
     new_inode_block(&tail_inode, tail_inode.i_number);
+
+    get_inode_from_inum(&block_inode, par_inum);
+    print(&block_inode);
+    
+    file_commit(file_inode);
 
     return 0;
 }
