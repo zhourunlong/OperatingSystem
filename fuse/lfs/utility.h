@@ -196,8 +196,17 @@ const bool DEBUG_FILE           = true;     // Print debug information in file.c
 const bool DEBUG_PATH           = true;     // Print debug information in path.cpp.
 const bool DEBUG_LOCATE_REPORT  = false;    // Generate report for each locate() (in path.cpp).
 
-const bool ERROR_METADATA       = true;     // Report errors in metadata.cpp assoc. with locate().
+const bool ERROR_METADATA       = false;    // Report errors in metadata.cpp assoc. with locate().
 const bool ERROR_DIRECTORY      = true;     // Report directory operation errors in directory.cpp.
 const bool ERROR_FILE           = true;     // Report file operation errors in file.cpp.
 const bool ERROR_PATH           = true;     // Report low-level errors in path.cpp.
 const bool ERROR_PERM           = true;     // Report permission operation errors in perm.cpp.
+
+
+/** **************************************
+ * Functionality flags.
+ * ***************************************/
+const bool FUNC_ATIME_DIR       = true;     // Enable atime update for directories.
+const bool FUNC_ATIME_REL       = false;    // Enable relative atime (as with -relatime).
+const int FUNC_ATIME_REL_THRES  = 3600;     // Threshold interval for updating (relative) atime.
+void update_atime(struct inode &cur_inode, struct timespec &new_time);

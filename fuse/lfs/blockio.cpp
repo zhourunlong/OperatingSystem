@@ -156,6 +156,13 @@ void file_initialize(struct inode* cur_inode, int _mode, int _permission) {
     cur_inode->num_direct   = 0;
     memset(cur_inode->direct, -1, sizeof(cur_inode->direct));
     cur_inode->next_indirect = 0;
+
+    // Update current inode time.
+    struct timespec cur_time;
+    clock_gettime(CLOCK_REALTIME, &cur_time);
+    cur_inode->atime = cur_time;
+    cur_inode->mtime = cur_time;
+    cur_inode->ctime = cur_time;
 }
 
 
