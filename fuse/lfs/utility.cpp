@@ -312,7 +312,7 @@ void print(block blk, int disp) {
         while (b < BLOCK_SIZE) {
             logger(DEBUG, "%4d", count);
             for (int i=0; i<32; i++) {
-                logger(DEBUG, "%4x", blk[b]);
+                logger(DEBUG, "%4x", (unsigned char)blk[b]);
                 b++;
             }
             logger(DEBUG, "\n");
@@ -360,7 +360,7 @@ void print(block blk, int disp) {
         while (b < BLOCK_SIZE / (int)4) {
             logger(DEBUG, "%4d", count);
             for (int i=0; i<16; i++) {
-                logger(DEBUG, "%10x", _blk[b]);
+                logger(DEBUG, "%10x", (unsigned char)_blk[b]);
                 b++;
             }
             logger(DEBUG, "\n");
@@ -398,9 +398,12 @@ void update_atime(struct inode &cur_inode, struct timespec &new_time) {
     if (FUNC_ATIME_REL) {
         if ((cur_inode.atime.tv_sec < cur_inode.mtime.tv_sec)
             || (cur_inode.atime.tv_sec < cur_inode.ctime.tv_sec)
-            || (cur_inode.atime.tv_sec - new_time.tv_sec > FUNC_ATIME_REL_THRES))
-            { cur_inode.atime = new_time; }
+            || (cur_inode.atime.tv_sec - new_time.tv_sec > FUNC_ATIME_REL_THRES)) {
+                cur_inode.atime = new_time;
+                cur_inode.ctime = new_time;
+            }
     } else {
         cur_inode.atime = new_time;
+        cur_inode.ctime = new_time;
     }
 }

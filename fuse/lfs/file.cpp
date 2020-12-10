@@ -185,7 +185,7 @@ int o_write(const char* path, const char* buf, size_t size, off_t offset, struct
         }
     }
     
-
+    memset(loader, 0, sizeof(loader));
     inode *cur_inode_t = new inode(cur_inode);
     
     len = ((len + BLOCK_SIZE - 1) / BLOCK_SIZE) * BLOCK_SIZE;
@@ -193,6 +193,7 @@ int o_write(const char* path, const char* buf, size_t size, off_t offset, struct
         copy_size = BLOCK_SIZE;
         if(size - cur_buf_pos < copy_size)
             copy_size = size - cur_buf_pos;
+        memset(loader, 0, sizeof(loader));
         memcpy(loader, buf + cur_buf_pos, copy_size);
         print(loader, 3);
         file_add_data(cur_inode_t, loader);
