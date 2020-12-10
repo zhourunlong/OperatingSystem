@@ -10,6 +10,7 @@
 
 #include "utimens.h"    /* o_utimens */
 #include "statfs.h"     /* o_statfs */
+#include "extra.h"
 
 #include "path.h"     /* resolve_prefix generate_prefix */
 #include "logger.h"     /* set_log_level set_log_output logger */
@@ -40,7 +41,8 @@ struct fuse_operations ops = {
     .access     = o_access,
     .create     = o_create,
     .lock       = o_lock,
-    .utimens    = o_utimens
+    .utimens    = o_utimens,
+    .ioctl      = o_ioctl
 };
 
 struct options options;

@@ -8,12 +8,16 @@
 #include "utility.h"
 
 #include <cstring>
+#include <stdio.h>
+#include <unistd.h>
 #include <errno.h>
 
 extern struct options options;
 extern int file_handle;
 
 int o_open(const char* path, struct fuse_file_info* fi) {
+    // sleep(2);
+
     if (DEBUG_PRINT_COMMAND)
         logger(DEBUG, "OPEN, %s, %p\n", resolve_prefix(path), fi);
     
@@ -21,11 +25,13 @@ int o_open(const char* path, struct fuse_file_info* fi) {
     int flag;    
     flag = locate(path, inode_num);
     fi -> fh = (uint64_t) inode_num;
+
     return flag;
-    return 0;
 }
 
 int o_release(const char* path, struct fuse_file_info* fi) {
+    // sleep(2);
+
     if (DEBUG_PRINT_COMMAND)
         logger(DEBUG, "RELEASE, %s, %p\n", resolve_prefix(path), fi);
 
@@ -33,6 +39,8 @@ int o_release(const char* path, struct fuse_file_info* fi) {
 }
 
 int o_read(const char* path, char *buf, size_t size, off_t offset, struct fuse_file_info* fi) {
+    // sleep(2);
+
     if (DEBUG_PRINT_COMMAND)
         logger(DEBUG, "READ, %s, %p, %d, %d, %p\n",
                resolve_prefix(path), buf, size, offset, fi);
@@ -89,14 +97,19 @@ int o_read(const char* path, char *buf, size_t size, off_t offset, struct fuse_f
             }
         }
     }
+
     return size;
 }
 
 int o_write(const char* path, const char* buf, size_t size, off_t offset, struct fuse_file_info* fi) {
+    // sleep(2);
+
     if (DEBUG_PRINT_COMMAND)
         logger(DEBUG, "WRITE, %s, %p, %d, %d, %p\n",
                resolve_prefix(path), buf, size, offset, fi);
     
+    printf("%d,%d,%d,%d\n", buf[0], buf[1], buf[2], buf[3]);
+
     size_t len;
     int inode_num = fi -> fh;
     inode cur_inode;
@@ -104,11 +117,18 @@ int o_write(const char* path, const char* buf, size_t size, off_t offset, struct
     inode head_inode;
     len = cur_inode.fsize_byte;
     int t_offset = offset;
-    if (cur_inode.mode != MODE_FILE)
-        return 0;
-    if (offset > len) {
+    printf("1st step.\n");
+
+    if (cur_inode.mode != MODE_FILE) {
+        printf("1st step: A, %d, %d, %d.\n", cur_inode.mode, inode_num, cur_inode.i_number);
         return 0;
     }
+    if (offset > len) {
+        printf("1st step: B.\n");
+        return 0;
+    }
+
+    printf("2nd step.\n");
 
 
     //locate the inode
@@ -184,6 +204,8 @@ int o_write(const char* path, const char* buf, size_t size, off_t offset, struct
             return size;
         }
     }
+
+    printf("chenggongla!\n");
     
     memset(loader, 0, sizeof(loader));
     inode *cur_inode_t = new inode(cur_inode);
@@ -204,10 +226,13 @@ int o_write(const char* path, const char* buf, size_t size, off_t offset, struct
     get_inode_from_inum(&head_inode, inode_num);
     head_inode.fsize_byte = len;
     file_commit(head_inode);
+
     return cur_buf_pos;
 }
 
 int o_create(const char *path, mode_t mode, struct fuse_file_info *fi) {
+    // sleep(2);
+
     if (DEBUG_PRINT_COMMAND)
         logger(DEBUG, "CREATE, %s, %d, %p\n",
                resolve_prefix(path), mode, fi);
@@ -277,6 +302,8 @@ int o_create(const char *path, mode_t mode, struct fuse_file_info *fi) {
 
                     get_inode_from_inum(&block_inode, par_inum);
                     print(&block_inode);
+
+                    fi->fh = file_inode->i_number;
                     file_commit(file_inode);
                     return 0;
                 }
@@ -304,6 +331,8 @@ int o_create(const char *path, mode_t mode, struct fuse_file_info *fi) {
 
                 get_inode_from_inum(&block_inode, par_inum);
                 print(&block_inode);
+
+                fi->fh = file_inode->i_number;
                 file_commit(file_inode);
                 return 0;
             }
@@ -322,12 +351,15 @@ int o_create(const char *path, mode_t mode, struct fuse_file_info *fi) {
     get_inode_from_inum(&block_inode, par_inum);
     print(&block_inode);
     
+    fi->fh = file_inode->i_number;
     file_commit(file_inode);
 
     return 0;
 }
 
 int o_rename(const char* from, const char* to, unsigned int flags) {
+    // sleep(2);
+
     if (DEBUG_PRINT_COMMAND)
         logger(DEBUG, "RENAME, %s, %s, %d\n",
                resolve_prefix(from), resolve_prefix(to), flags);
@@ -359,23 +391,29 @@ int o_rename(const char* from, const char* to, unsigned int flags) {
 }
 
 int o_unlink(const char* path) {
+    // sleep(2);
+
     if (DEBUG_PRINT_COMMAND)
         logger(DEBUG, "UNLINK, %s\n", resolve_prefix(path));
-    
+
     return 0;
 }
 
 int o_link(const char* src, const char* dest) {
+    // sleep(2);
+
     if (DEBUG_PRINT_COMMAND)
         logger(DEBUG, "LINK, %s, %s\n", resolve_prefix(src), resolve_prefix(dest));
-    
+
     return 0;
 }
 
 int o_truncate(const char* path, off_t size, struct fuse_file_info *fi) {
+    // sleep(2);
+
     if (DEBUG_PRINT_COMMAND)
         logger(DEBUG, "TRUNCATE, %s, %d, %p\n",
                resolve_prefix(path), size, fi);
-    
+
     return 0;
 }
