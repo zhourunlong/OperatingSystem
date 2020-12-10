@@ -70,10 +70,11 @@ typedef struct dir_entry directory[MAX_DIR_ENTRIES];
 /** **************************************
  * Segment logical structures.
  * ***************************************/
-const int IMAP_SIZE = 8 * BLOCK_SIZE;
-const int SUMMARY_SIZE = 8 * BLOCK_SIZE;
+const int IMAP_SIZE = 8 * (BLOCK_SIZE-16);
+const int SUMMARY_SIZE = 8 * (BLOCK_SIZE-16);
 const int IMAP_OFFSET = SEGMENT_SIZE - IMAP_SIZE - SUMMARY_SIZE;
 const int SUMMARY_OFFSET = SEGMENT_SIZE - IMAP_SIZE;
+const int DATA_BLOCKS_IN_SEGMENT = BLOCKS_IN_SEGMENT - 16;
 
 /** Inode-Map Data Block: tracing all inodes within the segment.
  * This is a dictionary, where i_number is "key" and inode_block is "value".
@@ -84,7 +85,7 @@ struct imap_entry {
     int i_number;          // Inode number.
     int inode_block;       // Index of the inode block.
 };
-typedef struct imap_entry inode_map[BLOCKS_IN_SEGMENT];
+typedef struct imap_entry inode_map[DATA_BLOCKS_IN_SEGMENT];
 
 /** Segment Summary Block: tracing all blocks within the segment.
  * This is an array, so sequential storation is required.
@@ -94,7 +95,7 @@ struct summary_entry {
     int i_number;          // Inode number of corresponding file.
     int direct_index;      // The index of direct[] in that inode, pointing to the block.
 };
-typedef struct summary_entry segment_summary[BLOCKS_IN_SEGMENT];
+typedef struct summary_entry segment_summary[DATA_BLOCKS_IN_SEGMENT];
 
 
 /** **************************************
@@ -147,6 +148,8 @@ const int DISP_WORD_DEC = 4;
 const int DISP_WORD_HEX = 5;
 void print(block blk, int disp);
 
+void print_inode_table();
+
 /** **************************************
  * Functions for actual file reads / writes.
  * ***************************************/
@@ -181,3 +184,20 @@ extern int next_checkpoint, next_imap_index;
 
 const int FILE_SIZE = SEGMENT_SIZE * TOT_SEGMENTS + IMAP_SIZE + SUMMARY_SIZE;
 const int ROOT_DIR_INUMBER = 1;
+
+
+/** **************************************
+ * Debug and error-reporting flags.
+ * ***************************************/
+const bool DEBUG_PRINT_COMMAND  = false;    // Print the name of each command.
+const bool DEBUG_METADATA_INODE = false;    // Print inode for each metadata query.
+const bool DEBUG_DIRECTORY      = true;     // Print debug information in directory.cpp.
+const bool DEBUG_FILE           = true;     // Print debug information in file.cpp.
+const bool DEBUG_PATH           = true;     // Print debug information in path.cpp.
+const bool DEBUG_LOCATE_REPORT  = false;    // Generate report for each locate() (in path.cpp).
+
+const bool ERROR_METADATA       = true;     // Report errors in metadata.cpp assoc. with locate().
+const bool ERROR_DIRECTORY      = true;     // Report directory operation errors in directory.cpp.
+const bool ERROR_FILE           = true;     // Report file operation errors in file.cpp.
+const bool ERROR_PATH           = true;     // Report low-level errors in path.cpp.
+const bool ERROR_PERM           = true;     // Report permission operation errors in perm.cpp.

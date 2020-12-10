@@ -15,7 +15,8 @@
 extern struct options options;
 
 int o_getattr(const char* path, struct stat* sbuf, struct fuse_file_info* fi) {
-    logger(DEBUG, "GETATTR, %s, %p, %p\n", resolve_prefix(path), sbuf, fi);
+    if (DEBUG_PRINT_COMMAND)
+        logger(DEBUG, "GETATTR, %s, %p, %p\n", resolve_prefix(path), sbuf, fi);
     
 
     /* ****************************************
@@ -24,15 +25,15 @@ int o_getattr(const char* path, struct stat* sbuf, struct fuse_file_info* fi) {
     int i_number;
     int locate_error = locate(path, i_number);
     if (locate_error != 0) {
-        logger(ERROR, "[ERROR] Error #%d.\n", locate_error);
+        if (ERROR_METADATA)
+            logger(ERROR, "[Error] Cannot access the path (error #%d).\n", locate_error);
         return locate_error;
     }
 
-    logger(DEBUG, "inum = %d\n", i_number);
-
     struct inode f_inode;
     get_inode_from_inum((void*)&f_inode, i_number);
-    //print(&f_inode);
+    if (DEBUG_METADATA_INODE) print(&f_inode);
+
     if (f_inode.i_number != i_number) {
         logger(ERROR, "[FATAL ERROR] Corrupt file system on disk: inode inconsistent with inumber.\n");
         exit(-1);
@@ -87,7 +88,8 @@ int o_getattr(const char* path, struct stat* sbuf, struct fuse_file_info* fi) {
 
 
 int o_access(const char* path, int mode) {
-    logger(DEBUG, "ACCESS, %s, %d\n", resolve_prefix(path), mode);
+    if (DEBUG_PRINT_COMMAND)
+        logger(DEBUG, "ACCESS, %s, %d\n", resolve_prefix(path), mode);
 
     /* Get information (uid, gid) of the user who calls LFS interface. */
     struct fuse_context* user_info = fuse_get_context();
@@ -95,12 +97,17 @@ int o_access(const char* path, int mode) {
     /* Mode 0 (F_OK): test whether file exists (by default). */
     int i_number;
     int locate_error = locate(path, i_number);
-    if (locate_error != 0) 
-        return -ENOENT;
+    if (locate_error != 0) {
+        if (ERROR_METADATA)
+            logger(ERROR, "[Error] Cannot access the path (error #%d).\n", locate_error);
+        return locate_error;
+    }
     
     /* Mode 1~7 (in base-8): test file permissions; may be ORed toghether. */ 
     struct inode f_inode;
     get_inode_from_inum((void*)&f_inode, i_number);
+    if (DEBUG_METADATA_INODE) print(&f_inode);
+    
     if (f_inode.i_number != i_number) {
         logger(ERROR, "[FATAL ERROR] Corrupt file system on disk: inode inconsistent with inumber.\n");
         exit(-1);

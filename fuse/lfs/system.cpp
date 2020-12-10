@@ -13,7 +13,8 @@
 extern char* current_working_dir;
 
 void* o_init(struct fuse_conn_info* conn, struct fuse_config* cfg) {
-    logger(DEBUG, "INIT, %p, %p\n", conn, cfg);
+    if (DEBUG_PRINT_COMMAND)
+        logger(DEBUG, "INIT, %p, %p\n", conn, cfg);
 
     (void) conn;
 	cfg->kernel_cache = 1;
@@ -26,7 +27,7 @@ void* o_init(struct fuse_conn_info* conn, struct fuse_config* cfg) {
     lfs_path += "lfs.data";
 
     if (access(lfs_path.c_str(), R_OK) != 0) {    // Disk file does not exist.
-        logger(WARN, "[WARNING] Disk file (lfs.data) does not exist. Try to create and initialize to 0.\n");
+        logger(DEBUG, "[INFO] Disk file (lfs.data) does not exist. Try to create and initialize to 0.\n");
         
         // Create a file.
         file_handle = open(lfs_path.c_str(), O_RDWR | O_CREAT, 0777);
@@ -50,7 +51,7 @@ void* o_init(struct fuse_conn_info* conn, struct fuse_config* cfg) {
         next_checkpoint = 0;
         next_imap_index = 0;
         memset(segment_buffer, 0, sizeof(segment_buffer));
-        memset(inode_table, 0, sizeof(inode_table));
+        memset(inode_table, -1, sizeof(inode_table));
 
         // Initialize superblock.
         struct superblock init_sblock = {
@@ -95,6 +96,7 @@ void* o_init(struct fuse_conn_info* conn, struct fuse_config* cfg) {
         // Read the (newer) checkpoint.
         checkpoints ckpt;
         read_checkpoints(&ckpt);
+        print(ckpt);
 
         int latest_index = 0;
         if (ckpt[0].timestamp < ckpt[1].timestamp)
@@ -107,22 +109,22 @@ void* o_init(struct fuse_conn_info* conn, struct fuse_config* cfg) {
         cur_block = ckpt[latest_index].cur_block;
         next_imap_index = ckpt[latest_index].next_imap_index;
         if ((count_inode <= 0) || (cur_segment < 0) || (cur_segment >= TOT_SEGMENTS) \
-                               || (cur_block < 0) || (cur_block >= BLOCKS_IN_SEGMENT)) {
+                               || (cur_block < 0) || (cur_block >= DATA_BLOCKS_IN_SEGMENT)) {
             logger(ERROR, "[FATAL ERROR] Corrupt file system on disk: invalid checkpoint entry.\n");
             exit(-1);
         }
 
         // Initialize inode table in memory (by simulation).
-        memset(inode_table, 0, sizeof(inode_table));
+        memset(inode_table, -1, sizeof(inode_table));
+        inode_map imap;
+        imap_entry im_entry;
         for (int seg=0; seg<TOT_SEGMENTS; seg++) {
             if (segment_bitmap[seg] == 1) {
-                inode_map imap;
-                imap_entry im_entry;
-
                 read_segment_imap(imap, seg);
-                for (int i=0; i < BLOCKS_IN_SEGMENT; i++) {
+                print(imap);
+                for (int i=0; i<DATA_BLOCKS_IN_SEGMENT; i++) {
                     im_entry = imap[i];
-                    if ((im_entry.i_number > 0) && (im_entry.inode_block > 0)) {
+                    if ((im_entry.i_number > 0) && (im_entry.inode_block >= 0)) {
                         // Here we simply regard that segments on the right are newer than those on the left.
                         // However, this is not necessarily true when we perform garbage collection.
                         inode_table[im_entry.i_number] = im_entry.inode_block;
@@ -130,21 +132,23 @@ void* o_init(struct fuse_conn_info* conn, struct fuse_config* cfg) {
                 }
             }
         }
+        print_inode_table();
 
         // Initialize segment buffer in memory.
         read_segment(segment_buffer, cur_segment);
-        memset(segment_buffer + cur_block*BLOCK_SIZE, 0, (BLOCKS_IN_SEGMENT-cur_block)*BLOCK_SIZE);
+        memset(segment_buffer + cur_block*BLOCK_SIZE, 0, (DATA_BLOCKS_IN_SEGMENT-cur_block)*BLOCK_SIZE);
     }
-    
     
 	return NULL;
 }
 
 
 void o_destroy(void* private_data) {
-    logger(DEBUG, "DESTROY, %p\n", private_data);
+    if (DEBUG_PRINT_COMMAND)
+        logger(DEBUG, "DESTROY, %p\n", private_data);
     
     // Save LFS to disk.
     write_segment(segment_buffer, cur_segment);
+    segment_bitmap[cur_segment] = 1;
     generate_checkpoint();
 }

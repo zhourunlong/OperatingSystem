@@ -34,6 +34,6 @@ void add_segbuf_imap(int _i_number, int _block_addr);
 
 
 /* Periodical checkpoint generator. */
-void generate_checkpoint(void);
+void generate_checkpoint();
 
 #endif
