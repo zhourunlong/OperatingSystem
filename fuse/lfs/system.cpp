@@ -108,13 +108,13 @@ void* o_init(struct fuse_conn_info* conn, struct fuse_config* cfg) {
         cur_block = ckpt[latest_index].cur_block;
         next_imap_index = ckpt[latest_index].next_imap_index;
         if ((count_inode <= 0) || (cur_segment < 0) || (cur_segment >= TOT_SEGMENTS) \
-                               || (cur_block < 0) || (cur_block >= BLOCKS_IN_SEGMENT)) {
+                               || (cur_block < 0) || (cur_block >= DATA_BLOCKS_IN_SEGMENT)) {
             logger(ERROR, "[FATAL ERROR] Corrupt file system on disk: invalid checkpoint entry.\n");
             exit(-1);
         }
 
         // Initialize inode table in memory (by simulation).
-        memset(inode_table, 0, sizeof(inode_table));
+        memset(inode_table, -1, sizeof(inode_table));
         for (int seg=0; seg<TOT_SEGMENTS; seg++) {
             if (segment_bitmap[seg] == 1) {
                 inode_map imap;
@@ -122,7 +122,7 @@ void* o_init(struct fuse_conn_info* conn, struct fuse_config* cfg) {
 
                 read_segment_imap(imap, seg);
                 print(imap);
-                for (int i=0; i < BLOCKS_IN_SEGMENT; i++) {
+                for (int i=0; i<DATA_BLOCKS_IN_SEGMENT; i++) {
                     im_entry = imap[i];
                     if ((im_entry.i_number > 0) && (im_entry.inode_block > 0)) {
                         // Here we simply regard that segments on the right are newer than those on the left.
@@ -132,13 +132,12 @@ void* o_init(struct fuse_conn_info* conn, struct fuse_config* cfg) {
                 }
             }
         }
-        // print_inode_table();
+        print_inode_table();
 
         // Initialize segment buffer in memory.
         read_segment(segment_buffer, cur_segment);
-        memset(segment_buffer + cur_block*BLOCK_SIZE, 0, (BLOCKS_IN_SEGMENT-cur_block)*BLOCK_SIZE);
+        memset(segment_buffer + cur_block*BLOCK_SIZE, 0, (DATA_BLOCKS_IN_SEGMENT-cur_block)*BLOCK_SIZE);
     }
-    
     
 	return NULL;
 }

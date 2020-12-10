@@ -176,7 +176,7 @@ void print(inode_map imap) {
     logger(DEBUG, "IDX\tI_NUM \tBLOCK_ADDR  \n");
     logger(DEBUG, "===\t======\t============\n");
     int count = 0;
-    for (int i=0; i<BLOCKS_IN_SEGMENT; i++)
+    for (int i=0; i<DATA_BLOCKS_IN_SEGMENT; i++)
         if ((imap[i].i_number > 0) && (imap[i].inode_block >= 0)) {
             logger(DEBUG, "%d\t%d\t%d\n", i, imap[i].i_number, imap[i].inode_block);
             count++;
@@ -190,7 +190,7 @@ void print(segment_summary segsum) {
     logger(DEBUG, "IDX\tI_NUM \tDIRECT[?]   \n");
     logger(DEBUG, "===\t======\t============\n");
     int count = 0;
-    for (int i=0; i<BLOCKS_IN_SEGMENT; i++)
+    for (int i=0; i<DATA_BLOCKS_IN_SEGMENT; i++)
         if (segsum[i].i_number > 0) {
             logger(DEBUG, "%d\t%d\t%s\n", i, segsum[i].i_number, segsum[i].direct_index);
             count++;

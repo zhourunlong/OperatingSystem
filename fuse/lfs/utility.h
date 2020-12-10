@@ -74,6 +74,7 @@ const int IMAP_SIZE = 8 * BLOCK_SIZE;
 const int SUMMARY_SIZE = 8 * BLOCK_SIZE;
 const int IMAP_OFFSET = SEGMENT_SIZE - IMAP_SIZE - SUMMARY_SIZE;
 const int SUMMARY_OFFSET = SEGMENT_SIZE - IMAP_SIZE;
+const int DATA_BLOCKS_IN_SEGMENT = BLOCKS_IN_SEGMENT - 16;
 
 /** Inode-Map Data Block: tracing all inodes within the segment.
  * This is a dictionary, where i_number is "key" and inode_block is "value".
@@ -84,7 +85,7 @@ struct imap_entry {
     int i_number;          // Inode number.
     int inode_block;       // Index of the inode block.
 };
-typedef struct imap_entry inode_map[BLOCKS_IN_SEGMENT];
+typedef struct imap_entry inode_map[DATA_BLOCKS_IN_SEGMENT];
 
 /** Segment Summary Block: tracing all blocks within the segment.
  * This is an array, so sequential storation is required.
@@ -94,7 +95,7 @@ struct summary_entry {
     int i_number;          // Inode number of corresponding file.
     int direct_index;      // The index of direct[] in that inode, pointing to the block.
 };
-typedef struct summary_entry segment_summary[BLOCKS_IN_SEGMENT];
+typedef struct summary_entry segment_summary[DATA_BLOCKS_IN_SEGMENT];
 
 
 /** **************************************

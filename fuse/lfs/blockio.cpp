@@ -54,7 +54,7 @@ int new_data_block(void* data, int i_number, int direct_index) {
     add_segbuf_summary(cur_block, i_number, direct_index);
     
     // Increment cur_block, and flush segment buffer if it is full.
-    if (cur_block == BLOCKS_IN_SEGMENT-1) {    // Segment buffer is full, and should be flushed to disk file.
+    if (cur_block == DATA_BLOCKS_IN_SEGMENT-1) {    // Segment buffer is full, and should be flushed to disk file.
         write_segment(segment_buffer, cur_segment);
         memset(segment_buffer, 0, sizeof(segment_buffer));
         cur_segment++;
@@ -89,7 +89,7 @@ int new_inode_block(void* data, int i_number) {
     inode_table[i_number] = block_addr;
     
     // Increment cur_block, and flush segment buffer if it is full.
-    if (cur_block == BLOCKS_IN_SEGMENT-1) {    // Segment buffer is full, and should be flushed to disk file.
+    if (cur_block == DATA_BLOCKS_IN_SEGMENT-1) {    // Segment buffer is full, and should be flushed to disk file.
         write_segment(segment_buffer, cur_segment);
         memset(segment_buffer, 0, sizeof(segment_buffer));
         cur_segment++;
