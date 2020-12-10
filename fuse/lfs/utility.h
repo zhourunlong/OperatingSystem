@@ -70,8 +70,8 @@ typedef struct dir_entry directory[MAX_DIR_ENTRIES];
 /** **************************************
  * Segment logical structures.
  * ***************************************/
-const int IMAP_SIZE = 8 * BLOCK_SIZE;
-const int SUMMARY_SIZE = 8 * BLOCK_SIZE;
+const int IMAP_SIZE = 8 * (BLOCK_SIZE-16);
+const int SUMMARY_SIZE = 8 * (BLOCK_SIZE-16);
 const int IMAP_OFFSET = SEGMENT_SIZE - IMAP_SIZE - SUMMARY_SIZE;
 const int SUMMARY_OFFSET = SEGMENT_SIZE - IMAP_SIZE;
 const int DATA_BLOCKS_IN_SEGMENT = BLOCKS_IN_SEGMENT - 16;
@@ -187,7 +187,17 @@ const int ROOT_DIR_INUMBER = 1;
 
 
 /** **************************************
- * Debug flags.
+ * Debug and error-reporting flags.
  * ***************************************/
-const bool DEBUG_LOCATE_REPORT = true;     // Generate report for each locate().
-const bool DEBUG_METADATA_INODE = true;     // Print inode for each metadata query.
+const bool DEBUG_PRINT_COMMAND  = false;    // Print the name of each command.
+const bool DEBUG_METADATA_INODE = false;    // Print inode for each metadata query.
+const bool DEBUG_DIRECTORY      = true;     // Print debug information in directory.cpp.
+const bool DEBUG_FILE           = true;     // Print debug information in file.cpp.
+const bool DEBUG_PATH           = true;     // Print debug information in path.cpp.
+const bool DEBUG_LOCATE_REPORT  = false;    // Generate report for each locate() (in path.cpp).
+
+const bool ERROR_METADATA       = true;     // Report errors in metadata.cpp assoc. with locate().
+const bool ERROR_DIRECTORY      = true;     // Report directory operation errors in directory.cpp.
+const bool ERROR_FILE           = true;     // Report file operation errors in file.cpp.
+const bool ERROR_PATH           = true;     // Report low-level errors in path.cpp.
+const bool ERROR_PERM           = true;     // Report permission operation errors in perm.cpp.

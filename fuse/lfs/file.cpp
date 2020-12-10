@@ -14,7 +14,9 @@ extern struct options options;
 extern int file_handle;
 
 int o_open(const char* path, struct fuse_file_info* fi) {
-    logger(DEBUG, "OPEN, %s, %p\n", resolve_prefix(path), fi);
+    if (DEBUG_PRINT_COMMAND)
+        logger(DEBUG, "OPEN, %s, %p\n", resolve_prefix(path), fi);
+    
     int inode_num;
     int flag;    
     flag = locate(path, inode_num);
@@ -24,14 +26,17 @@ int o_open(const char* path, struct fuse_file_info* fi) {
 }
 
 int o_release(const char* path, struct fuse_file_info* fi) {
-    logger(DEBUG, "RELEASE, %s, %p\n", resolve_prefix(path), fi);
+    if (DEBUG_PRINT_COMMAND)
+        logger(DEBUG, "RELEASE, %s, %p\n", resolve_prefix(path), fi);
 
     return 0;
 }
 
 int o_read(const char* path, char *buf, size_t size, off_t offset, struct fuse_file_info* fi) {
-    logger(DEBUG, "READ, %s, %p, %d, %d, %p\n",
-        resolve_prefix(path), buf, size, offset, fi);
+    if (DEBUG_PRINT_COMMAND)
+        logger(DEBUG, "READ, %s, %p, %d, %d, %p\n",
+               resolve_prefix(path), buf, size, offset, fi);
+    
     size_t len;
     int inode_num = fi -> fh;
     inode cur_inode;
@@ -88,8 +93,10 @@ int o_read(const char* path, char *buf, size_t size, off_t offset, struct fuse_f
 }
 
 int o_write(const char* path, const char* buf, size_t size, off_t offset, struct fuse_file_info* fi) {
-    logger(DEBUG, "WRITE, %s, %p, %d, %d, %p\n",
-        resolve_prefix(path), buf, size, offset, fi);
+    if (DEBUG_PRINT_COMMAND)
+        logger(DEBUG, "WRITE, %s, %p, %d, %d, %p\n",
+               resolve_prefix(path), buf, size, offset, fi);
+    
     size_t len;
     int inode_num = fi -> fh;
     inode cur_inode;
@@ -177,27 +184,31 @@ int o_write(const char* path, const char* buf, size_t size, off_t offset, struct
 }
 
 int o_create(const char *path, mode_t mode, struct fuse_file_info *fi) {
-    logger(DEBUG, "CREATE, %s, %d, %p\n",
-        resolve_prefix(path), mode, fi);
+    if (DEBUG_PRINT_COMMAND)
+        logger(DEBUG, "CREATE, %s, %d, %p\n",
+               resolve_prefix(path), mode, fi);
     
     mode |= S_IFREG;
     char* parent_dir = relative_to_absolute(path, "../", 0);
     char* dirname = current_fname(path);
     if (strlen(dirname) >= MAX_FILENAME_LEN) {
-        logger(ERROR, "filename too long (%d), should < %d!\n", strlen(dirname), MAX_FILENAME_LEN);
+        if (ERROR_FILE)
+            logger(ERROR, "[ERROR] Directory name too long: length %d > %d.\n", strlen(dirname), MAX_FILENAME_LEN);
         return -E2BIG;
     }
     int par_inum;
     int locate_err = locate(parent_dir, par_inum);
     if (locate_err != 0) {
-        logger(ERROR, "error loading parent dir!\n");
+        if (ERROR_FILE)
+            logger(ERROR, "[ERROR] Cannot open the parent directory (error #%d).\n", locate_err);
         return locate_err;
     }
     
     inode block_inode;
     get_inode_from_inum(&block_inode, par_inum);
     if (block_inode.mode != MODE_DIR) {
-        logger(ERROR, "%s is not a directory!\n", parent_dir);
+        if (ERROR_FILE)
+            logger(ERROR, "[ERROR] %s is not a directory.\n", parent_dir);
         return -ENOTDIR;
     }
     
@@ -206,10 +217,10 @@ int o_create(const char *path, mode_t mode, struct fuse_file_info *fi) {
     if (locate_err == 0) {
         inode tmp_inode;
         get_inode_from_inum(&tmp_inode, tmp_inum);
-        if (tmp_inode.mode == MODE_FILE)
-            logger(ERROR, "there is a file with same name!\n");
-        if (tmp_inode.mode == MODE_DIR)
-            logger(ERROR, "directory already exists!\n");
+        if ((tmp_inode.mode == MODE_FILE) && ERROR_FILE)
+            logger(ERROR, "[ERROR] Duplicated name: there is a file with the same name.\n");
+        if ((tmp_inode.mode == MODE_DIR) && ERROR_FILE)
+            logger(ERROR, "[ERROR] Duplicated name: directory already exists.\n");
         return -EEXIST;
     }
     
@@ -259,7 +270,7 @@ int o_create(const char *path, mode_t mode, struct fuse_file_info *fi) {
     memcpy(block_dir[0].filename, dirname, strlen(dirname) * sizeof(char));
 
     if (rec_avail_for_ins) {
-        logger(DEBUG, "empty block\n");
+        if (DEBUG_FILE) logger(DEBUG, "empty block\n");
         for (int i = 0; i < NUM_INODE_DIRECT; ++i)
             if (avail_for_ins.direct[i] == -1) {
                 int new_block_addr = new_data_block(&block_dir, avail_for_ins.i_number, i);
@@ -274,7 +285,7 @@ int o_create(const char *path, mode_t mode, struct fuse_file_info *fi) {
             }
     }
 
-    logger(DEBUG, "create new inode");
+    if (DEBUG_FILE) logger(DEBUG, "create new inode");
     inode append_inode;
     file_initialize(&append_inode, MODE_MID_INODE, 0);
     int new_block_addr = new_data_block(&block_dir,append_inode.i_number, 0);
@@ -293,8 +304,9 @@ int o_create(const char *path, mode_t mode, struct fuse_file_info *fi) {
 }
 
 int o_rename(const char* from, const char* to, unsigned int flags) {
-    logger(DEBUG, "RENAME, %s, %s, %d\n",
-        resolve_prefix(from), resolve_prefix(to), flags);
+    if (DEBUG_PRINT_COMMAND)
+        logger(DEBUG, "RENAME, %s, %s, %d\n",
+               resolve_prefix(from), resolve_prefix(to), flags);
     
     char* from_parent_dir = relative_to_absolute(from, "../", 0);
     char* to_parent_dir = relative_to_absolute(to, "../", 0);
@@ -323,17 +335,23 @@ int o_rename(const char* from, const char* to, unsigned int flags) {
 }
 
 int o_unlink(const char* path) {
-    logger(DEBUG, "UNLINK, %s\n", resolve_prefix(path));
+    if (DEBUG_PRINT_COMMAND)
+        logger(DEBUG, "UNLINK, %s\n", resolve_prefix(path));
+    
     return 0;
 }
 
 int o_link(const char* src, const char* dest) {
-    logger(DEBUG, "LINK, %s, %s\n", resolve_prefix(src), resolve_prefix(dest));
+    if (DEBUG_PRINT_COMMAND)
+        logger(DEBUG, "LINK, %s, %s\n", resolve_prefix(src), resolve_prefix(dest));
+    
     return 0;
 }
 
 int o_truncate(const char* path, off_t size, struct fuse_file_info *fi) {
-    logger(DEBUG, "TRUNCATE, %s, %d, %p\n",
-        resolve_prefix(path), size, fi);
+    if (DEBUG_PRINT_COMMAND)
+        logger(DEBUG, "TRUNCATE, %s, %d, %p\n",
+               resolve_prefix(path), size, fi);
+    
     return 0;
 }
