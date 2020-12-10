@@ -63,7 +63,6 @@ int o_readdir(const char* path, void* buf, fuse_fill_dir_t filler, off_t offset,
                 if (block_dir[j].i_number == 0)
                     continue;
                 filler(buf, block_dir[j].filename, NULL, 0, (fuse_fill_dir_flags) 0);
-                // sort?
             }
         }
         if (block_inode.next_indirect == 0)
@@ -134,9 +133,12 @@ int o_mkdir(const char* path, mode_t mode) {
                     //print(block_dir);
                     int new_block_addr = new_data_block(&block_dir, block_inode.i_number, i);
                     block_inode.direct[i] = new_block_addr;
-                    ++block_inode.num_direct;
                     //print(&block_inode);
                     int t_in_addr = new_inode_block(&block_inode, block_inode.i_number);
+
+                    get_inode_from_inum(&block_inode, par_inum);
+                    print(&block_inode);
+
                     return 0;
                 }
         }
@@ -159,6 +161,10 @@ int o_mkdir(const char* path, mode_t mode) {
                 avail_for_ins.direct[i] = new_block_addr;
                 ++avail_for_ins.num_direct;
                 new_inode_block(&avail_for_ins, avail_for_ins.i_number);
+
+                get_inode_from_inum(&block_inode, par_inum);
+                print(&block_inode);
+
                 return 0;
             }
     }
@@ -172,6 +178,9 @@ int o_mkdir(const char* path, mode_t mode) {
     new_inode_block(&append_inode, append_inode.i_number);
     tail_inode.next_indirect = append_inode.i_number;
     new_inode_block(&tail_inode, tail_inode.i_number);
+
+    get_inode_from_inum(&block_inode, par_inum);
+    print(&block_inode);
 
     return 0;
 }
