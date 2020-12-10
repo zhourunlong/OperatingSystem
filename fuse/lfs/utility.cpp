@@ -121,7 +121,7 @@ int write_superblock(void* buf) {
 /** **************************************
  * Pretty-print functions.
  * ***************************************/
-void print(struct inode* node){
+void print(struct inode* node) {
     logger(DEBUG, "[DEBUG] ******************** PRINT INODE ********************\n");
     logger(DEBUG, "ITEM  \tCONTENT     \n");
     logger(DEBUG, "======\t============\n");
@@ -211,7 +211,7 @@ void print(struct superblock* sblk) {
     logger(DEBUG, "============================ PRINT SUPERBLOCK ====================\n");
 }
 
-void print(checkpoints ckpt){
+void print(checkpoints ckpt) {
     logger(DEBUG, "[DEBUG] ******************** PRINT CHECKPOINTS ********************\n");
     logger(DEBUG, "ITEM       \tCKPT[0]     \tCKPT[1]     \n");
     logger(DEBUG, "========== \t============\t============\n");
@@ -235,4 +235,138 @@ void print(checkpoints ckpt){
     logger(DEBUG, "NXT_IMAP_ID\t%d   \t\t%d\n", ckpt[0].next_imap_index, ckpt[1].next_imap_index);
     logger(DEBUG, "TIMESTAMP  \t%d\t%d\n", ckpt[0].timestamp, ckpt[1].timestamp);
     logger(DEBUG, "============================ PRINT CHECKPOINTS ====================\n");
+}
+
+void print(block blk, int disp) {
+    logger(DEBUG, "[DEBUG] ******************** PRINT DATA BLOCK ********************\n");
+
+    if (disp == DISP_BIT_BIN) {    // Display bit-by-bit, grouped in 8 bits, 16 bytes in a row.
+        logger(DEBUG, "\t");
+        for (int i=0; i<16; i++)
+            logger(DEBUG, "%d\t ", 8*i);
+        logger(DEBUG, "\n");
+
+        logger(DEBUG, "\t");
+        for (int i=0; i<16; i++)
+            logger(DEBUG, "======== ");
+        logger(DEBUG, "\n");
+
+        int b = 0;
+        int count = 0;
+        while (b < BLOCK_SIZE) {
+            logger(DEBUG, "%6d\t", count);
+            for (i=0; i<16; i++) {
+                int dec = blk[b];
+                int bin = 0;
+                int pow = 1;
+                for (int j=0; j<8; j++) {
+                    bin = bin + (dec%2) * pow;
+                    pow *= 10;
+                    dec /= (int)2;
+                }
+                logger(DEBUG, "%d ", bin);
+
+                b++;
+                if (b >= BLOCK_SIZE) break;
+            }
+            logger(DEBUG, "\n");
+
+            count++;
+        }
+    } else if (disp == DISP_BYTE_DEC) {    // Display byte-by-byte in base-10, 32 bytes in a row.
+        logger(DEBUG, "    ");
+        for (int i=0; i<32; i++)
+            logger(DEBUG, "%4d", i);
+        logger(DEBUG, "\n");
+
+        logger(DEBUG, "    ");
+        for (int i=0; i<32; i++)
+            logger(DEBUG, " ===");
+        logger(DEBUG, "\n");
+
+        int b = 0;
+        int count = 0;
+        while (b < BLOCK_SIZE) {
+            logger(DEBUG, "%4d", count);
+            for (i=0; i<32; i++) {
+                logger(DEBUG, "%4d", blk[b]);
+                b++;
+            }
+            logger(DEBUG, "\n");
+
+            count++;
+        }
+    } else if (disp == DISP_BYTE_HEX) {    // Display byte-by-byte in base-16, 32 bytes in a row.
+        logger(DEBUG, "    ");
+        for (int i=0; i<32; i++)
+            logger(DEBUG, "%4d", i);
+        logger(DEBUG, "\n");
+
+        logger(DEBUG, "    ");
+        for (int i=0; i<32; i++)
+            logger(DEBUG, " ===");
+        logger(DEBUG, "\n");
+
+        int b = 0;
+        int count = 0;
+        while (b < BLOCK_SIZE) {
+            logger(DEBUG, "%4d", count);
+            for (i=0; i<32; i++) {
+                logger(DEBUG, "%4x", blk[b]);
+                b++;
+            }
+            logger(DEBUG, "\n");
+
+            count++;
+        }
+    } else if (disp == DISP_WORD_DEC) {    // Display word-by-word in base-10, 16 words in a row.
+        logger(DEBUG, "    ");
+        for (int i=0; i<16; i++)
+            logger(DEBUG, "%12d", i);
+        logger(DEBUG, "\n");
+
+        logger(DEBUG, "    ");
+        for (int i=0; i<16; i++)
+            logger(DEBUG, "  ==========");
+        logger(DEBUG, "\n");
+
+        int* _blk = (int*) blk;
+        int b = 0;
+        int count = 0;
+        while (b < BLOCK_SIZE / (int)4) {
+            logger(DEBUG, "%4d", count);
+            for (i=0; i<16; i++) {
+                logger(DEBUG, "%12d", _blk[b]);
+                b++;
+            }
+            logger(DEBUG, "\n");
+
+            count++;
+        }
+    } else if (disp == DISP_WORD_HEX) {    // Display word-by-word in base-16, 16 words in a row.
+        logger(DEBUG, "    ");
+        for (int i=0; i<16; i++)
+            logger(DEBUG, "%10d", i);
+        logger(DEBUG, "\n");
+
+        logger(DEBUG, "    ");
+        for (int i=0; i<16; i++)
+            logger(DEBUG, "  ========");
+        logger(DEBUG, "\n");
+
+        int* _blk = (int*) blk;
+        int b = 0;
+        int count = 0;
+        while (b < BLOCK_SIZE / (int)4) {
+            logger(DEBUG, "%4d", count);
+            for (i=0; i<16; i++) {
+                logger(DEBUG, "%10x", _blk[b]);
+                b++;
+            }
+            logger(DEBUG, "\n");
+
+            count++;
+        }
+    }
+    logger(DEBUG, "============================ PRINT DATA BLOCK ====================\n");
 }

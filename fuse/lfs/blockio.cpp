@@ -147,7 +147,7 @@ void file_initialize(struct inode* cur_inode, int _mode, int _permission) {
     cur_inode->mode         = _mode;
     cur_inode->num_links    = 1;
     cur_inode->fsize_byte   = 0;
-    cur_inode->fsize_block  = 1;
+    cur_inode->fsize_block  = 0;
     cur_inode->io_block     = 1;
     cur_inode->permission   = _permission;
     cur_inode->perm_uid     = user_info->uid;
@@ -187,6 +187,7 @@ void file_add_data(struct inode* cur_inode, void* data) {
 
     int block_addr = new_data_block(data, cur_inode->i_number, cur_inode->num_direct);
     cur_inode->direct[cur_inode->num_direct] = block_addr;
+    cur_inode->fsize_block++;
     cur_inode->num_direct++;
 }
 

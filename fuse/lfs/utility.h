@@ -140,6 +140,13 @@ void print(segment_summary segsum);
 void print(struct superblock* sblk);
 void print(checkpoints ckpt);
 
+const int DISP_BIT_BIN = 1;
+const int DISP_BYTE_DEC = 2;
+const int DISP_BYTE_HEX = 3;
+const int DISP_WORD_DEC = 4;
+const int DISP_WORD_HEX = 5;
+void print(block blk, int disp);
+
 /** **************************************
  * Functions for actual file reads / writes.
  * ***************************************/
