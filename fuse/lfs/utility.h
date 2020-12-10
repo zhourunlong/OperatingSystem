@@ -189,7 +189,7 @@ const int ROOT_DIR_INUMBER = 1;
 /** **************************************
  * Debug and error-reporting flags.
  * ***************************************/
-const bool DEBUG_PRINT_COMMAND  = false;    // Print the name of each command.
+const bool DEBUG_PRINT_COMMAND  = true;    // Print the name of each command.
 const bool DEBUG_METADATA_INODE = false;    // Print inode for each metadata query.
 const bool DEBUG_DIRECTORY      = true;     // Print debug information in directory.cpp.
 const bool DEBUG_FILE           = true;     // Print debug information in file.cpp.
