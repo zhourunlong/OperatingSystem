@@ -5,15 +5,15 @@
 #include "file.h"       /* o_open, o_release, o_read, o_write, o_create, o_rename, o_unlink, o_link, o_truncate */
 #include "dir.h"        /* o_opendir, o_releasedir, o_readdir, o_mkdir, o_rmdir */
 #include "perm.h"       /* o_chmod, o_chown */
+#include "stats.h"     /* o_statfs, o_utimens */
 #include "buffer.h"     /* o_flush, o_fsync, o_fsyncdir */
 #include "lock.h"       /* o_lock */
 
 #include "utimens.h"    /* o_utimens */
 #include "statfs.h"     /* o_statfs */
-#include "extra.h"
 
-#include "path.h"     /* resolve_prefix generate_prefix */
-#include "logger.h"     /* set_log_level set_log_output logger */
+#include "path.h"     /* resolve_prefix, generate_prefix */
+#include "logger.h"     /* set_log_level, set_log_output, logger */
 
 struct fuse_operations ops = {
     .getattr    = o_getattr,
@@ -42,7 +42,6 @@ struct fuse_operations ops = {
     .create     = o_create,
     .lock       = o_lock,
     .utimens    = o_utimens,
-    .ioctl      = o_ioctl
 };
 
 struct options options;
