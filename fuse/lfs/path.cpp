@@ -91,6 +91,7 @@ char* current_fname(const char* path) {
         --i;
     char* ret = (char*) malloc((plen - i) * SC);
     memcpy(ret, path + i + 1, (plen - i - 1) * SC);
+    ret[plen - i - 1] = 0;
     return ret;
 }
 
@@ -128,9 +129,9 @@ int locate(const char* _path, int &i_number) {
 
     logger(DEBUG, "[DEBUG] in locate(): path = '%s', size = %d: ", _path, split_path.size());
     for (int d=0; d<split_path.size(); d++) {
-        printf("%s; ", split_path[d].c_str());
+        logger(DEBUG, "%s; ", split_path[d].c_str());
     }
-    printf("\n");
+    logger(DEBUG, "\n");
 
     // Traverse split path from LFS root directory.
     int cur_inumber = ROOT_DIR_INUMBER;
@@ -139,7 +140,7 @@ int locate(const char* _path, int &i_number) {
     bool flag;
     std::string target;
     for (int d=0; d<split_path.size(); d++) {
-        get_block(&block_inode, cur_inumber);
+        get_inode_from_inum(&block_inode, cur_inumber);
         target = split_path[d];
         flag = false;
         while (!flag) {
@@ -172,7 +173,7 @@ int locate(const char* _path, int &i_number) {
 
             if (block_inode.next_indirect == 0)
                 break;
-            get_block(&block_inode, block_inode.next_indirect);
+            get_inode_from_inum(&block_inode, block_inode.next_indirect);
         }
 
         if (!flag)
@@ -184,7 +185,7 @@ int locate(const char* _path, int &i_number) {
     
     struct inode* node = (struct inode*) malloc(sizeof(struct inode));
     get_inode_from_inum(node, i_number);
-    print(node);
+    //print(node);
     free(node);
 
     return 0;
