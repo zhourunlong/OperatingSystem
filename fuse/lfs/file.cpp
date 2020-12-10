@@ -172,11 +172,15 @@ int o_write(const char* path, const char* buf, size_t size, off_t offset, struct
         }
         file_commit(cur_inode);
         if (cur_buf_pos == size) {
+            printf("fuck\n");
+            get_inode_from_inum(&head_inode, inode_num);
             if(cur_buf_pos + offset > len) {
                 head_inode.fsize_byte = cur_buf_pos + offset;
-                get_inode_from_inum(&head_inode, inode_num);
+                printf("write inode\n");
+                print(&head_inode);
                 file_commit(head_inode);
             }
+            print(&head_inode);
             return size;
         }
     }
@@ -190,6 +194,7 @@ int o_write(const char* path, const char* buf, size_t size, off_t offset, struct
         if(size - cur_buf_pos < copy_size)
             copy_size = size - cur_buf_pos;
         memcpy(loader, buf + cur_buf_pos, copy_size);
+        print(loader, 3);
         file_add_data(cur_inode_t, loader);
         cur_buf_pos += copy_size;
         len += copy_size;
