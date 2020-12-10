@@ -95,6 +95,7 @@ void* o_init(struct fuse_conn_info* conn, struct fuse_config* cfg) {
         // Read the (newer) checkpoint.
         checkpoints ckpt;
         read_checkpoints(&ckpt);
+        print(ckpt);
 
         int latest_index = 0;
         if (ckpt[0].timestamp < ckpt[1].timestamp)
@@ -120,6 +121,7 @@ void* o_init(struct fuse_conn_info* conn, struct fuse_config* cfg) {
                 imap_entry im_entry;
 
                 read_segment_imap(imap, seg);
+                print(imap);
                 for (int i=0; i < BLOCKS_IN_SEGMENT; i++) {
                     im_entry = imap[i];
                     if ((im_entry.i_number > 0) && (im_entry.inode_block > 0)) {
@@ -130,6 +132,7 @@ void* o_init(struct fuse_conn_info* conn, struct fuse_config* cfg) {
                 }
             }
         }
+        // print_inode_table();
 
         // Initialize segment buffer in memory.
         read_segment(segment_buffer, cur_segment);
@@ -146,5 +149,6 @@ void o_destroy(void* private_data) {
     
     // Save LFS to disk.
     write_segment(segment_buffer, cur_segment);
+    segment_bitmap[cur_segment] = 1;
     generate_checkpoint();
 }

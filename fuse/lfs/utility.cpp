@@ -141,7 +141,7 @@ void print(struct inode* node){
             break;
     }
     logger(DEBUG, "N_LINK\t%d\n", node->num_links);
-    logger(DEBUG, "SIZE\t%d B = %d blocks (IO = %d blocks)\n", node->fsize_byte, node->fsize_block, node->io_block);
+    logger(DEBUG, "SIZE\t%d B, %d blocks (IO = %d blocks)\n", node->fsize_byte, node->fsize_block, node->io_block);
     logger(DEBUG, "PERM\t%o (uid = %d, gid = %d)\n", node->permission, node->perm_uid, node->perm_gid);
     logger(DEBUG, "DEVICE\t%d\n", node->device);
     logger(DEBUG, "TIME\tatime = %d.%d\n\tmtime = %d.%d\n\tctime = %d.%d\n",\
@@ -178,7 +178,7 @@ void print(inode_map imap) {
     int count = 0;
     for (int i=0; i<BLOCKS_IN_SEGMENT; i++)
         if ((imap[i].i_number > 0) && (imap[i].inode_block >= 0)) {
-            logger(DEBUG, "%d\t%d\t%s\n", i, imap[i].i_number, imap[i].inode_block);
+            logger(DEBUG, "%d\t%d\t%d\n", i, imap[i].i_number, imap[i].inode_block);
             count++;
         }
     logger(DEBUG, "\nThere are %d inodes in this segment.\n", count);
@@ -235,4 +235,152 @@ void print(checkpoints ckpt){
     logger(DEBUG, "NXT_IMAP_ID\t%d   \t\t%d\n", ckpt[0].next_imap_index, ckpt[1].next_imap_index);
     logger(DEBUG, "TIMESTAMP  \t%d\t%d\n", ckpt[0].timestamp, ckpt[1].timestamp);
     logger(DEBUG, "============================ PRINT CHECKPOINTS ====================\n");
+}
+
+void print(block blk, int disp) {
+    logger(DEBUG, "[DEBUG] ******************** PRINT DATA BLOCK ********************\n");
+
+    if (disp == DISP_BIT_BIN) {    // Display bit-by-bit, grouped in 8 bits, 16 bytes in a row.
+        logger(DEBUG, "\t");
+        for (int i=0; i<16; i++)
+            logger(DEBUG, "%d\t ", 8*i);
+        logger(DEBUG, "\n");
+
+        logger(DEBUG, "\t");
+        for (int i=0; i<16; i++)
+            logger(DEBUG, "======== ");
+        logger(DEBUG, "\n");
+
+        int b = 0;
+        int count = 0;
+        while (b < BLOCK_SIZE) {
+            logger(DEBUG, "%6d\t", count);
+            for (int i=0; i<16; i++) {
+                int dec = blk[b];
+                int bin = 0;
+                int pow = 1;
+                for (int j=0; j<8; j++) {
+                    bin = bin + (dec%2) * pow;
+                    pow *= 10;
+                    dec /= (int)2;
+                }
+                logger(DEBUG, "%d ", bin);
+
+                b++;
+                if (b >= BLOCK_SIZE) break;
+            }
+            logger(DEBUG, "\n");
+
+            count++;
+        }
+    } else if (disp == DISP_BYTE_DEC) {    // Display byte-by-byte in base-10, 32 bytes in a row.
+        logger(DEBUG, "    ");
+        for (int i=0; i<32; i++)
+            logger(DEBUG, "%4d", i);
+        logger(DEBUG, "\n");
+
+        logger(DEBUG, "    ");
+        for (int i=0; i<32; i++)
+            logger(DEBUG, " ===");
+        logger(DEBUG, "\n");
+
+        int b = 0;
+        int count = 0;
+        while (b < BLOCK_SIZE) {
+            logger(DEBUG, "%4d", count);
+            for (int i=0; i<32; i++) {
+                logger(DEBUG, "%4d", blk[b]);
+                b++;
+            }
+            logger(DEBUG, "\n");
+
+            count++;
+        }
+    } else if (disp == DISP_BYTE_HEX) {    // Display byte-by-byte in base-16, 32 bytes in a row.
+        logger(DEBUG, "    ");
+        for (int i=0; i<32; i++)
+            logger(DEBUG, "%4d", i);
+        logger(DEBUG, "\n");
+
+        logger(DEBUG, "    ");
+        for (int i=0; i<32; i++)
+            logger(DEBUG, " ===");
+        logger(DEBUG, "\n");
+
+        int b = 0;
+        int count = 0;
+        while (b < BLOCK_SIZE) {
+            logger(DEBUG, "%4d", count);
+            for (int i=0; i<32; i++) {
+                logger(DEBUG, "%4x", blk[b]);
+                b++;
+            }
+            logger(DEBUG, "\n");
+
+            count++;
+        }
+    } else if (disp == DISP_WORD_DEC) {    // Display word-by-word in base-10, 16 words in a row.
+        logger(DEBUG, "    ");
+        for (int i=0; i<16; i++)
+            logger(DEBUG, "%12d", i);
+        logger(DEBUG, "\n");
+
+        logger(DEBUG, "    ");
+        for (int i=0; i<16; i++)
+            logger(DEBUG, "  ==========");
+        logger(DEBUG, "\n");
+
+        int* _blk = (int*) blk;
+        int b = 0;
+        int count = 0;
+        while (b < BLOCK_SIZE / (int)4) {
+            logger(DEBUG, "%4d", count);
+            for (int i=0; i<16; i++) {
+                logger(DEBUG, "%12d", _blk[b]);
+                b++;
+            }
+            logger(DEBUG, "\n");
+
+            count++;
+        }
+    } else if (disp == DISP_WORD_HEX) {    // Display word-by-word in base-16, 16 words in a row.
+        logger(DEBUG, "    ");
+        for (int i=0; i<16; i++)
+            logger(DEBUG, "%10d", i);
+        logger(DEBUG, "\n");
+
+        logger(DEBUG, "    ");
+        for (int i=0; i<16; i++)
+            logger(DEBUG, "  ========");
+        logger(DEBUG, "\n");
+
+        int* _blk = (int*) blk;
+        int b = 0;
+        int count = 0;
+        while (b < BLOCK_SIZE / (int)4) {
+            logger(DEBUG, "%4d", count);
+            for (int i=0; i<16; i++) {
+                logger(DEBUG, "%10x", _blk[b]);
+                b++;
+            }
+            logger(DEBUG, "\n");
+
+            count++;
+        }
+    }
+    logger(DEBUG, "============================ PRINT DATA BLOCK ====================\n");
+}
+
+void print_inode_table() {
+    logger(DEBUG, "[DEBUG] ******************** PRINT INODE TABLE ********************\n");
+    
+    logger(DEBUG, "I_NUMBER  \tBLOCK_ADDR  \n");
+    logger(DEBUG, "==========\t============\n");
+
+    for (int i=0; i<MAX_NUM_INODE; i++) {
+        if (inode_table[i] >= 0)
+            logger(DEBUG, "%d\t\t%d\n", i, inode_table[i]);
+    }
+
+    logger(DEBUG, "============================ PRINT INODE TABLE ====================\n");
 }

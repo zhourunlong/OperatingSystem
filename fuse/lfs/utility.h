@@ -140,6 +140,15 @@ void print(segment_summary segsum);
 void print(struct superblock* sblk);
 void print(checkpoints ckpt);
 
+const int DISP_BIT_BIN = 1;
+const int DISP_BYTE_DEC = 2;
+const int DISP_BYTE_HEX = 3;
+const int DISP_WORD_DEC = 4;
+const int DISP_WORD_HEX = 5;
+void print(block blk, int disp);
+
+void print_inode_table();
+
 /** **************************************
  * Functions for actual file reads / writes.
  * ***************************************/
@@ -174,3 +183,10 @@ extern int next_checkpoint, next_imap_index;
 
 const int FILE_SIZE = SEGMENT_SIZE * TOT_SEGMENTS + IMAP_SIZE + SUMMARY_SIZE;
 const int ROOT_DIR_INUMBER = 1;
+
+
+/** **************************************
+ * Debug flags.
+ * ***************************************/
+const bool DEBUG_LOCATE_REPORT = true;     // Generate report for each locate().
+const bool DEBUG_METADATA_INODE = true;     // Print inode for each metadata query.

@@ -127,12 +127,6 @@ int locate(const char* _path, int &i_number) {
         }
     }
 
-    logger(DEBUG, "[DEBUG] in locate(): path = '%s', size = %d: ", _path, split_path.size());
-    for (int d=0; d<split_path.size(); d++) {
-        logger(DEBUG, "%s; ", split_path[d].c_str());
-    }
-    logger(DEBUG, "\n");
-
     // Traverse split path from LFS root directory.
     int cur_inumber = ROOT_DIR_INUMBER;
     inode block_inode;
@@ -181,12 +175,22 @@ int locate(const char* _path, int &i_number) {
     }
 
     i_number = cur_inumber;
-    logger(DEBUG, "[DEBUG] in locate(): i_number for '%s' = %d.\n", _path, i_number);
-    
-    struct inode* node = (struct inode*) malloc(sizeof(struct inode));
-    get_inode_from_inum(node, i_number);
-    //print(node);
-    free(node);
+
+    /* Generate report: for debugging only. */
+    if (DEBUG_LOCATE_REPORT) {
+        logger(DEBUG, "[DEBUG] ******************** PRINT LOCATE() REPORT ********************\n");
+        logger(DEBUG, "PATH = %s\n", _path);
+        logger(DEBUG, "I_NUMBER = %d\n", i_number);
+        logger(DEBUG, "INODE_BLOCK_ADDR = %d\n", inode_table[i_number]);
+
+        logger(DEBUG, "INODE INFORMATION:\n");
+        struct inode* node = (struct inode*) malloc(sizeof(struct inode));
+        get_inode_from_inum(node, i_number);
+        print(node);
+        free(node);
+
+        logger(DEBUG, "============================ PRINT LOCATE() REPORT ====================\n");
+    }
 
     return 0;
 }

@@ -28,11 +28,10 @@ int o_getattr(const char* path, struct stat* sbuf, struct fuse_file_info* fi) {
         return locate_error;
     }
 
-    logger(DEBUG, "inum = %d\n", i_number);
-
     struct inode f_inode;
     get_inode_from_inum((void*)&f_inode, i_number);
-    //print(&f_inode);
+    if (DEBUG_METADATA_INODE) print(&f_inode);
+
     if (f_inode.i_number != i_number) {
         logger(ERROR, "[FATAL ERROR] Corrupt file system on disk: inode inconsistent with inumber.\n");
         exit(-1);
@@ -101,6 +100,8 @@ int o_access(const char* path, int mode) {
     /* Mode 1~7 (in base-8): test file permissions; may be ORed toghether. */ 
     struct inode f_inode;
     get_inode_from_inum((void*)&f_inode, i_number);
+    if (DEBUG_METADATA_INODE) print(&f_inode);
+    
     if (f_inode.i_number != i_number) {
         logger(ERROR, "[FATAL ERROR] Corrupt file system on disk: inode inconsistent with inumber.\n");
         exit(-1);
