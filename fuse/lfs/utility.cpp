@@ -122,7 +122,7 @@ int write_superblock(void* buf) {
  * Pretty-print functions.
  * ***************************************/
 void print(struct inode* node){
-    logger(DEBUG, "[DEBUG] ******************** PRINT INODE ********************\n");
+    logger(DEBUG, "\n[DEBUG] ******************** PRINT INODE ********************\n");
     logger(DEBUG, "ITEM  \tCONTENT     \n");
     logger(DEBUG, "======\t============\n");
     logger(DEBUG, "I_NUM\t%d\n", node->i_number);
@@ -154,11 +154,11 @@ void print(struct inode* node){
         logger(DEBUG, "%d ", node->direct[i]);
     logger(DEBUG, ".\n");
     logger(DEBUG, "next_indirect = %d.\n", node->next_indirect);
-    logger(DEBUG, "============================ PRINT INODE ====================\n");
+    logger(DEBUG, "============================ PRINT INODE ====================\n\n");
 }
 
 void print(directory dir) {
-    logger(DEBUG, "[DEBUG] ******************** PRINT DIRECTORY ********************\n");
+    logger(DEBUG, "\n[DEBUG] ******************** PRINT DIRECTORY ********************\n");
     logger(DEBUG, "IDX\tI_NUM \tNAME        \n");
     logger(DEBUG, "===\t======\t============\n");
     int count = 0;
@@ -168,11 +168,11 @@ void print(directory dir) {
             count++;
         }
     logger(DEBUG, "\nThere are %d files / sub-directories in this directory.\n", count);
-    logger(DEBUG, "============================ PRINT DIRECTORY ====================\n");
+    logger(DEBUG, "============================ PRINT DIRECTORY ====================\n\n");
 }
 
 void print(inode_map imap) {
-    logger(DEBUG, "[DEBUG] ******************** PRINT INODE MAP ********************\n");
+    logger(DEBUG, "\n[DEBUG] ******************** PRINT INODE MAP ********************\n");
     logger(DEBUG, "IDX\tI_NUM \tBLOCK_ADDR  \n");
     logger(DEBUG, "===\t======\t============\n");
     int count = 0;
@@ -182,11 +182,11 @@ void print(inode_map imap) {
             count++;
         }
     logger(DEBUG, "\nThere are %d inodes in this segment.\n", count);
-    logger(DEBUG, "============================ PRINT INODE MAP ====================\n");
+    logger(DEBUG, "============================ PRINT INODE MAP ====================\n\n");
 }
 
 void print(segment_summary segsum) {
-    logger(DEBUG, "[DEBUG] ******************** PRINT SEGMENT SUMMARY ********************\n");
+    logger(DEBUG, "\n[DEBUG] ******************** PRINT SEGMENT SUMMARY ********************\n");
     logger(DEBUG, "IDX\tI_NUM \tDIRECT[?]   \n");
     logger(DEBUG, "===\t======\t============\n");
     int count = 0;
@@ -196,11 +196,11 @@ void print(segment_summary segsum) {
             count++;
         }
     logger(DEBUG, "\nThere are %d non-empty blocks in this segment.\n", count);
-    logger(DEBUG, "============================ PRINT SEGMENT SUMMARY ====================\n");
+    logger(DEBUG, "============================ PRINT SEGMENT SUMMARY ====================\n\n");
 }
 
 void print(struct superblock* sblk) {
-    logger(DEBUG, "[DEBUG] ******************** PRINT SUPERBLOCK ********************\n");
+    logger(DEBUG, "\n[DEBUG] ******************** PRINT SUPERBLOCK ********************\n");
     logger(DEBUG, "ITEM      \tCONTENT     \n");
     logger(DEBUG, "==========\t============\n");
     logger(DEBUG, "TOT_INODES  \t%d\n", sblk->tot_inodes);
@@ -208,11 +208,11 @@ void print(struct superblock* sblk) {
     logger(DEBUG, "TOT_SEGMENTS\t%d\n", sblk->tot_segments);
     logger(DEBUG, "BLOCK_SIZE  \t%d\n", sblk->block_size);
     logger(DEBUG, "SEGMENT_SIZE\t%d\n", sblk->segment_size);
-    logger(DEBUG, "============================ PRINT SUPERBLOCK ====================\n");
+    logger(DEBUG, "============================ PRINT SUPERBLOCK ====================\n\n");
 }
 
 void print(checkpoints ckpt){
-    logger(DEBUG, "[DEBUG] ******************** PRINT CHECKPOINTS ********************\n");
+    logger(DEBUG, "\n[DEBUG] ******************** PRINT CHECKPOINTS ********************\n");
     logger(DEBUG, "ITEM       \tCKPT[0]     \tCKPT[1]     \n");
     logger(DEBUG, "========== \t============\t============\n");
 
@@ -234,11 +234,11 @@ void print(checkpoints ckpt){
     logger(DEBUG, "CUR_BLOCK  \t%d   \t\t%d\n", ckpt[0].cur_block, ckpt[1].cur_block);
     logger(DEBUG, "NXT_IMAP_ID\t%d   \t\t%d\n", ckpt[0].next_imap_index, ckpt[1].next_imap_index);
     logger(DEBUG, "TIMESTAMP  \t%d\t%d\n", ckpt[0].timestamp, ckpt[1].timestamp);
-    logger(DEBUG, "============================ PRINT CHECKPOINTS ====================\n");
+    logger(DEBUG, "============================ PRINT CHECKPOINTS ====================\n\n");
 }
 
 void print(block blk, int disp) {
-    logger(DEBUG, "[DEBUG] ******************** PRINT DATA BLOCK ********************\n");
+    logger(DEBUG, "\n[DEBUG] ******************** PRINT DATA BLOCK ********************\n");
 
     if (disp == DISP_BIT_BIN) {    // Display bit-by-bit, grouped in 8 bits, 16 bytes in a row.
         logger(DEBUG, "\t");
@@ -368,19 +368,23 @@ void print(block blk, int disp) {
             count++;
         }
     }
-    logger(DEBUG, "============================ PRINT DATA BLOCK ====================\n");
+    logger(DEBUG, "============================ PRINT DATA BLOCK ====================\n\n");
 }
 
 void print_inode_table() {
-    logger(DEBUG, "[DEBUG] ******************** PRINT INODE TABLE ********************\n");
+    logger(DEBUG, "\n[DEBUG] ******************** PRINT INODE TABLE ********************\n");
     
     logger(DEBUG, "I_NUMBER  \tBLOCK_ADDR  \n");
     logger(DEBUG, "==========\t============\n");
-
+    
+    int count = 0;
     for (int i=0; i<MAX_NUM_INODE; i++) {
-        if (inode_table[i] >= 0)
+        if (inode_table[i] >= 0) {
             logger(DEBUG, "%d\t\t%d\n", i, inode_table[i]);
+            count++;
+        }
     }
 
-    logger(DEBUG, "============================ PRINT INODE TABLE ====================\n");
+    logger(DEBUG, "\nThere are %d active inodes in LFS now.\n", count);
+    logger(DEBUG, "============================ PRINT INODE TABLE ====================\n\n");
 }

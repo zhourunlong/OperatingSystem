@@ -35,7 +35,8 @@ char* relative_to_absolute(const char* root, const char* path, const int bgi = 0
         if (i + 2 < plen && path[i] == '.' && path[i + 1] == '.' && path[i + 2] == '/') {
             i += 3;
             if (rend <= 1) {
-                logger(ERROR, "invalid relative path!");
+                if (ERROR_PATH)
+                    logger(ERROR, "[ERROR] Invalid relative path.");
                 continue;
             }
             for (rend -= 2; rend >= 0 && ret[rend] != '/'; --rend);
@@ -72,10 +73,10 @@ void generate_prefix(const char* path) {
         getcwd(current_working_dir, cwd_len * SC);
     } while (errno == ERANGE);
     current_working_dir = relative_to_absolute(current_working_dir, "./");
-    logger(DEBUG, "current working dir =\t%s\n", current_working_dir);
+    if (DEBUG_PATH) logger(DEBUG, "Current working dir =\t%s.\n", current_working_dir);
     
     mount_root_dir = relative_to_absolute(current_working_dir, path);
-    logger(DEBUG, "mount root dir =\t%s\n", mount_root_dir);
+    if (DEBUG_PATH) logger(DEBUG, "Mount root dir =\t%s.\n", mount_root_dir);
 }
 
 char* current_fname(const char* path) {
@@ -83,7 +84,8 @@ char* current_fname(const char* path) {
     while (plen && path[plen - 1] == '/')
         --plen;
     if (!plen) {
-        logger(ERROR, "current file is root directory!");
+        if (ERROR_PATH)
+            logger(ERROR, "[ERROR] Current file is root directory.");
         return NULL;
     }
     int i = plen - 1;
@@ -101,7 +103,8 @@ char* current_fname(const char* path) {
  * @return flag: indicating whether the traversal is successful. */
 int locate(const char* _path, int &i_number) {
     if (_path[0] != '/') {
-        logger(ERROR, "[ERROR] Function locate() only accepts absolute path from LFS root.\n");
+        if (ERROR_PATH)
+            logger(ERROR, "[ERROR] Function locate() only accepts absolute path from LFS root.\n");
         return -EPERM;
     }
 
@@ -142,8 +145,11 @@ int locate(const char* _path, int &i_number) {
                 if (block_inode.direct[i] <= -1)
                     continue;
                 if (block_inode.direct[i] > FILE_SIZE) {
-                    if (block_inode.num_direct > i)
+                    if (block_inode.num_direct > i) {
                         logger(ERROR, "[FATAL ERROR] Corrupt file system on disk: invalid direct[%d] of inode #%d.\n", i, block_inode.i_number);
+                        exit(-1);
+                    }
+                    if (ERROR_PATH) logger(ERROR, "[ERROR] Inode not correctly initialized: invalid direct[%d] of inode #%d.\n", i, block_inode.i_number);
                     continue;
                 }
                 get_block(block_dir, block_inode.direct[i]);
@@ -151,8 +157,8 @@ int locate(const char* _path, int &i_number) {
                 for (int j=0; j<MAX_DIR_ENTRIES; j++) {
                     if (block_dir[j].i_number <= 0)
                         continue;
-                    if (block_dir[j].i_number > MAX_NUM_INODE)
-                        logger(ERROR, "[FATAL ERROR] Corrupt file system on disk: invalid i_number #%d.\n", block_dir[j].i_number);
+                    if ((block_dir[j].i_number > MAX_NUM_INODE) && ERROR_PATH)
+                        logger(ERROR, "[ERROR] Inode not correctly initialized: invalid i_number #%d.\n", block_dir[j].i_number);
                     
                     if (block_dir[j].filename == target) {
                         cur_inumber = block_dir[j].i_number;
@@ -165,8 +171,7 @@ int locate(const char* _path, int &i_number) {
             }
             if (flag) break;
 
-            if (block_inode.next_indirect == 0)
-                break;
+            if (block_inode.next_indirect == 0) break;
             get_inode_from_inum(&block_inode, block_inode.next_indirect);
         }
 

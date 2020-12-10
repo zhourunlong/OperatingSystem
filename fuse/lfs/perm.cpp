@@ -6,14 +6,16 @@
 #include "blockio.h"
 
 int o_chmod(const char* path, mode_t mode, struct fuse_file_info* fi) {
-    logger(DEBUG, "CHMOD, %s, %d, %p\n",
-        resolve_prefix(path), mode, fi);
+    if (DEBUG_PRINT_COMMAND)
+        logger(DEBUG, "CHMOD, %s, %d, %p\n",
+               resolve_prefix(path), mode, fi);
     
     int fh;
     int locate_err = locate(path, fh);
     fi->fh = fh;
     if (locate_err != 0) {
-        logger(ERROR, "error when opening dir!\n");
+        if (ERROR_PERM)
+            logger(ERROR, "[Error] Cannot access the path (error #%d).\n", locate_err);
         return locate_err;
     }
 
@@ -26,14 +28,16 @@ int o_chmod(const char* path, mode_t mode, struct fuse_file_info* fi) {
 }
 
 int o_chown(const char* path, uid_t uid, gid_t gid, struct fuse_file_info* fi) {
-    logger(DEBUG, "CHOWN, %s, %d, %d, %p\n",
-        resolve_prefix(path), uid, gid, fi);
+    if (DEBUG_PRINT_COMMAND)
+        logger(DEBUG, "CHOWN, %s, %d, %d, %p\n",
+               resolve_prefix(path), uid, gid, fi);
     
     int fh;
     int locate_err = locate(path, fh);
     fi->fh = fh;
     if (locate_err != 0) {
-        logger(ERROR, "error when opening dir!\n");
+        if (ERROR_PERM)
+            logger(ERROR, "[Error] Cannot access the path (error #%d).\n", locate_err);
         return locate_err;
     }
 
