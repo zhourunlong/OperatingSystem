@@ -398,7 +398,6 @@ int o_link(const char* src, const char* dest) {
     inode dest_par_inode;
     get_inode_from_inum(&dest_par_inode, dest_par_inum);
     int flag = append_parent_dir_entry(dest_par_inode, dest_name, src_inum);
-    inode src_inode;
     get_inode_from_inum(&src_inode, src_inum);
     src_inode.num_links += 1;
     new_inode_block(&src_inode);
