@@ -161,7 +161,7 @@ int o_write(const char* path, const char* buf, size_t size, off_t offset, struct
             }
             if(cur_block_offset == BLOCK_SIZE && cur_buf_pos + offset != ((len + BLOCK_SIZE - 1) / BLOCK_SIZE) * BLOCK_SIZE) {
                 if(cur_block_ind + 1 == cur_inode.num_direct) {
-                    file_commit(cur_inode); //???
+                    new_inode_block(&cur_inode); //???
                     get_inode_from_inum(&cur_inode, cur_inode.next_indirect);
                     cur_block_ind = cur_block_offset = 0;
                 }
@@ -171,7 +171,7 @@ int o_write(const char* path, const char* buf, size_t size, off_t offset, struct
                 }
             }
         }
-        file_commit(cur_inode);
+        new_inode_block(&cur_inode);
         printf("pass 1: %d.\n", cur_inode.i_number);
         if (cur_buf_pos == size) {
             get_inode_from_inum(&head_inode, inode_num);
@@ -179,7 +179,7 @@ int o_write(const char* path, const char* buf, size_t size, off_t offset, struct
                 head_inode.fsize_byte = cur_buf_pos + offset;
                 // printf("write inode\n");
                 // print(&head_inode);
-                file_commit(head_inode);
+                new_inode_block(&head_inode);
             }
             // print(&head_inode);
             return size;
@@ -187,7 +187,6 @@ int o_write(const char* path, const char* buf, size_t size, off_t offset, struct
     }
 
     memset(loader, 0, sizeof(loader));
-    inode *cur_inode_t = &cur_inode;
     
     len = ((len + BLOCK_SIZE - 1) / BLOCK_SIZE) * BLOCK_SIZE;
     while (cur_buf_pos < size) {
@@ -196,16 +195,14 @@ int o_write(const char* path, const char* buf, size_t size, off_t offset, struct
             copy_size = size - cur_buf_pos;
         memset(loader, 0, sizeof(loader));
         memcpy(loader, buf + cur_buf_pos, copy_size);
-        file_add_data(cur_inode_t, loader);
+        file_add_data(&cur_inode, loader);
         cur_buf_pos += copy_size;
         len += copy_size;
     }
-    if(cur_inode_t != NULL) {
-        file_commit(cur_inode_t);
-    }
+    new_inode_block(&cur_inode);
     get_inode_from_inum(&head_inode, inode_num);
     head_inode.fsize_byte = len;
-    file_commit(head_inode);
+    new_inode_block(&head_inode);
 
     return cur_buf_pos;
 }
@@ -276,13 +273,13 @@ int o_create(const char *path, mode_t mode, struct fuse_file_info *fi) {
                     int new_block_addr = new_data_block(&block_dir, block_inode.i_number, i);
                     block_inode.direct[i] = new_block_addr;
                     //print(&block_inode);
-                    int t_in_addr = new_inode_block(&block_inode, block_inode.i_number);
+                    int t_in_addr = new_inode_block(&block_inode);
 
                     get_inode_from_inum(&block_inode, par_inum);
                     print(&block_inode);
 
                     fi->fh = file_inode->i_number;
-                    file_commit(file_inode);
+                    new_inode_block(file_inode);
                     return 0;
                 }
         }
@@ -305,13 +302,13 @@ int o_create(const char *path, mode_t mode, struct fuse_file_info *fi) {
                 int new_block_addr = new_data_block(&block_dir, avail_for_ins.i_number, i);
                 avail_for_ins.direct[i] = new_block_addr;
                 ++avail_for_ins.num_direct;
-                new_inode_block(&avail_for_ins, avail_for_ins.i_number);
+                new_inode_block(&avail_for_ins);
 
                 get_inode_from_inum(&block_inode, par_inum);
                 print(&block_inode);
 
                 fi->fh = file_inode->i_number;
-                file_commit(file_inode);
+                new_inode_block(file_inode);
                 return 0;
             }
     }
@@ -322,15 +319,15 @@ int o_create(const char *path, mode_t mode, struct fuse_file_info *fi) {
     int new_block_addr = new_data_block(&block_dir,append_inode.i_number, 0);
     append_inode.direct[0] = new_block_addr;
     append_inode.num_direct = 1;
-    new_inode_block(&append_inode, append_inode.i_number);
+    new_inode_block(&append_inode);
     tail_inode.next_indirect = append_inode.i_number;
-    new_inode_block(&tail_inode, tail_inode.i_number);
+    new_inode_block(&tail_inode);
 
     get_inode_from_inum(&block_inode, par_inum);
     print(&block_inode);
     
     fi->fh = file_inode->i_number;
-    file_commit(file_inode);
+    new_inode_block(file_inode);
 
     return 0;
 }
@@ -407,10 +404,10 @@ int o_rename(const char* from, const char* to, unsigned int flags) {
         }
         if(find == true)
             break;
-        file_commit(from_par_inode);
+        new_inode_block(&from_par_inode);
         get_inode_from_inum(&from_par_inode, from_par_inode.next_indirect);
     }
-    file_commit(from_par_inode);
+    new_inode_block(&from_par_inode);
 
     inode block_inode;
     get_inode_from_inum(&block_inode, to_par_inum);
@@ -446,9 +443,9 @@ int o_rename(const char* from, const char* to, unsigned int flags) {
                         if (FUNC_ATIME_DIR)
                             update_atime(head_inode, cur_time);
                         head_inode.mtime = head_inode.ctime = cur_time;
-                        new_inode_block(&head_inode, head_inode.i_number);
+                        new_inode_block(&head_inode);
                     }
-                    new_inode_block(&block_inode, block_inode.i_number);
+                    new_inode_block(&block_inode);
                     return 0;
                 }
         }
@@ -479,9 +476,9 @@ int o_rename(const char* from, const char* to, unsigned int flags) {
                     if (FUNC_ATIME_DIR)
                         update_atime(head_inode, cur_time);
                     head_inode.mtime = head_inode.ctime = cur_time;
-                    new_inode_block(&head_inode, head_inode.i_number);
+                    new_inode_block(&head_inode);
                 }
-                new_inode_block(&avail_for_ins, avail_for_ins.i_number);
+                new_inode_block(&avail_for_ins);
                 return 0;
             }
     }
@@ -493,15 +490,15 @@ int o_rename(const char* from, const char* to, unsigned int flags) {
     int new_block_addr = new_data_block(&block_dir, append_inode.i_number, 0);
     append_inode.direct[0] = new_block_addr;
     append_inode.num_direct = 1;
-    new_inode_block(&append_inode, append_inode.i_number);
+    new_inode_block(&append_inode);
     tail_inode.next_indirect = append_inode.i_number;
     if (tail_firblk)
         tail_inode.ctime = cur_time;
     else {
         head_inode.ctime = cur_time;
-        new_inode_block(&head_inode, head_inode.i_number);
+        new_inode_block(&head_inode);
     }
-    new_inode_block(&tail_inode, tail_inode.i_number);
+    new_inode_block(&tail_inode);
     return 0;
 }
 

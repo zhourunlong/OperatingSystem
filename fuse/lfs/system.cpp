@@ -73,7 +73,7 @@ void* o_init(struct fuse_conn_info* conn, struct fuse_config* cfg) {
         file_add_data(root_inode, buf);
         free(buf);
         
-        file_commit(root_inode);
+        new_inode_block(root_inode);
 
         // Generate first checkpoint.
         generate_checkpoint();

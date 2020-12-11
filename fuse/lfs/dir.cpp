@@ -85,7 +85,7 @@ int o_readdir(const char* path, void* buf, fuse_fill_dir_t filler, off_t offset,
         struct timespec cur_time;
         clock_gettime(CLOCK_REALTIME, &cur_time);
         update_atime(head_inode, cur_time);
-        new_inode_block(&head_inode, head_inode.i_number);
+        new_inode_block(&head_inode);
     }
 
     return 0;
@@ -132,9 +132,9 @@ int append_parent_dir_entry(struct inode &head_inode, const char* new_name, int 
                         if (FUNC_ATIME_DIR)
                             update_atime(head_inode, cur_time);
                         head_inode.mtime = head_inode.ctime = cur_time;
-                        new_inode_block(&head_inode, head_inode.i_number);
+                        new_inode_block(&head_inode);
                     }
-                    new_inode_block(&block_inode, block_inode.i_number);
+                    new_inode_block(&block_inode);
                     return 0;
                 }
         }
@@ -166,9 +166,9 @@ int append_parent_dir_entry(struct inode &head_inode, const char* new_name, int 
                     if (FUNC_ATIME_DIR)
                         update_atime(head_inode, cur_time);
                     head_inode.mtime = head_inode.ctime = cur_time;
-                    new_inode_block(&head_inode, head_inode.i_number);
+                    new_inode_block(&head_inode);
                 }
-                new_inode_block(&avail_for_ins, avail_for_ins.i_number);
+                new_inode_block(&avail_for_ins);
                 return 0;
             }
     }
@@ -180,15 +180,15 @@ int append_parent_dir_entry(struct inode &head_inode, const char* new_name, int 
     int new_block_addr = new_data_block(&block_dir, append_inode.i_number, 0);
     append_inode.direct[0] = new_block_addr;
     append_inode.num_direct = 1;
-    new_inode_block(&append_inode, append_inode.i_number);
+    new_inode_block(&append_inode);
     tail_inode.next_indirect = append_inode.i_number;
     if (tail_firblk)
         tail_inode.ctime = cur_time;
     else {
         head_inode.ctime = cur_time;
-        new_inode_block(&head_inode, head_inode.i_number);
+        new_inode_block(&head_inode);
     }
-    new_inode_block(&tail_inode, tail_inode.i_number);
+    new_inode_block(&tail_inode);
     return 0;
 }
 
@@ -234,7 +234,7 @@ int o_mkdir(const char* path, mode_t mode) {
 
     inode dir_inode;
     file_initialize(&dir_inode, MODE_DIR, mode);
-    new_inode_block(&dir_inode, dir_inode.i_number);
+    new_inode_block(&dir_inode);
 
     int flag = append_parent_dir_entry(head_inode, dirname, dir_inode.i_number);
     return flag;
@@ -291,7 +291,7 @@ int remove_object(struct inode &head_inode, const char* del_name, int del_mode) 
                                             logger(ERROR, "[ERROR] Directory %s is not empty.\n", del_name);
                                         if (FUNC_ATIME_DIR) {
                                             update_atime(tmp_head_inode, cur_time);
-                                            new_inode_block(&tmp_head_inode, tmp_head_inode.i_number);
+                                            new_inode_block(&tmp_head_inode);
                                         }
                                         return -ENOTEMPTY;
                                     }
@@ -318,9 +318,9 @@ int remove_object(struct inode &head_inode, const char* del_name, int del_mode) 
                                 if (FUNC_ATIME_DIR)
                                     update_atime(head_inode, cur_time);
                                 head_inode.mtime = head_inode.ctime = cur_time;
-                                new_inode_block(&head_inode, head_inode.i_number);
+                                new_inode_block(&head_inode);
                             }
-                            new_inode_block(&block_inode, block_inode.i_number);
+                            new_inode_block(&block_inode);
                         } else {
                             tail_inode.next_indirect = block_inode.next_indirect;
                             if (tail_firblk) {
@@ -331,9 +331,9 @@ int remove_object(struct inode &head_inode, const char* del_name, int del_mode) 
                                 if (FUNC_ATIME_DIR)
                                     update_atime(head_inode, cur_time);
                                 head_inode.mtime = head_inode.ctime = cur_time;
-                                new_inode_block(&head_inode, head_inode.i_number);
+                                new_inode_block(&head_inode);
                             }
-                            new_inode_block(&tail_inode, tail_inode.i_number);
+                            new_inode_block(&tail_inode);
                         }
                     } else {
                         block_dir[j].i_number = 0;
@@ -348,9 +348,9 @@ int remove_object(struct inode &head_inode, const char* del_name, int del_mode) 
                             if (FUNC_ATIME_DIR)
                                 update_atime(head_inode, cur_time);
                             head_inode.mtime = head_inode.ctime = cur_time;
-                            new_inode_block(&head_inode, head_inode.i_number);
+                            new_inode_block(&head_inode);
                         }
-                        new_inode_block(&block_inode, block_inode.i_number);
+                        new_inode_block(&block_inode);
                     }
 
                     // Remove i_map and i_table pointers to the object.
@@ -382,7 +382,7 @@ int remove_object(struct inode &head_inode, const char* del_name, int del_mode) 
                             // Decrement link count by 1, and update ctime.
                             file_inode.num_links--;
                             file_inode.ctime = cur_time;
-                            new_inode_block(&file_inode, file_inode.i_number);
+                            new_inode_block(&file_inode);
                         }
                     }
 
@@ -404,7 +404,7 @@ int remove_object(struct inode &head_inode, const char* del_name, int del_mode) 
     }
     if (accessed && FUNC_ATIME_DIR) {
         update_atime(head_inode, cur_time);
-        new_inode_block(&head_inode, head_inode.i_number);
+        new_inode_block(&head_inode);
     }
     return -ENOENT;
 }

@@ -152,7 +152,7 @@ int locate(const char* _path, int &i_number) {
         get_inode_from_inum(&block_inode, cur_inumber);
         if (FUNC_ATIME_DIR) {
             update_atime(block_inode, cur_time);  // Update atime according to FUNC_ATIME_ flags.
-            new_inode_block(&block_inode, block_inode.i_number);
+            new_inode_block(&block_inode);
         }
         
         target = split_path[d];

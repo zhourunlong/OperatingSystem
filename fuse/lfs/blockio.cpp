@@ -216,32 +216,6 @@ void file_modify(struct inode* cur_inode, int direct_index, void* data) {
 }
 
 
-/** Commit a new file by storing its inode in log.
- * @param  cur_inode: struct for the file inode. */
-void file_commit(struct inode* cur_inode) {
-    // Update current inode (non-empty), commit it and release the memory.
-    struct timespec cur_time;
-    clock_gettime(CLOCK_REALTIME, &cur_time);
-    cur_inode->atime = cur_time;
-    cur_inode->mtime = cur_time;
-    cur_inode->ctime = cur_time;
-
-    new_inode_block(cur_inode, cur_inode->i_number);
-}
-
-/** Commit a new file by storing its inode in log.
- * @param  cur_inode: struct for the file inode. */
-void file_commit(inode &cur_inode) {
-    // Update current inode (non-empty), commit it and release the memory.
-    struct timespec cur_time;
-    clock_gettime(CLOCK_REALTIME, &cur_time);
-    cur_inode.atime = cur_time;
-    cur_inode.mtime = cur_time;
-    cur_inode.ctime = cur_time;
-
-    new_inode_block(&cur_inode, cur_inode.i_number);
-}
-
 /** Generate a checkpoint and save it to disk file. */
 void generate_checkpoint() {
     checkpoints ckpt;

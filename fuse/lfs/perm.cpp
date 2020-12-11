@@ -26,7 +26,7 @@ int o_chmod(const char* path, mode_t mode, struct fuse_file_info* fi) {
     get_inode_from_inum(&block_inode, fh);
     block_inode.permission = mode;
     clock_gettime(CLOCK_REALTIME, &block_inode.ctime);
-    new_inode_block(&block_inode, block_inode.i_number);
+    new_inode_block(&block_inode);
 
     return 0;
 }
@@ -51,7 +51,7 @@ int o_chown(const char* path, uid_t uid, gid_t gid, struct fuse_file_info* fi) {
     block_inode.perm_uid = uid;
     block_inode.perm_gid = gid;
     clock_gettime(CLOCK_REALTIME, &block_inode.ctime);
-    new_inode_block(&block_inode, block_inode.i_number);
+    new_inode_block(&block_inode);
 
     return 0;
 }
