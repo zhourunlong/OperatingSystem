@@ -189,7 +189,7 @@ const int ROOT_DIR_INUMBER = 1;
 /** **************************************
  * Debug and error-reporting flags.
  * ***************************************/
-const bool DEBUG_PRINT_COMMAND  = true;    // Print the name of each command.
+const bool DEBUG_PRINT_COMMAND  = true;     // Print the name of each command.
 const bool DEBUG_METADATA_INODE = false;    // Print inode for each metadata query.
 const bool DEBUG_DIRECTORY      = true;     // Print debug information in directory.cpp.
 const bool DEBUG_FILE           = true;     // Print debug information in file.cpp.
@@ -206,7 +206,7 @@ const bool ERROR_PERM           = true;     // Report permission operation error
 /** **************************************
  * Functionality flags.
  * ***************************************/
-const bool FUNC_ATIME_DIR       = true;     // Enable atime update for directories.
+const bool FUNC_ATIME_DIR       = false;    // Enable atime update for directories.
 const bool FUNC_ATIME_REL       = false;    // Enable relative atime (as with -relatime).
 const int FUNC_ATIME_REL_THRES  = 3600;     // Threshold interval for updating (relative) atime.
 void update_atime(struct inode &cur_inode, struct timespec &new_time);

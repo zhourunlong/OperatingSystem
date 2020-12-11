@@ -196,7 +196,7 @@ int o_mkdir(const char* path, mode_t mode) {
     if (DEBUG_PRINT_COMMAND)
         logger(DEBUG, "MKDIR, %s, %d\n", resolve_prefix(path), mode);
 
-    mode |= S_IFDIR;
+    mode &= 0777;
     char* parent_dir = relative_to_absolute(path, "../", 0);
     char* dirname = current_fname(path);
     if (strlen(dirname) >= MAX_FILENAME_LEN) {
