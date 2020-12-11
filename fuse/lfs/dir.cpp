@@ -273,7 +273,7 @@ int remove_object(struct inode &head_inode, const char* del_name, int del_mode) 
                     } else if ((del_mode == MODE_FILE) && (tmp_head_inode.mode != MODE_FILE)) {
                         if (ERROR_FILE)
                             logger(ERROR, "[ERROR] %s is not a file.\n", del_name);
-                        return -ENOTDIR;  // WRONG: TO BE ADDED!!!!
+                        return -EISDIR;
                     }
 
                     // Ensure empty directories: "rmdir" only works for empty directories.
@@ -356,33 +356,17 @@ int remove_object(struct inode &head_inode, const char* del_name, int del_mode) 
                     // Remove i_map and i_table pointers to the object.
                     if (del_mode == MODE_DIR) {
                         inode_table[block_dir[j].i_number] = -1;
-
-                        // To ensure the number of imap entries not larger than blocks,
-                        // we have to create an empty "inode" block for deleted dir.
-                        // We have to use "new_data_block" to manually add imap entry.
                         add_segbuf_imap(block_dir[j].i_number, -1);
-                        char* buf = (char*) malloc(BLOCK_SIZE);
-                        memset(buf, 0, sizeof(buf));
-                        new_data_block(buf, block_dir[j].i_number, -1);
-                        free(buf);
                     } else if (del_mode == MODE_FILE) {
-                        inode file_inode;
-                        get_inode_from_inum(&file_inode, block_dir[j].i_number);
-
-                        if (file_inode.num_links == 1) {
+                        if (tmp_head_inode.num_links == 1) {
                             // Delete the file (the same as dir).
                             inode_table[block_dir[j].i_number] = -1;
-
                             add_segbuf_imap(block_dir[j].i_number, -1);
-                            char* buf = (char*) malloc(BLOCK_SIZE);
-                            memset(buf, 0, sizeof(buf));
-                            new_data_block(buf, block_dir[j].i_number, -1);
-                            free(buf);
                         } else {
                             // Decrement link count by 1, and update ctime.
-                            file_inode.num_links--;
-                            file_inode.ctime = cur_time;
-                            new_inode_block(&file_inode);
+                            tmp_head_inode.num_links--;
+                            tmp_head_inode.ctime = cur_time;
+                            new_inode_block(&tmp_head_inode);
                         }
                     }
 

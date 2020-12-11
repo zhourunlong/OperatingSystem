@@ -36,6 +36,18 @@ void get_inode_from_inum(void* data, int i_number) {
     get_block(data, inode_table[i_number]);
 }
 
+/** Increment cur_block, and flush segment buffer if it is full. */
+inline void move_to_segment() {
+    if (cur_block == DATA_BLOCKS_IN_SEGMENT-1 || next_imap_index == DATA_BLOCKS_IN_SEGMENT) {    // Segment buffer is full, and should be flushed to disk file.
+        write_segment(segment_buffer, cur_segment);
+        memset(segment_buffer, 0, sizeof(segment_buffer));
+        cur_segment++;
+        cur_block = 0;
+        next_imap_index = 0;
+    } else {    // Segment buffer is not full yet.
+        cur_block++;
+    }
+}
 
 /** Create a new data block into the segment buffer.
  * @param  data: pointer of data to be appended.
@@ -53,16 +65,7 @@ int new_data_block(void* data, int i_number, int direct_index) {
     // Append segment summary for this block.
     add_segbuf_summary(cur_block, i_number, direct_index);
     
-    // Increment cur_block, and flush segment buffer if it is full.
-    if (cur_block == DATA_BLOCKS_IN_SEGMENT-1) {    // Segment buffer is full, and should be flushed to disk file.
-        write_segment(segment_buffer, cur_segment);
-        memset(segment_buffer, 0, sizeof(segment_buffer));
-        cur_segment++;
-        cur_block = 0;
-        next_imap_index = 0;
-    } else {    // Segment buffer is not full yet.
-        cur_block++;
-    }
+    move_to_segment();
     
     return block_addr;
 }
@@ -88,16 +91,7 @@ int new_inode_block(struct inode* data) {
     add_segbuf_imap(i_number, block_addr);
     inode_table[i_number] = block_addr;
     
-    // Increment cur_block, and flush segment buffer if it is full.
-    if (cur_block == DATA_BLOCKS_IN_SEGMENT-1) {    // Segment buffer is full, and should be flushed to disk file.
-        write_segment(segment_buffer, cur_segment);
-        memset(segment_buffer, 0, sizeof(segment_buffer));
-        cur_segment++;
-        cur_block = 0;
-        next_imap_index = 0;
-    } else {    // Segment buffer is not full yet.
-        cur_block++;
-    }
+    move_to_segment();
 
     return block_addr;
 }
@@ -210,7 +204,7 @@ void file_modify(struct inode* cur_inode, int direct_index, void* data) {
         logger(ERROR, "[ERROR] Cannot modify a block that does not exist yet. Request ind: %d\n", direct_index);
         return;
     }
-
+    
     int block_addr = new_data_block(data, cur_inode->i_number, direct_index);
     cur_inode->direct[direct_index] = block_addr;
 }

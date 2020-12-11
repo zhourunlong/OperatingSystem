@@ -345,15 +345,64 @@ int o_rename(const char* from, const char* to, unsigned int flags) {
 int o_unlink(const char* path) {
     if (DEBUG_PRINT_COMMAND)
         logger(DEBUG, "UNLINK, %s\n", resolve_prefix(path));
-
-    return 0;
+    char* parent_dir = relative_to_absolute(path, "../", 0);
+    char* file_name = current_fname(path);
+    int par_inum, file_inum;
+    int locate_err = locate(parent_dir, par_inum);
+    locate_err = locate(path, file_inum);
+    if (locate_err != 0) {
+        if (ERROR_FILE)
+            logger(ERROR, "[ERROR] Cannot open the file(error #%d).\n", locate_err);
+        return locate_err;
+    }
+    inode head_inode;
+    get_inode_from_inum(&head_inode, par_inum);
+    int flag = remove_object(head_inode, file_name, MODE_FILE);
+    return flag;
 }
 
 int o_link(const char* src, const char* dest) {
     if (DEBUG_PRINT_COMMAND)
         logger(DEBUG, "LINK, %s, %s\n", resolve_prefix(src), resolve_prefix(dest));
+    char* src_parent_dir = relative_to_absolute(src, "../", 0);
+    char* dest_parent_dir = relative_to_absolute(dest, "../", 0);
+    char* src_name = current_fname(src);
+    char* dest_name = current_fname(dest);
 
-    return 0;
+    if (strlen(src_name) >= MAX_FILENAME_LEN || strlen(dest_name) >= MAX_FILENAME_LEN) {
+        return - ENAMETOOLONG;
+    }
+
+    int src_par_inum, dest_par_inum;
+    int src_inum, dest_inum;
+    inode src_inode;
+
+    int locate_err = locate(src, src_inum);
+    if (locate_err != 0) {
+        return locate_err;
+    }
+    get_inode_from_inum(&src_inode, src_inum);
+    if (src_inode.mode != MODE_FILE) {
+        return -EISDIR;
+    }
+
+    locate_err = locate(dest_parent_dir, dest_par_inum);
+    if (locate_err != 0) {
+        return locate_err;
+    }
+    locate_err = locate(dest, dest_inum);
+    if (locate_err == 0) {
+        return -EEXIST;
+    }
+
+    inode dest_par_inode;
+    get_inode_from_inum(&dest_par_inode, dest_par_inum);
+    int flag = append_parent_dir_entry(dest_par_inode, dest_name, src_inum);
+    inode src_inode;
+    get_inode_from_inum(&src_inode, src_inum);
+    src_inode.num_links += 1;
+    new_inode_block(&src_inode);
+    return flag;
 }
 
 int o_truncate(const char* path, off_t size, struct fuse_file_info *fi) {
