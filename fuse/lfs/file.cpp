@@ -17,27 +17,38 @@
 int o_open(const char* path, struct fuse_file_info* fi) {
     if (DEBUG_PRINT_COMMAND)
         logger(DEBUG, "OPEN, %s, %p\n", resolve_prefix(path), fi);
+    
     timespec cur_time;
     clock_gettime(CLOCK_REALTIME, &cur_time);
+    
     int inode_num;
-    int flag;    
-    flag = locate(path, inode_num);
-    fi -> fh = (uint64_t) inode_num;
-    inode cur_inode;
-    if (flag == 0) {
-        int perm_flag;
-        perm_flag = get_inode_from_inum(&cur_inode, inode_num);
-        if (perm_flag != 0)
-            return perm_flag;
-        update_atime(cur_inode, cur_time);
-        new_inode_block(&cur_inode);
+    int flag = locate(path, inode_num);
+    if (flag != 0) {
+        if (ERROR_FILE)
+            logger(ERROR, "[ERROR] Cannot open the file (error #%d).\n", locate_err);
+        return flag;
     }
-    return flag;
+    fi -> fh = (uint64_t) inode_num;
+    
+    inode cur_inode;
+    int perm_flag = get_inode_from_inum(&cur_inode, inode_num);
+    if (perm_flag != 0) {
+        if (ERROR_FILE)
+            logger(ERROR, "[ERROR] Permission error when loading inode.\n");
+        return perm_flag;
+    }
+        
+    update_atime(cur_inode, cur_time);
+    new_inode_block(&cur_inode);
+
+    return 0;
 }
 
 int o_release(const char* path, struct fuse_file_info* fi) {
     if (DEBUG_PRINT_COMMAND)
         logger(DEBUG, "RELEASE, %s, %p\n", resolve_prefix(path), fi);
+
+    fi = nullptr;
 
     return 0;
 }
@@ -51,57 +62,75 @@ int o_read(const char* path, char *buf, size_t size, off_t offset, struct fuse_f
     if (fi == nullptr) {
         int first_flag = 0;
         first_flag = o_open(path, fi);
-        if(first_flag != 0) return first_flag;
+        if (first_flag != 0) {
+            if (ERROR_FILE)
+                logger(ERROR, "[ERROR] Cannot open the file. \n");
+            return 0;
+        }
     }
     int inode_num = fi -> fh;
+
     inode cur_inode;
-    int perm_flag;
-    perm_flag = get_inode_from_inum(&cur_inode, inode_num);
-    if (perm_flag != 0)
-        return perm_flag;
+    int perm_flag = get_inode_from_inum(&cur_inode, inode_num);
+    if (perm_flag != 0) {
+        if (ERROR_FILE)
+            logger(ERROR, "[ERROR] Permission error when loading inode.\n");
+        return 0;
+    }
+    
     len = cur_inode.fsize_byte;
     int t_offset = offset;
-    if (cur_inode.mode != 1)
+    if (cur_inode.mode != MODE_FILE) {
+        if (ERROR_FILE)
+            logger(ERROR, "[ERROR] %s is not a file.\n", path);
         return 0;
-    if (offset < len) {
-        if(offset + size > len)
-            size = len - offset;
     }
-    else return 0;
+    if (offset < len) {
+        if (offset + size > len)
+            size = len - offset;
+    } else {
+        if (ERROR_FILE)
+            logger(ERROR, "[ERROR] Cannot read from an offset larger than file length.\n", path);
+        return 0;
+    }
 
-    // locate the inode
+    // Locate the start inode.
     while (t_offset > 0) {
-        if(t_offset < cur_inode.num_direct * BLOCK_SIZE) {
+        if (t_offset < cur_inode.num_direct * BLOCK_SIZE) {
             break;
         }
         t_offset -= cur_inode.num_direct * BLOCK_SIZE;
         get_inode_from_inum(&cur_inode, cur_inode.next_indirect);
     }
     
+    // Locate the start block.
     int cur_block_offset = t_offset, cur_block_ind;
-    // locate the block
     cur_block_ind = t_offset / BLOCK_SIZE;
     cur_block_offset -= cur_block_ind * BLOCK_SIZE;
 
+    // Copy data to buffer.
     int cur_buf_pos = 0;
     int copy_size = BLOCK_SIZE;
     char loader[BLOCK_SIZE + 10];
     while (cur_buf_pos <= size) {
         get_block(loader, cur_inode.direct[cur_block_ind]);
+
+        // Copy a block: copy_size = min(BLOCI_SIZE-cur_block_offset, size-cur_buf_pos).
         copy_size = BLOCK_SIZE - cur_block_offset;
-        if(size - cur_buf_pos < copy_size)
+        if (size - cur_buf_pos < copy_size)
             copy_size = size - cur_buf_pos;
         memcpy(buf + cur_buf_pos, loader + cur_block_offset, copy_size);
+        
+        // Update buffer pointer and block pointer.
         cur_buf_pos += copy_size;
         cur_block_offset += copy_size;
         if (cur_buf_pos == size)
             break;
-        if(cur_block_offset == BLOCK_SIZE) {
-            if(cur_block_ind + 1 == cur_inode.num_direct) {
+        if (cur_block_offset == BLOCK_SIZE) {
+            if (cur_block_ind + 1 == cur_inode.num_direct) {
                 get_inode_from_inum(&cur_inode, cur_inode.next_indirect);
                 cur_block_ind = cur_block_offset = 0;
-            }
-            else {
+            } else {
                 cur_block_ind += 1;
                 cur_block_offset = 0;
             }
@@ -120,71 +149,79 @@ int o_write(const char* path, const char* buf, size_t size, off_t offset, struct
     if (fi == nullptr) {
         int first_flag = 0;
         first_flag = o_open(path, fi);
-        if(first_flag != 0) return first_flag;
+        if (first_flag != 0) {
+            if (ERROR_FILE)
+                logger(ERROR, "[ERROR] Cannot open the file. \n");
+            return 0;
+        }
     }
     int inode_num = fi -> fh;
+
     inode cur_inode;
     int perm_flag = get_inode_from_inum(&cur_inode, inode_num);
-    if (perm_flag != 0)
-        return perm_flag;
+    if (perm_flag != 0) {
+        if (ERROR_FILE)
+            logger(ERROR, "[ERROR] Permission error when loading inode.\n");
+        return 0;
+    }
+
     timespec cur_time;
     clock_gettime(CLOCK_REALTIME, &cur_time);
-    inode head_inode;
+
     len = cur_inode.fsize_byte;
     int t_offset = offset;
     
     if (cur_inode.mode != MODE_FILE) {
+        if (ERROR_FILE)
+            logger(ERROR, "[ERROR] %s is not a file.\n", path);
         return 0;
     }
     if (offset > len) {
+        if (ERROR_FILE)
+            logger(ERROR, "[ERROR] Cannot write from an offset larger than file length..\n", path);
         return 0;
     }
 
-    //locate the inode
-    
-    bool is_END = false;
-
+    // Locate the first inode.
+    bool is_end = false;
     while (true) {
-        if(t_offset < cur_inode.num_direct * BLOCK_SIZE) {
+        if (t_offset < cur_inode.num_direct * BLOCK_SIZE) {
             break;
         }
         t_offset -= cur_inode.num_direct * BLOCK_SIZE;
-        if(t_offset == 0 && cur_inode.next_indirect == 0) {
-            is_END = true;
+        if (t_offset == 0 && cur_inode.next_indirect == 0) {
+            is_end = true;
             break;
         }
         get_inode_from_inum(&cur_inode, cur_inode.next_indirect);
     }
 
+    // Locate the first block.
     int cur_block_offset = t_offset, cur_block_ind;
-    // locate the block
     cur_block_ind = t_offset / BLOCK_SIZE;
     cur_block_offset -= cur_block_ind * BLOCK_SIZE;
 
+    // Write data retrieved from buffer.
     int cur_buf_pos = 0;
     int copy_size = BLOCK_SIZE;
     char loader[BLOCK_SIZE + 10];
-
-    if(is_END == false) {
+    inode head_inode;
+    if (is_end == false) {
         while (cur_buf_pos < size && cur_buf_pos + offset < ((int) (len + BLOCK_SIZE - 1) / BLOCK_SIZE) * BLOCK_SIZE) {
             get_block(loader, cur_inode.direct[cur_block_ind]);
-            // print(loader, 3);
             copy_size = BLOCK_SIZE - cur_block_offset;
-            if(size - cur_buf_pos < copy_size)
+            if (size - cur_buf_pos < copy_size)
                 copy_size = size - cur_buf_pos;
             memcpy(loader + cur_block_offset, buf + cur_buf_pos, copy_size);
             cur_buf_pos += copy_size;
             cur_block_offset += copy_size;
-            // printf("%d\n", copy_size);
             file_modify(&cur_inode, cur_block_ind, loader);
             get_block(loader, cur_inode.direct[cur_block_ind]);
-            // print(loader, 3);
             if (cur_buf_pos == size) {
-                // printf("%s\n", loader);
                 break;
             }
-            if(cur_block_offset == BLOCK_SIZE && cur_buf_pos + offset != ((len + BLOCK_SIZE - 1) / BLOCK_SIZE) * BLOCK_SIZE) {
-                if(cur_block_ind + 1 == cur_inode.num_direct) {
+            if (cur_block_offset == BLOCK_SIZE && cur_buf_pos + offset != ((len + BLOCK_SIZE - 1) / BLOCK_SIZE) * BLOCK_SIZE) {
+                if (cur_block_ind + 1 == cur_inode.num_direct) {
                     new_inode_block(&cur_inode); //???
                     get_inode_from_inum(&cur_inode, cur_inode.next_indirect);
                     cur_block_ind = cur_block_offset = 0;
@@ -196,16 +233,12 @@ int o_write(const char* path, const char* buf, size_t size, off_t offset, struct
             }
         }
         new_inode_block(&cur_inode);
-        printf("pass 1: %d.\n", cur_inode.i_number);
         if (cur_buf_pos == size) {
             get_inode_from_inum(&head_inode, inode_num);
-            if(cur_buf_pos + offset > len) {
+            if (cur_buf_pos + offset > len) {
                 head_inode.fsize_byte = cur_buf_pos + offset;
-                // printf("write inode\n");
-                // print(&head_inode);
                 head_inode.fsize_block = (cur_buf_pos + offset + BLOCK_SIZE - 1) / BLOCK_SIZE;
             }
-            // print(&head_inode);
             update_atime(head_inode, cur_time);
             head_inode.mtime = cur_time;
             new_inode_block(&head_inode);
@@ -218,7 +251,7 @@ int o_write(const char* path, const char* buf, size_t size, off_t offset, struct
     len = ((len + BLOCK_SIZE - 1) / BLOCK_SIZE) * BLOCK_SIZE;
     while (cur_buf_pos < size) {
         copy_size = BLOCK_SIZE;
-        if(size - cur_buf_pos < copy_size)
+        if (size - cur_buf_pos < copy_size)
             copy_size = size - cur_buf_pos;
         memset(loader, 0, sizeof(loader));
         memcpy(loader, buf + cur_buf_pos, copy_size);
@@ -285,7 +318,6 @@ int o_create(const char *path, mode_t mode, struct fuse_file_info *fi) {
     
     inode *file_inode = new inode;
     file_initialize(file_inode, MODE_FILE, mode);
-    print(file_inode);
 
     fi -> fh = file_inode -> i_number;
     
@@ -353,21 +385,21 @@ int o_rename(const char* from, const char* to, unsigned int flags) {
                     if (to_par_inode.direct[i] != -1) {
                         get_block(block_dir, to_par_inode.direct[i]);
                         for (int j = 0; j < MAX_DIR_ENTRIES; j++)
-                            if(block_dir[j].i_number == to_inum) {
+                            if (block_dir[j].i_number == to_inum) {
                                 find = true;
                                 block_dir[j].i_number = 0;
                                 memset(block_dir[j].filename, 0, sizeof(block_dir[j].filename));
                                 break;
                             }
-                        if(find == true) {
+                        if (find == true) {
                             file_modify(&to_par_inode, i, block_dir);
                             break;
                         }
                     }
-                    if(find == true)
+                    if (find == true)
                         break;
                 }
-                if(find == true)
+                if (find == true)
                     break;
                 get_inode_from_inum(&to_par_inode, to_par_inode.next_indirect);
             }
@@ -391,21 +423,21 @@ int o_rename(const char* from, const char* to, unsigned int flags) {
                     if (from_par_inode.direct[i] != -1) {
                         get_block(block_dir, from_par_inode.direct[i]);
                         for (int j = 0; j < MAX_DIR_ENTRIES; j++)
-                            if(block_dir[j].i_number == from_inum) {
+                            if (block_dir[j].i_number == from_inum) {
                                 find = true;
                                 block_dir[j].i_number = 0;
                                 memset(block_dir[j].filename, 0, sizeof(block_dir[j].filename));
                                 break;
                             }
-                        if(find == true) {
+                        if (find == true) {
                             file_modify(&from_par_inode, i, block_dir);
                             break;
                         }
                     }
-                    if(find == true)
+                    if (find == true)
                         break;
                 }
-                if(find == true)
+                if (find == true)
                     break;
                 get_inode_from_inum(&from_par_inode, from_par_inode.next_indirect);
             }
@@ -439,20 +471,20 @@ int o_rename(const char* from, const char* to, unsigned int flags) {
             if (from_par_inode.direct[i] != -1) {
                 get_block(&block_dir, from_par_inode.direct[i]);
                 for (int j = 0; j < MAX_DIR_ENTRIES; j++)
-                    if(block_dir[j].i_number == from_inum) {
+                    if (block_dir[j].i_number == from_inum) {
                         find = true;
                         block_dir[j].i_number = 0;
                         break;
                     }
-                if(find == true) {
+                if (find == true) {
                     file_modify(&from_par_inode, i, block_dir);
                     break;
                 }
             }
-            if(find == true)
+            if (find == true)
                 break;
         }
-        if(find == true)
+        if (find == true)
             break;
         get_inode_from_inum(&from_par_inode, from_par_inode.next_indirect);
     }
@@ -545,14 +577,14 @@ int o_truncate(const char* path, off_t size, struct fuse_file_info *fi) {
     if (fi == nullptr) {
         int first_flag = 0;
         first_flag = o_open(path, fi);
-        if(first_flag != 0) return first_flag;
+        if (first_flag != 0) return first_flag;
     }
     int inode_num = fi -> fh;
     inode cur_inode;
     int perm_flag = get_inode_from_inum(&cur_inode, inode_num);
     if (perm_flag != 0)
         return perm_flag;
-    if(cur_inode.mode == MODE_DIR) {
+    if (cur_inode.mode == MODE_DIR) {
         return -EISDIR;
     }
     int len = cur_inode.fsize_byte;
