@@ -298,75 +298,88 @@ int o_rename(const char* from, const char* to, unsigned int flags) {
         return locate_err;
     }
     locate_err = locate(to, to_inum);
+
     if (locate_err == 0) {
         if (flags == RENAME_NOREPLACE) {
             logger(ERROR, "already exist!\n");
             return -EEXIST;
         }
-        inode from_inode;
-        get_inode_from_inum(&from_inode, from_inum);
-
-        inode from_par_inode;
-        get_inode_from_inum(&from_par_inode, from_par_inum);
 
         directory block_dir;
-        bool find = false;
-        while (true) {
-            for (int i = 0; i < NUM_INODE_DIRECT; i++) {
-                if (from_par_inode.direct[i] != -1) {
-                    get_block(block_dir, from_par_inode.direct[i]);
-                    for (int j = 0; j < MAX_DIR_ENTRIES; j++)
-                        if(block_dir[j].i_number == from_inum) {
-                            find = true;
-                            block_dir[j].i_number = to_inum;
-                            break;
-                        }
-                    if(find == true) {
-                        file_modify(&from_par_inode, i, block_dir);
-                        break;
-                    }
-                }
-                if(find == true)
-                    break;
-            }
-            if(find == true)
-                break;
-            new_inode_block(&from_par_inode);
-            get_inode_from_inum(&from_par_inode, from_par_inode.next_indirect);
-        }
-        new_inode_block(&from_par_inode);
-
         inode to_inode;
         get_inode_from_inum(&to_inode, to_inum);
-
         inode to_par_inode;
         get_inode_from_inum(&to_par_inode, to_par_inum);
 
-        find = false;
-        while (true) {
-            for (int i = 0; i < NUM_INODE_DIRECT; i++) {
-                if (to_par_inode.direct[i] != -1) {
-                    get_block(block_dir, to_par_inode.direct[i]);
-                    for (int j = 0; j < MAX_DIR_ENTRIES; j++)
-                        if(block_dir[j].i_number == to_inum) {
-                            find = true;
-                            block_dir[j].i_number = from_inum;
+        bool find = false;
+            while (true) {
+                for (int i = 0; i < NUM_INODE_DIRECT; i++) {
+                    if (to_par_inode.direct[i] != -1) {
+                        get_block(block_dir, to_par_inode.direct[i]);
+                        for (int j = 0; j < MAX_DIR_ENTRIES; j++)
+                            if(block_dir[j].i_number == to_inum) {
+                                find = true;
+                                block_dir[j].i_number = 0;
+                                memset(block_dir[j].filename, 0, sizeof(block_dir[j].filename));
+                                break;
+                            }
+                        if(find == true) {
+                            file_modify(&to_par_inode, i, block_dir);
                             break;
                         }
-                    if(find == true) {
-                        file_modify(&to_par_inode, i, block_dir);
-                        break;
                     }
+                    if(find == true)
+                        break;
                 }
                 if(find == true)
                     break;
+                get_inode_from_inum(&to_par_inode, to_par_inode.next_indirect);
             }
-            if(find == true)
-                break;
             new_inode_block(&to_par_inode);
-            get_inode_from_inum(&to_par_inode, to_par_inode.next_indirect);
+
+        if (flags == RENAME_EXCHANGE) {
+            inode from_inode;
+            get_inode_from_inum(&from_inode, from_inum);
+
+            inode from_par_inode;
+            get_inode_from_inum(&from_par_inode, from_par_inum);
+
+            
+            find = false;
+            while (true) {
+                for (int i = 0; i < NUM_INODE_DIRECT; i++) {
+                    if (from_par_inode.direct[i] != -1) {
+                        get_block(block_dir, from_par_inode.direct[i]);
+                        for (int j = 0; j < MAX_DIR_ENTRIES; j++)
+                            if(block_dir[j].i_number == from_inum) {
+                                find = true;
+                                block_dir[j].i_number = 0;
+                                memset(block_dir[j].filename, 0, sizeof(block_dir[j].filename));
+                                break;
+                            }
+                        if(find == true) {
+                            file_modify(&from_par_inode, i, block_dir);
+                            break;
+                        }
+                    }
+                    if(find == true)
+                        break;
+                }
+                if(find == true)
+                    break;
+                get_inode_from_inum(&from_par_inode, from_par_inode.next_indirect);
+            }
+            new_inode_block(&from_par_inode);
+
+            int flag;
+            inode head_inode;
+            get_inode_from_inum(&head_inode, to_par_inum);
+            flag = append_parent_dir_entry(head_inode, from_name, from_inum);
+
+            get_inode_from_inum(&head_inode, from_par_inum);
+            flag = append_parent_dir_entry(head_inode, to_name, to_inum);
+            return flag;
         }
-        new_inode_block(&to_par_inode);
     }
 
     inode from_inode;
@@ -397,7 +410,6 @@ int o_rename(const char* from, const char* to, unsigned int flags) {
         }
         if(find == true)
             break;
-        new_inode_block(&from_par_inode);
         get_inode_from_inum(&from_par_inode, from_par_inode.next_indirect);
     }
     new_inode_block(&from_par_inode);
@@ -464,7 +476,6 @@ int o_link(const char* src, const char* dest) {
     inode dest_par_inode;
     get_inode_from_inum(&dest_par_inode, dest_par_inum);
     int flag = append_parent_dir_entry(dest_par_inode, dest_name, src_inum);
-    src_inode;
     get_inode_from_inum(&src_inode, src_inum);
     src_inode.num_links += 1;
     new_inode_block(&src_inode);
