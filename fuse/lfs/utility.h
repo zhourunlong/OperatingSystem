@@ -182,7 +182,7 @@ extern int inode_table[MAX_NUM_INODE];
 extern int count_inode, cur_segment, cur_block;  // cur_block is the first available block.
 extern int next_checkpoint, next_imap_index;
 
-const int FILE_SIZE = SEGMENT_SIZE * TOT_SEGMENTS + IMAP_SIZE + SUMMARY_SIZE;
+const int FILE_SIZE = SEGMENT_SIZE * TOT_SEGMENTS + 2 * BLOCK_SIZE;
 const int ROOT_DIR_INUMBER = 1;
 
 
