@@ -19,12 +19,18 @@ extern int file_handle;
 int o_open(const char* path, struct fuse_file_info* fi) {
     if (DEBUG_PRINT_COMMAND)
         logger(DEBUG, "OPEN, %s, %p\n", resolve_prefix(path), fi);
-    
+    timespec cur_time;
+    clock_gettime(CLOCK_REALTIME, &cur_time);
     int inode_num;
     int flag;    
     flag = locate(path, inode_num);
     fi -> fh = (uint64_t) inode_num;
-
+    inode cur_inode;
+    if (flag == 0) {
+        get_inode_from_inum(&cur_inode, inode_num);
+        update_atime(cur_inode, cur_time);
+        new_inode_block(&cur_inode);
+    }
     return flag;
 }
 
@@ -115,6 +121,8 @@ int o_write(const char* path, const char* buf, size_t size, off_t offset, struct
     int inode_num = fi -> fh;
     inode cur_inode;
     get_inode_from_inum(&cur_inode, inode_num);
+    timespec cur_time;
+    clock_gettime(CLOCK_REALTIME, &cur_time);
     inode head_inode;
     len = cur_inode.fsize_byte;
     int t_offset = offset;
@@ -189,9 +197,12 @@ int o_write(const char* path, const char* buf, size_t size, off_t offset, struct
                 head_inode.fsize_byte = cur_buf_pos + offset;
                 // printf("write inode\n");
                 // print(&head_inode);
-                new_inode_block(&head_inode);
+                head_inode.fsize_block = (cur_buf_pos + offset + BLOCK_SIZE - 1) / BLOCK_SIZE;
             }
             // print(&head_inode);
+            update_atime(head_inode, cur_time);
+            head_inode.mtime = cur_time;
+            new_inode_block(&head_inode);
             return size;
         }
     }
@@ -212,6 +223,9 @@ int o_write(const char* path, const char* buf, size_t size, off_t offset, struct
     new_inode_block(&cur_inode);
     get_inode_from_inum(&head_inode, inode_num);
     head_inode.fsize_byte = len;
+    head_inode.fsize_block = (len + BLOCK_SIZE - 1) / BLOCK_SIZE;
+    update_atime(head_inode, cur_time);
+    head_inode.mtime = cur_time;
     new_inode_block(&head_inode);
 
     return cur_buf_pos;
@@ -273,9 +287,6 @@ int o_rename(const char* from, const char* to, unsigned int flags) {
     if (DEBUG_PRINT_COMMAND)
         logger(DEBUG, "RENAME, %s, %s, %d\n",
                resolve_prefix(from), resolve_prefix(to), flags);
-    
-    struct timespec cur_time;
-    clock_gettime(CLOCK_REALTIME, &cur_time);
     
     char* from_parent_dir = relative_to_absolute(from, "../", 0);
     char* to_parent_dir = relative_to_absolute(to, "../", 0);
@@ -496,6 +507,8 @@ int o_truncate(const char* path, off_t size, struct fuse_file_info *fi) {
     if (DEBUG_PRINT_COMMAND)
         logger(DEBUG, "TRUNCATE, %s, %d, %p\n",
                resolve_prefix(path), size, fi);
+    timespec cur_time;
+    clock_gettime(CLOCK_REALTIME, &cur_time);
     if (fi == nullptr) {
         int first_flag = 0;
         first_flag = o_open(path, fi);
@@ -513,5 +526,8 @@ int o_truncate(const char* path, off_t size, struct fuse_file_info *fi) {
     }
     cur_inode.fsize_byte = size;
     cur_inode.fsize_block = (size + BLOCK_SIZE - 1) / BLOCK_SIZE;
+    update_atime(cur_inode, cur_time);
+    cur_inode.mtime = cur_time;
+    new_inode_block(&cur_inode);
     return 0;
 }
