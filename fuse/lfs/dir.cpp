@@ -7,6 +7,7 @@
 #include "errno.h"
 
 #include <cstring>
+#include <stdlib.h>
 #include <time.h>
 
 int o_opendir(const char* path, struct fuse_file_info* fi) {
