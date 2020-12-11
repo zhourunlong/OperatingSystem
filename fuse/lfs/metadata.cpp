@@ -31,7 +31,12 @@ int o_getattr(const char* path, struct stat* sbuf, struct fuse_file_info* fi) {
     }
 
     struct inode f_inode;
-    get_inode_from_inum((void*)&f_inode, i_number);
+    int perm_flag = get_inode_from_inum((void*)&f_inode, i_number);
+    if (perm_flag != 0) {
+        if (ERROR_PERM)
+            logger(ERROR, "[ERROR] Permission error when loading inode.\n");
+        return perm_flag;
+    }
     if (DEBUG_METADATA_INODE) print(&f_inode);
 
     if (f_inode.i_number != i_number) {
@@ -105,7 +110,12 @@ int o_access(const char* path, int mode) {
     
     /* Mode 1~7 (in base-8): test file permissions; may be ORed toghether. */ 
     struct inode f_inode;
-    get_inode_from_inum((void*)&f_inode, i_number);
+    int perm_flag = get_inode_from_inum((void*)&f_inode, i_number);
+    if (perm_flag != 0) {
+        if (ERROR_PERM)
+            logger(ERROR, "[ERROR] Permission error when loading inode.\n");
+        return perm_flag;
+    }
     if (DEBUG_METADATA_INODE) print(&f_inode);
     
     if (f_inode.i_number != i_number) {
