@@ -185,8 +185,6 @@ int append_parent_dir_entry(struct inode &head_inode, const char* new_name, int 
             }
     }
 
-    if (DEBUG_DIRECTORY)
-        logger(DEBUG, "create new inode");
     inode append_inode;
     file_initialize(&append_inode, MODE_MID_INODE, 0);
     int new_block_addr = new_data_block(&block_dir, append_inode.i_number, 0);
@@ -206,7 +204,7 @@ int append_parent_dir_entry(struct inode &head_inode, const char* new_name, int 
 
 int o_mkdir(const char* path, mode_t mode) {
     if (DEBUG_PRINT_COMMAND)
-        logger(DEBUG, "MKDIR, %s, %d\n", resolve_prefix(path), mode);
+        logger(DEBUG, "MKDIR, %s, %o\n", resolve_prefix(path), mode);
 
     mode &= 0777;
     char* parent_dir = relative_to_absolute(path, "../", 0);

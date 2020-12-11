@@ -239,7 +239,7 @@ int o_write(const char* path, const char* buf, size_t size, off_t offset, struct
 
 int o_create(const char *path, mode_t mode, struct fuse_file_info *fi) {
     if (DEBUG_PRINT_COMMAND)
-        logger(DEBUG, "CREATE, %s, %d, %p\n",
+        logger(DEBUG, "CREATE, %s, %o, %p\n",
                resolve_prefix(path), mode, fi);
     
     mode |= S_IFREG;
