@@ -275,7 +275,7 @@ int remove_object(struct inode &head_inode, const char* del_name, int del_mode) 
                         return -ENOTDIR;  // WRONG: TO BE ADDED!!!!
                     }
 
-                    // For directories: "rmdir" only works for empty directories.
+                    // Ensure empty directories: "rmdir" only works for empty directories.
                     if (del_mode == MODE_DIR) {
                         tmp_inode = tmp_head_inode;
                         while (1) {
@@ -352,12 +352,37 @@ int remove_object(struct inode &head_inode, const char* del_name, int del_mode) 
                         new_inode_block(&block_inode, block_inode.i_number);
                     }
 
-                    // Remove imap and itable pointers to the object.
-                    // WRONG: should also add imap_entry -1.
+                    // Remove i_map and i_table pointers to the object.
                     if (del_mode == MODE_DIR) {
                         inode_table[block_dir[j].i_number] = -1;
+
+                        // To ensure the number of imap entries not larger than blocks,
+                        // we have to create an empty "inode" block for deleted dir.
+                        // We have to use "new_data_block" to manually add imap entry.
+                        add_segbuf_imap(block_dir[j].i_number, -1);
+                        char* buf = (char*) malloc(BLOCK_SIZE);
+                        memset(buf, 0, sizeof(buf));
+                        new_data_block(buf, block_dir[j].i_number, -1);
+                        free(buf);
                     } else if (del_mode == MODE_FILE) {
-                        // WRONG: TO BE ADDED.
+                        inode file_inode;
+                        get_inode_from_inum(&file_inode, block_dir[j].i_number);
+
+                        if (file_inode.num_links == 1) {
+                            // Delete the file (the same as dir).
+                            inode_table[block_dir[j].i_number] = -1;
+
+                            add_segbuf_imap(block_dir[j].i_number, -1);
+                            char* buf = (char*) malloc(BLOCK_SIZE);
+                            memset(buf, 0, sizeof(buf));
+                            new_data_block(buf, block_dir[j].i_number, -1);
+                            free(buf);
+                        } else {
+                            // Decrement link count by 1, and update ctime.
+                            file_inode.num_links--;
+                            file_inode.ctime = cur_time;
+                            new_inode_block(&file_inode, file_inode.i_number);
+                        }
                     }
 
                     return 0;
