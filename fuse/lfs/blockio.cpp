@@ -175,7 +175,7 @@ void file_add_data(struct inode* cur_inode, void* data) {
         // Create the next inode.
         struct inode* next_inode = (struct inode*) malloc(sizeof(struct inode));
         file_initialize(next_inode, MODE_MID_INODE, cur_inode->permission);
-
+        
         // Update current inode and commit it.
         struct timespec cur_time;
         clock_gettime(CLOCK_REALTIME, &cur_time);
@@ -183,13 +183,14 @@ void file_add_data(struct inode* cur_inode, void* data) {
         cur_inode->mtime = cur_time;
         cur_inode->ctime = cur_time;
 
-        cur_inode->num_direct--;
         cur_inode->next_indirect = next_inode->i_number;
         new_inode_block(cur_inode, cur_inode->i_number);
 
-        // Release current inode, and replace the pointer with next inode.
-        free(cur_inode);
-        cur_inode = next_inode;
+        get_inode_from_inum(cur_inode, cur_inode->i_number);
+
+        // Release current inode by replacing the content with next inode.
+        *cur_inode = *next_inode;
+        free(next_inode);
     }
 
     int block_addr = new_data_block(data, cur_inode->i_number, cur_inode->num_direct);
@@ -225,9 +226,7 @@ void file_commit(struct inode* cur_inode) {
     cur_inode->mtime = cur_time;
     cur_inode->ctime = cur_time;
 
-    cur_inode->next_indirect = 0;
     new_inode_block(cur_inode, cur_inode->i_number);
-    free(cur_inode);
 }
 
 /** Commit a new file by storing its inode in log.
@@ -240,7 +239,6 @@ void file_commit(inode &cur_inode) {
     cur_inode.mtime = cur_time;
     cur_inode.ctime = cur_time;
 
-    cur_inode.next_indirect = 0;
     new_inode_block(&cur_inode, cur_inode.i_number);
 }
 

@@ -172,6 +172,7 @@ int o_write(const char* path, const char* buf, size_t size, off_t offset, struct
             }
         }
         file_commit(cur_inode);
+        printf("pass 1: %d.\n", cur_inode.i_number);
         if (cur_buf_pos == size) {
             get_inode_from_inum(&head_inode, inode_num);
             if(cur_buf_pos + offset > len) {
@@ -185,9 +186,8 @@ int o_write(const char* path, const char* buf, size_t size, off_t offset, struct
         }
     }
 
-    
     memset(loader, 0, sizeof(loader));
-    inode *cur_inode_t = new inode(cur_inode);
+    inode *cur_inode_t = &cur_inode;
     
     len = ((len + BLOCK_SIZE - 1) / BLOCK_SIZE) * BLOCK_SIZE;
     while (cur_buf_pos < size) {
@@ -196,16 +196,15 @@ int o_write(const char* path, const char* buf, size_t size, off_t offset, struct
             copy_size = size - cur_buf_pos;
         memset(loader, 0, sizeof(loader));
         memcpy(loader, buf + cur_buf_pos, copy_size);
-        // print(loader, 3);
         file_add_data(cur_inode_t, loader);
         cur_buf_pos += copy_size;
         len += copy_size;
     }
-    if(cur_inode_t != NULL)
+    if(cur_inode_t != NULL) {
         file_commit(cur_inode_t);
+    }
     get_inode_from_inum(&head_inode, inode_num);
     head_inode.fsize_byte = len;
-    printf("****************** %d\n", len / BLOCK_SIZE);
     file_commit(head_inode);
 
     return cur_buf_pos;
