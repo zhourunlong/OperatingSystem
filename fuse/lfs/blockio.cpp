@@ -8,6 +8,7 @@
 #include <stdlib.h>
 #include <cstring>
 #include <time.h>
+#include <errno.h>
 #include <sys/stat.h>
 #include <fuse.h>
 
@@ -32,8 +33,19 @@ void get_block(void* data, int block_addr) {
  * @param  data: pointer of return data.
  * @param  i_number: i_number of block.
  * Note that the block may be in segment buffer, or in disk file. */
-void get_inode_from_inum(void* data, int i_number) {
-    get_block(data, inode_table[i_number]);
+int get_inode_from_inum(void* data, int i_number) {
+    struct inode* block_inode = (struct inode*) data;
+    get_block(block_inode, inode_table[i_number]);
+    
+    // Verify user permission before returning.
+    struct fuse_context* user_info = fuse_get_context();
+    if (   ((user_info->uid == block_inode->perm_uid) && !(block_inode->permission & 0400))
+        || ((user_info->gid == block_inode->perm_gid) && !(block_inode->permission & 0040))
+        || !(block_inode->permission & 0004) ) {
+            // memset(data, 0, sizeof(data));
+            return -EACCES;
+        }
+    return 0;
 }
 
 /** Increment cur_block, and flush segment buffer if it is full. */

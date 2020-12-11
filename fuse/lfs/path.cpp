@@ -176,9 +176,9 @@ int locate(const char* _path, int &i_number) {
             return -ENOTDIR;
         }
         // Do not have permission to access target.
-        if (!( (block_inode.permission & 0004)
-               || ((user_info->gid == block_inode.perm_gid) && (block_inode.permission & 0040))
-               || ((user_info->uid == block_inode.perm_uid) && (block_inode.permission & 0400)) )) {
+        if (   ((user_info->uid == block_inode.perm_uid) && !(block_inode.permission & 0400))
+            || ((user_info->gid == block_inode.perm_gid) && !(block_inode.permission & 0040))
+            || !(block_inode.permission & 0004) ) {
             if (DEBUG_LOCATE_REPORT) {
                 logger(DEBUG, "-x Failed to read the inode: permission denied. Procedure aborted.\n", target.c_str());
                 logger(DEBUG, "============================ PRINT LOCATE() REPORT ====================\n\n");
@@ -231,7 +231,7 @@ int locate(const char* _path, int &i_number) {
             if (flag) {
                 logger(DEBUG, "=> Successfully retrieved next-level inode entry: '%s' ====> #%d.\n\n", target.c_str(), cur_inumber);
             } else {
-                logger(DEBUG, "-x Failed to retrieve next-level inode entry. Procedure aborted.\n");
+                logger(DEBUG, "-x File / directory does not exist. Procedure aborted.\n");
                 logger(DEBUG, "============================ PRINT LOCATE() REPORT ====================\n\n");
             }
 
