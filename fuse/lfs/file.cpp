@@ -41,6 +41,11 @@ int o_read(const char* path, char *buf, size_t size, off_t offset, struct fuse_f
                resolve_prefix(path), buf, size, offset, fi);
     
     size_t len;
+    if (fi == nullptr) {
+        int first_flag = 0;
+        first_flag = o_open(path, fi);
+        if(first_flag != 0) return first_flag;
+    }
     int inode_num = fi -> fh;
     inode cur_inode;
     get_inode_from_inum(&cur_inode, inode_num);
@@ -102,6 +107,11 @@ int o_write(const char* path, const char* buf, size_t size, off_t offset, struct
                resolve_prefix(path), buf, size, offset, fi);
 
     size_t len;
+    if (fi == nullptr) {
+        int first_flag = 0;
+        first_flag = o_open(path, fi);
+        if(first_flag != 0) return first_flag;
+    }
     int inode_num = fi -> fh;
     inode cur_inode;
     get_inode_from_inum(&cur_inode, inode_num);
@@ -486,6 +496,16 @@ int o_truncate(const char* path, off_t size, struct fuse_file_info *fi) {
     if (DEBUG_PRINT_COMMAND)
         logger(DEBUG, "TRUNCATE, %s, %d, %p\n",
                resolve_prefix(path), size, fi);
-
+    if (fi == nullptr) {
+        o_open(path, fi);
+    }
+    int inode_num = fi -> fh;
+    inode cur_inode;
+    get_inode_from_inum(&cur_inode, inode_num);
+    int len = cur_inode.fsize_byte;
+    if (size > len) {
+        return 0;
+    }
+    
     return 0;
 }
