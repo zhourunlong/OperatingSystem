@@ -25,7 +25,7 @@ int o_open(const char* path, struct fuse_file_info* fi) {
     int flag = locate(path, inode_num);
     if (flag != 0) {
         if (ERROR_FILE)
-            logger(ERROR, "[ERROR] Cannot open the file (error #%d).\n", locate_err);
+            logger(ERROR, "[ERROR] Cannot open the file (error #%d).\n", flag);
         return flag;
     }
     fi -> fh = (uint64_t) inode_num;
@@ -281,7 +281,7 @@ int o_create(const char *path, mode_t mode, struct fuse_file_info *fi) {
     if (strlen(dirname) >= MAX_FILENAME_LEN) {
         if (ERROR_FILE)
             logger(ERROR, "[ERROR] Directory name too long: length %d > %d.\n", strlen(dirname), MAX_FILENAME_LEN);
-        return -E2BIG;
+        return -ENAMETOOLONG;
     }
     int par_inum;
     int locate_err = locate(parent_dir, par_inum);
@@ -331,6 +331,9 @@ int o_rename(const char* from, const char* to, unsigned int flags) {
         logger(DEBUG, "RENAME, %s, %s, %d\n",
                resolve_prefix(from), resolve_prefix(to), flags);
     
+    timespec cur_time;
+    clock_gettime(CLOCK_REALTIME, &cur_time);
+    
     char* from_parent_dir = relative_to_absolute(from, "../", 0);
     char* to_parent_dir = relative_to_absolute(to, "../", 0);
     char* from_name = current_fname(from);
@@ -370,8 +373,16 @@ int o_rename(const char* from, const char* to, unsigned int flags) {
         }
 
         directory block_dir;
+        inode from_inode;
+        int perm_flag = get_inode_from_inum(&from_inode, from_inum);
+        if (perm_flag != 0)
+            return perm_flag;
+        inode from_par_inode;
+        perm_flag = get_inode_from_inum(&from_par_inode, from_par_inum);
+        if (perm_flag != 0)
+            return perm_flag;
         inode to_inode;
-        int perm_flag = get_inode_from_inum(&to_inode, to_inum);
+        perm_flag = get_inode_from_inum(&to_inode, to_inum);
         if (perm_flag != 0)
             return perm_flag;
         inode to_par_inode;
@@ -379,44 +390,43 @@ int o_rename(const char* from, const char* to, unsigned int flags) {
         if (perm_flag != 0)
             return perm_flag;
         
+        to_par_inode.mtime = cur_time;
+        from_par_inode.mtime = cur_time;
+        new_inode_block(&to_par_inode);
+        new_inode_block(&from_par_inode);
+        
+        update_atime(to_inode, cur_time);
+        update_atime(from_inode, cur_time);
+        new_inode_block(&to_inode);
+        new_inode_block(&from_inode);
+        
         bool find = false;
-            while (true) {
-                for (int i = 0; i < NUM_INODE_DIRECT; i++) {
-                    if (to_par_inode.direct[i] != -1) {
-                        get_block(block_dir, to_par_inode.direct[i]);
-                        for (int j = 0; j < MAX_DIR_ENTRIES; j++)
-                            if (block_dir[j].i_number == to_inum) {
-                                find = true;
-                                block_dir[j].i_number = 0;
-                                memset(block_dir[j].filename, 0, sizeof(block_dir[j].filename));
-                                break;
-                            }
-                        if (find == true) {
-                            file_modify(&to_par_inode, i, block_dir);
+        while (true) {
+            for (int i = 0; i < NUM_INODE_DIRECT; i++) {
+                if (to_par_inode.direct[i] != -1) {
+                    get_block(block_dir, to_par_inode.direct[i]);
+                    for (int j = 0; j < MAX_DIR_ENTRIES; j++)
+                        if (block_dir[j].i_number == to_inum) {
+                            find = true;
+                            block_dir[j].i_number = 0;
+                            memset(block_dir[j].filename, 0, sizeof(block_dir[j].filename));
                             break;
                         }
-                    }
-                    if (find == true)
+                    if (find == true) {
+                        file_modify(&to_par_inode, i, block_dir);
                         break;
+                    }
                 }
                 if (find == true)
                     break;
-                get_inode_from_inum(&to_par_inode, to_par_inode.next_indirect);
             }
-            new_inode_block(&to_par_inode);
+            if (find == true)
+                break;
+            get_inode_from_inum(&to_par_inode, to_par_inode.next_indirect);
+        }
+        new_inode_block(&to_par_inode);
 
         if (flags == RENAME_EXCHANGE) {
-            inode from_inode;
-            perm_flag = get_inode_from_inum(&from_inode, from_inum);
-            if (perm_flag != 0)
-            return perm_flag;
-
-            inode from_par_inode;
-            perm_flag = get_inode_from_inum(&from_par_inode, from_par_inum);
-            if (perm_flag != 0)
-            return perm_flag;
-
-            
             find = false;
             while (true) {
                 for (int i = 0; i < NUM_INODE_DIRECT; i++) {
@@ -463,6 +473,11 @@ int o_rename(const char* from, const char* to, unsigned int flags) {
     perm_flag = get_inode_from_inum(&from_par_inode, from_par_inum);
     if (perm_flag != 0)
         return perm_flag;
+    
+    from_par_inode.mtime = cur_time;
+    update_atime(from_inode, cur_time);
+    new_inode_block(&from_par_inode);
+    new_inode_block(&from_inode);
 
     directory block_dir;
     bool find = false;
@@ -522,6 +537,8 @@ int o_unlink(const char* path) {
 int o_link(const char* src, const char* dest) {
     if (DEBUG_PRINT_COMMAND)
         logger(DEBUG, "LINK, %s, %s\n", resolve_prefix(src), resolve_prefix(dest));
+    timespec cur_time;
+    clock_gettime(CLOCK_REALTIME, &cur_time);
     char* src_parent_dir = relative_to_absolute(src, "../", 0);
     char* dest_parent_dir = relative_to_absolute(dest, "../", 0);
     char* src_name = current_fname(src);
@@ -564,6 +581,7 @@ int o_link(const char* src, const char* dest) {
     if (perm_flag != 0)
         return perm_flag;
     src_inode.num_links += 1;
+    src_inode.ctime = cur_time;
     new_inode_block(&src_inode);
     return flag;
 }
