@@ -13,8 +13,6 @@
 #include <unistd.h>
 #include <errno.h>
 
-extern struct options options;
-extern int file_handle;
 
 int o_open(const char* path, struct fuse_file_info* fi) {
     if (DEBUG_PRINT_COMMAND)
@@ -27,7 +25,10 @@ int o_open(const char* path, struct fuse_file_info* fi) {
     fi -> fh = (uint64_t) inode_num;
     inode cur_inode;
     if (flag == 0) {
-        get_inode_from_inum(&cur_inode, inode_num);
+        int perm_flag;
+        perm_flag = get_inode_from_inum(&cur_inode, inode_num);
+        if (perm_flag != 0)
+            return perm_flag;
         update_atime(cur_inode, cur_time);
         new_inode_block(&cur_inode);
     }
@@ -54,7 +55,10 @@ int o_read(const char* path, char *buf, size_t size, off_t offset, struct fuse_f
     }
     int inode_num = fi -> fh;
     inode cur_inode;
-    get_inode_from_inum(&cur_inode, inode_num);
+    int perm_flag;
+    perm_flag = get_inode_from_inum(&cur_inode, inode_num);
+    if (perm_flag != 0)
+        return perm_flag;
     len = cur_inode.fsize_byte;
     int t_offset = offset;
     if (cur_inode.mode != 1)
@@ -120,7 +124,9 @@ int o_write(const char* path, const char* buf, size_t size, off_t offset, struct
     }
     int inode_num = fi -> fh;
     inode cur_inode;
-    get_inode_from_inum(&cur_inode, inode_num);
+    int perm_flag = get_inode_from_inum(&cur_inode, inode_num);
+    if (perm_flag != 0)
+        return perm_flag;
     timespec cur_time;
     clock_gettime(CLOCK_REALTIME, &cur_time);
     inode head_inode;
@@ -253,7 +259,10 @@ int o_create(const char *path, mode_t mode, struct fuse_file_info *fi) {
     }
     
     inode head_inode;
-    get_inode_from_inum(&head_inode, par_inum);
+    int perm_flag;
+    perm_flag = get_inode_from_inum(&head_inode, par_inum);
+    if (perm_flag != 0)
+        return perm_flag;
     if (head_inode.mode != MODE_DIR) {
         if (ERROR_FILE)
             logger(ERROR, "[ERROR] %s is not a directory.\n", parent_dir);
@@ -264,7 +273,9 @@ int o_create(const char *path, mode_t mode, struct fuse_file_info *fi) {
     locate_err = locate(path, tmp_inum);
     if (locate_err == 0) {
         inode tmp_inode;
-        get_inode_from_inum(&tmp_inode, tmp_inum);
+        perm_flag = get_inode_from_inum(&tmp_inode, tmp_inum);
+        if (perm_flag != 0)
+            return perm_flag;
         if ((tmp_inode.mode == MODE_FILE) && ERROR_FILE)
             logger(ERROR, "[ERROR] Duplicated name: there is a file with the same name.\n");
         if ((tmp_inode.mode == MODE_DIR) && ERROR_FILE)
@@ -328,10 +339,14 @@ int o_rename(const char* from, const char* to, unsigned int flags) {
 
         directory block_dir;
         inode to_inode;
-        get_inode_from_inum(&to_inode, to_inum);
+        int perm_flag = get_inode_from_inum(&to_inode, to_inum);
+        if (perm_flag != 0)
+            return perm_flag;
         inode to_par_inode;
-        get_inode_from_inum(&to_par_inode, to_par_inum);
-
+        perm_flag = get_inode_from_inum(&to_par_inode, to_par_inum);
+        if (perm_flag != 0)
+            return perm_flag;
+        
         bool find = false;
             while (true) {
                 for (int i = 0; i < NUM_INODE_DIRECT; i++) {
@@ -360,10 +375,14 @@ int o_rename(const char* from, const char* to, unsigned int flags) {
 
         if (flags == RENAME_EXCHANGE) {
             inode from_inode;
-            get_inode_from_inum(&from_inode, from_inum);
+            perm_flag = get_inode_from_inum(&from_inode, from_inum);
+            if (perm_flag != 0)
+            return perm_flag;
 
             inode from_par_inode;
-            get_inode_from_inum(&from_par_inode, from_par_inum);
+            perm_flag = get_inode_from_inum(&from_par_inode, from_par_inum);
+            if (perm_flag != 0)
+            return perm_flag;
 
             
             find = false;
@@ -404,10 +423,14 @@ int o_rename(const char* from, const char* to, unsigned int flags) {
     }
 
     inode from_inode;
-    get_inode_from_inum(&from_inode, from_inum);
+    int perm_flag = get_inode_from_inum(&from_inode, from_inum);
+    if (perm_flag != 0)
+        return perm_flag;
     
     inode from_par_inode;
-    get_inode_from_inum(&from_par_inode, from_par_inum);
+    perm_flag = get_inode_from_inum(&from_par_inode, from_par_inum);
+    if (perm_flag != 0)
+        return perm_flag;
 
     directory block_dir;
     bool find = false;
@@ -436,7 +459,9 @@ int o_rename(const char* from, const char* to, unsigned int flags) {
     new_inode_block(&from_par_inode);
 
     inode head_inode;
-    get_inode_from_inum(&head_inode, to_par_inum);
+    perm_flag = get_inode_from_inum(&head_inode, to_par_inum);
+    if (perm_flag != 0)
+        return perm_flag;
     int flag = append_parent_dir_entry(head_inode, to_name, from_inum);
     return flag;
 }
@@ -455,7 +480,9 @@ int o_unlink(const char* path) {
         return locate_err;
     }
     inode head_inode;
-    get_inode_from_inum(&head_inode, par_inum);
+    int perm_flag = get_inode_from_inum(&head_inode, par_inum);
+    if (perm_flag != 0)
+        return perm_flag;
     int flag = remove_object(head_inode, file_name, MODE_FILE);
     return flag;
 }
@@ -480,7 +507,9 @@ int o_link(const char* src, const char* dest) {
     if (locate_err != 0) {
         return locate_err;
     }
-    get_inode_from_inum(&src_inode, src_inum);
+    int perm_flag = get_inode_from_inum(&src_inode, src_inum);
+    if (perm_flag != 0)
+        return perm_flag;
     if (src_inode.mode != MODE_FILE) {
         return -EISDIR;
     }
@@ -495,9 +524,13 @@ int o_link(const char* src, const char* dest) {
     }
 
     inode dest_par_inode;
-    get_inode_from_inum(&dest_par_inode, dest_par_inum);
+    perm_flag = get_inode_from_inum(&dest_par_inode, dest_par_inum);
+    if (perm_flag != 0)
+        return perm_flag;
     int flag = append_parent_dir_entry(dest_par_inode, dest_name, src_inum);
-    get_inode_from_inum(&src_inode, src_inum);
+    perm_flag = get_inode_from_inum(&src_inode, src_inum);
+    if (perm_flag != 0)
+        return perm_flag;
     src_inode.num_links += 1;
     new_inode_block(&src_inode);
     return flag;
@@ -516,7 +549,9 @@ int o_truncate(const char* path, off_t size, struct fuse_file_info *fi) {
     }
     int inode_num = fi -> fh;
     inode cur_inode;
-    get_inode_from_inum(&cur_inode, inode_num);
+    int perm_flag = get_inode_from_inum(&cur_inode, inode_num);
+    if (perm_flag != 0)
+        return perm_flag;
     if(cur_inode.mode == MODE_DIR) {
         return -EISDIR;
     }

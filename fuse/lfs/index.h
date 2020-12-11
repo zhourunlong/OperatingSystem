@@ -7,16 +7,6 @@
 
 extern struct fuse_operations ops;
 
-struct options {
-	const char *filename;
-	const char *contents;
-	int show_help;
-};
-
-extern struct options options;
-
-extern const struct fuse_opt option_spec[];
-
 void show_help(const char *);
 
 #endif
