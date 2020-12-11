@@ -564,12 +564,6 @@ int o_link(const char* src, const char* dest) {
     }
     int flag = append_parent_dir_entry(dest_par_inode, dest_name, src_inum);
 
-    /* perm_flag = get_inode_from_inum(&src_inode, src_inum);
-    if (perm_flag != 0) {
-        if (ERROR_FILE)
-            logger(ERROR, "[ERROR] Permission denied: not allowed to read source directory.\n");
-        return perm_flag;
-    } */
     src_inode.num_links += 1;
     src_inode.ctime = cur_time;
     new_inode_block(&src_inode);

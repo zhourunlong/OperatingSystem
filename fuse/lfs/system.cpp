@@ -23,25 +23,31 @@ void* o_init(struct fuse_conn_info* conn, struct fuse_config* cfg) {
     /* ****************************************
      * Create / open LFS from disk.
      * ****************************************/
-    std::string lfs_path = current_working_dir;
-    lfs_path += "lfs.data";
+    std::string _lfs_path = current_working_dir;
+    _lfs_path += "lfs.data";
+    lfs_path = (char*) malloc(_lfs_path.length() + 2);
+    strcpy(lfs_path, _lfs_path.c_str());
 
-    if (access(lfs_path.c_str(), R_OK) != 0) {    // Disk file does not exist.
+    if (access(lfs_path, R_OK) != 0) {    // Disk file does not exist.
         logger(DEBUG, "[INFO] Disk file (lfs.data) does not exist. Try to create and initialize to 0.\n");
         
         // Create a file.
-        file_handle = open(lfs_path.c_str(), O_RDWR | O_CREAT, 0777);
+        int file_handle = open(lfs_path, O_RDWR | O_CREAT, 0777);
         if (file_handle <= 0) {
             logger(ERROR, "[FATAL ERROR] Fail to create a new disk file (lfs.data).\n");
             exit(-1);
         }
-        logger(DEBUG, "[INFO] Successfully created a new disk file (lfs.data).\n");
 
         // Fill 0 into the file.
         char* buf = (char*) malloc(FILE_SIZE);
         memset(buf, 0, FILE_SIZE);
         pwrite(file_handle, buf, FILE_SIZE, 0);
         free(buf);
+
+        // Must close file after formatting.
+        close(file_handle); 
+        logger(DEBUG, "[INFO] Successfully created a new disk file (lfs.data).\n");
+
 
         // Initialize global state variables.
         memset(segment_bitmap, 0, sizeof(segment_bitmap));
@@ -80,17 +86,17 @@ void* o_init(struct fuse_conn_info* conn, struct fuse_config* cfg) {
         checkpoints ckpt;
         read_checkpoints(&ckpt);
         print(ckpt);
-        
 
         logger(DEBUG, "[INFO] Successfully initialized the file system.\n");
     } else {
-        // Open an existing file.
-        file_handle = open(lfs_path.c_str(), O_RDWR);
+        // Try to open an existing file.
+        int file_handle = open(lfs_path, O_RDWR);
         if (file_handle <= 0) {
             logger(ERROR, "[FATAL ERROR] Fail to open existing disk file (lfs.data). Please contact administrator.\n");
             exit(-1);
         }
-        logger(DEBUG, "[INFO] Successfully opened an existing file system.\n");
+        close(file_handle);
+        logger(DEBUG, "[INFO] Successfully found an existing file system.\n");
 
 
         // Read the (newer) checkpoint.

@@ -1,9 +1,11 @@
 #include "utility.h"
+
 #include "logger.h"
 #include <stdio.h>
+#include <fcntl.h>
 #include <unistd.h>
 
-int file_handle;
+char* lfs_path;
 char segment_buffer[SEGMENT_SIZE];
 char segment_bitmap[TOT_SEGMENTS];
 int inode_table[MAX_NUM_INODE];
@@ -21,29 +23,37 @@ int next_checkpoint, next_imap_index;
 
 /** Read a block into the buffer. */
 int read_block(void* buf, int block_addr) {
+    int file_handle = open(lfs_path, O_RDWR);
     int file_offset = block_addr * BLOCK_SIZE;
     int read_length = pread(file_handle, buf, BLOCK_SIZE, file_offset);
+    close(file_handle);
     return read_length;
 }
 
 /** Write a block into disk file (not recommended). */
 int write_block(void* buf, int block_addr) {
+    int file_handle = open(lfs_path, O_RDWR);
     int file_offset = block_addr * BLOCK_SIZE;
     int write_length = pwrite(file_handle, buf, BLOCK_SIZE, file_offset);
+    close(file_handle);
     return write_length;
 }
 
 /** Read a segment into the buffer (not usual). */
 int read_segment(void* buf, int segment_addr) {
+    int file_handle = open(lfs_path, O_RDWR);
     int file_offset = segment_addr * SEGMENT_SIZE;
     int read_length = pread(file_handle, buf, SEGMENT_SIZE, file_offset);
+    close(file_handle);
     return read_length;
 }
 
 /** Write a segment into disk file. */
 int write_segment(void* buf, int segment_addr) {
+    int file_handle = open(lfs_path, O_RDWR);
     int file_offset = segment_addr * SEGMENT_SIZE;
     int write_length = pwrite(file_handle, buf, SEGMENT_SIZE, file_offset);
+    close(file_handle);
     return write_length;
 }
 
@@ -58,29 +68,37 @@ int write_segment(void* buf, int segment_addr) {
 
 /** Read inode map of the segment (covering 8 blocks, i.e. #1008 ~ #1015). */
 int read_segment_imap(void* buf, int segment_addr) {
+    int file_handle = open(lfs_path, O_RDWR);
     int file_offset = segment_addr * SEGMENT_SIZE + IMAP_OFFSET;
     int read_length = pread(file_handle, buf, IMAP_SIZE, file_offset);
+    close(file_handle);
     return read_length;
 }
 
 /** Write inode map of the segment (covering 8 blocks, i.e. #1008 ~ #1015). */
 int write_segment_imap(void* buf, int segment_addr) {
+    int file_handle = open(lfs_path, O_RDWR);
     int file_offset = segment_addr * SEGMENT_SIZE + IMAP_OFFSET;
     int write_length = pwrite(file_handle, buf, IMAP_SIZE, file_offset);
+    close(file_handle);
     return write_length;
 }
 
 /** Read segment summary of the segment (covering 8 blocks, i.e. #1016 ~ #1023). */
 int read_segment_summary(void* buf, int segment_addr) {
+    int file_handle = open(lfs_path, O_RDWR);
     int file_offset = segment_addr * SEGMENT_SIZE + SUMMARY_OFFSET;
     int read_length = pread(file_handle, buf, SUMMARY_SIZE, file_offset);
+    close(file_handle);
     return read_length;
 }
 
 /** Write segment summary of the segment (covering 8 blocks, i.e. #1016 ~ #1023). */
 int write_segment_summary(void* buf, int segment_addr) {
+    int file_handle = open(lfs_path, O_RDWR);
     int file_offset = segment_addr * SEGMENT_SIZE + SUMMARY_OFFSET;
     int write_length = pwrite(file_handle, buf, SUMMARY_SIZE, file_offset);
+    close(file_handle);
     return write_length;
 }
 
@@ -94,25 +112,33 @@ int write_segment_summary(void* buf, int segment_addr) {
 
 /** Read checkpoints of LFS (covering 1 block, at #CHECKPOINT_ADDR). */
 int read_checkpoints(void* buf) {
+    int file_handle = open(lfs_path, O_RDWR);
     int read_length = pread(file_handle, buf, CHECKPOINT_SIZE, CHECKPOINT_ADDR);
+    close(file_handle);
     return read_length;
 }
 
 /** Write checkpoints of LFS (covering 1 block, at #CHECKPOINT_ADDR). */
 int write_checkpoints(void* buf) {
+    int file_handle = open(lfs_path, O_RDWR);
     int write_length = pwrite(file_handle, buf, CHECKPOINT_SIZE, CHECKPOINT_ADDR);
+    close(file_handle);
     return write_length;
 }
 
 /** Read superblock of LFS (covering 1 block, at #SUPERBLOCK_ADDR). */
 int read_superblock(void* buf) {
+    int file_handle = open(lfs_path, O_RDWR);
     int read_length = pread(file_handle, buf, SUPERBLOCK_SIZE, SUPERBLOCK_ADDR);
+    close(file_handle);
     return read_length;
 }
 
 /** Write superblock of LFS (covering 1 block, at #SUPERBLOCK_ADDR). */
 int write_superblock(void* buf) {
+    int file_handle = open(lfs_path, O_RDWR);
     int write_length = pwrite(file_handle, buf, SUPERBLOCK_SIZE, SUPERBLOCK_ADDR);
+    close(file_handle);
     return write_length;
 }
 

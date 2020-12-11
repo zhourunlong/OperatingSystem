@@ -175,7 +175,8 @@ int write_superblock(void* buf);
 /** **************************************
  * Global state variables.
  * ***************************************/
-extern int file_handle;
+// extern int file_handle;  // File handle should be local.
+extern char* lfs_path;
 extern char segment_buffer[SEGMENT_SIZE];
 extern char segment_bitmap[TOT_SEGMENTS];
 extern int inode_table[MAX_NUM_INODE];
