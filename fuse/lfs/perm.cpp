@@ -14,7 +14,7 @@ int o_chmod(const char* path, mode_t mode, struct fuse_file_info* fi) {
     
     int fh;
     int locate_err = locate(path, fh);
-    fi->fh = fh;
+    // fi->fh = fh;
     if (locate_err != 0) {
         if (ERROR_PERM)
             logger(ERROR, "[ERROR] Cannot access the path (error #%d).\n", locate_err);
@@ -34,11 +34,14 @@ int o_chown(const char* path, uid_t uid, gid_t gid, struct fuse_file_info* fi) {
     if (DEBUG_PRINT_COMMAND)
         logger(DEBUG, "CHOWN, %s, %d, %d, %p\n",
                resolve_prefix(path), uid, gid, fi);
-    
+    // printf("*********\n");
     int fh;
     int locate_err = locate(path, fh);
-    fi->fh = fh;
+    // printf("1********* %d %d\n", locate_err, fh);
+    // fi->fh = fh;
+    // printf("2*********\n");
     if (locate_err != 0) {
+        // printf("3********* %d\n", locate_err);
         if (ERROR_PERM)
             logger(ERROR, "[Error] Cannot access the path (error #%d).\n", locate_err);
         return locate_err;

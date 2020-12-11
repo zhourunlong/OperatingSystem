@@ -200,7 +200,8 @@ int o_write(const char* path, const char* buf, size_t size, off_t offset, struct
         cur_buf_pos += copy_size;
         len += copy_size;
     }
-    file_commit(cur_inode_t);
+    if(cur_inode_t != NULL)
+        file_commit(cur_inode_t);
     get_inode_from_inum(&head_inode, inode_num);
     head_inode.fsize_byte = len;
     printf("****************** %d\n", len / BLOCK_SIZE);
