@@ -73,7 +73,8 @@ int new_data_block(void* data, int i_number, int direct_index) {
  * @param  i_number: i_number of the added inode.
  * @return block_addr: global block address of the new block.
  * Note that when the segment buffer is full, we have to write it back into disk file. */
-int new_inode_block(void* data, int i_number) {
+int new_inode_block(struct inode* data) {
+    int i_number = data->i_number;
     int buffer_offset = cur_block * BLOCK_SIZE;
     int block_addr = cur_segment * BLOCKS_IN_SEGMENT + cur_block;
 
@@ -184,7 +185,7 @@ void file_add_data(struct inode* cur_inode, void* data) {
         cur_inode->ctime = cur_time;
 
         cur_inode->next_indirect = next_inode->i_number;
-        new_inode_block(cur_inode, cur_inode->i_number);
+        new_inode_block(cur_inode);
 
         get_inode_from_inum(cur_inode, cur_inode->i_number);
 
@@ -207,8 +208,8 @@ void file_add_data(struct inode* cur_inode, void* data) {
  * @param  data: a new data block. */
 void file_modify(struct inode* cur_inode, int direct_index, void* data) {
     if (direct_index >= cur_inode->num_direct) {
-        logger(ERROR, "Cannot modify a block that does not exist yet. Request ind: %d\n", direct_index);
-        exit(-1);
+        logger(ERROR, "[ERROR] Cannot modify a block that does not exist yet. Request ind: %d\n", direct_index);
+        return;
     }
 
     int block_addr = new_data_block(data, cur_inode->i_number, direct_index);
