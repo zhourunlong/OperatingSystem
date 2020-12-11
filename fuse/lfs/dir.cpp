@@ -24,7 +24,13 @@ int o_opendir(const char* path, struct fuse_file_info* fi) {
     }
 
     inode block_inode;
-    get_inode_from_inum(&block_inode, fh);
+    int ginode_err = get_inode_from_inum(&block_inode, fh);
+    if (ginode_err != 0) {
+        if (ERROR_PERM)
+            logger(ERROR, "[ERROR] Permission error when loading inode.\n");
+        return ginode_err;
+    }
+
     if (block_inode.mode != MODE_DIR) {
         if (ERROR_DIRECTORY)
             logger(ERROR, "[ERROR] %s is not a directory.\n", path);
@@ -60,7 +66,13 @@ int o_readdir(const char* path, void* buf, fuse_fill_dir_t filler, off_t offset,
     filler(buf, "..", NULL, 0, (fuse_fill_dir_flags) 0);
     
     inode block_inode, head_inode;
-    get_inode_from_inum(&head_inode, fi->fh);
+    int ginode_err = get_inode_from_inum(&head_inode, fi->fh);
+    if (ginode_err != 0) {
+        if (ERROR_PERM)
+            logger(ERROR, "[ERROR] Permission error when loading inode.\n");
+        return ginode_err;
+    }
+
     block_inode = head_inode;
     bool accessed = false;
     while (1) {
@@ -213,7 +225,12 @@ int o_mkdir(const char* path, mode_t mode) {
     }
     
     inode head_inode;
-    get_inode_from_inum(&head_inode, par_inum);
+    int ginode_err = get_inode_from_inum(&head_inode, par_inum);
+    if (ginode_err != 0) {
+        if (ERROR_PERM)
+            logger(ERROR, "[ERROR] Permission error when loading inode.\n");
+        return ginode_err;
+    }
     if (head_inode.mode != MODE_DIR) {
         if (ERROR_DIRECTORY)
             logger(ERROR, "[ERROR] %s is not a directory.\n", parent_dir);
@@ -224,7 +241,12 @@ int o_mkdir(const char* path, mode_t mode) {
     locate_err = locate(path, tmp_inum);
     if (locate_err == 0) {
         inode tmp_inode;
-        get_inode_from_inum(&tmp_inode, tmp_inum);
+        ginode_err = get_inode_from_inum(&tmp_inode, tmp_inum);
+        if (ginode_err != 0) {
+            if (ERROR_PERM)
+                logger(ERROR, "[ERROR] Permission error when loading inode.\n");
+            return ginode_err;
+        }
         if ((tmp_inode.mode == MODE_FILE) && ERROR_DIRECTORY)
             logger(ERROR, "[ERROR] Duplicated name: there exists a file with the same name.\n");
         if ((tmp_inode.mode == MODE_DIR) && ERROR_DIRECTORY)
@@ -263,7 +285,12 @@ int remove_object(struct inode &head_inode, const char* del_name, int del_mode) 
             for (int j = 0; j < MAX_DIR_ENTRIES; ++j)
                 if (block_dir[j].i_number && !strcmp(block_dir[j].filename, del_name)) {
                     inode tmp_inode, tmp_head_inode;
-                    get_inode_from_inum(&tmp_head_inode, block_dir[j].i_number);
+                    int ginode_err = get_inode_from_inum(&tmp_head_inode, block_dir[j].i_number);
+                    if (ginode_err != 0) {
+                        if (ERROR_PERM)
+                            logger(ERROR, "[ERROR] Permission error when loading inode.\n");
+                        return ginode_err;
+                    }
 
                     // Verify del_name refers to an expected type of object.
                     if ((del_mode == MODE_DIR) && (tmp_head_inode.mode != MODE_DIR)) {
@@ -412,7 +439,12 @@ int o_rmdir(const char* path) {
     }
 
     inode head_inode;
-    get_inode_from_inum(&head_inode, par_inum);
+    int ginode_err = get_inode_from_inum(&head_inode, par_inum);
+    if (ginode_err != 0) {
+        if (ERROR_PERM)
+            logger(ERROR, "[ERROR] Permission error when loading inode.\n");
+        return ginode_err;
+    }
     if (head_inode.mode != MODE_DIR) {
         if (ERROR_DIRECTORY)
             logger(ERROR, "[ERROR] %s is not a directory.\n", parent_dir);
