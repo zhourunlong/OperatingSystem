@@ -150,8 +150,10 @@ int locate(const char* _path, int &i_number) {
     int cur_inumber = ROOT_DIR_INUMBER;
     for (int d=0; d<split_path.size(); d++) {
         get_inode_from_inum(&block_inode, cur_inumber);
-        if (FUNC_ATIME_DIR)
+        if (FUNC_ATIME_DIR) {
             update_atime(block_inode, cur_time);  // Update atime according to FUNC_ATIME_ flags.
+            new_inode_block(&block_inode, block_inode.i_number);
+        }
         
         target = split_path[d];
         if (DEBUG_LOCATE_REPORT) {
