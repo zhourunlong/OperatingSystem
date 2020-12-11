@@ -228,9 +228,9 @@ int o_create(const char *path, mode_t mode, struct fuse_file_info *fi) {
         return locate_err;
     }
     
-    inode block_inode;
-    get_inode_from_inum(&block_inode, par_inum);
-    if (block_inode.mode != MODE_DIR) {
+    inode head_inode;
+    get_inode_from_inum(&head_inode, par_inum);
+    if (head_inode.mode != MODE_DIR) {
         if (ERROR_FILE)
             logger(ERROR, "[ERROR] %s is not a directory.\n", parent_dir);
         return -ENOTDIR;
@@ -251,85 +251,12 @@ int o_create(const char *path, mode_t mode, struct fuse_file_info *fi) {
     inode *file_inode = new inode;
     file_initialize(file_inode, MODE_FILE, mode);
     print(file_inode);
+
+    fi -> fh = file_inode -> i_number;
     
-    bool rec_avail_for_ins = false;
-    inode avail_for_ins, tail_inode;
-    while (1) {
-        for (int i = 0; i < NUM_INODE_DIRECT; ++i) {
-            if (block_inode.direct[i] == -1) {
-                if (!rec_avail_for_ins) {
-                    rec_avail_for_ins = true;
-                    avail_for_ins = block_inode;
-                }
-                continue;
-            }
-            directory block_dir;
-            get_block(&block_dir, block_inode.direct[i]);
-            for (int j = 0; j < MAX_DIR_ENTRIES; ++j)
-                if (block_dir[j].i_number == 0) {
-                    block_dir[j].i_number = file_inode -> i_number;
-                    memcpy(block_dir[j].filename, dirname, strlen(dirname) * sizeof(char));
-                    //print(block_dir);
-                    int new_block_addr = new_data_block(&block_dir, block_inode.i_number, i);
-                    block_inode.direct[i] = new_block_addr;
-                    //print(&block_inode);
-                    int t_in_addr = new_inode_block(&block_inode);
-
-                    get_inode_from_inum(&block_inode, par_inum);
-                    print(&block_inode);
-
-                    fi->fh = file_inode->i_number;
-                    new_inode_block(file_inode);
-                    return 0;
-                }
-        }
-        tail_inode = block_inode;
-        if (block_inode.next_indirect == 0)
-            break;
-        get_inode_from_inum(&block_inode, block_inode.next_indirect);
-        
-    }
-    
-    directory block_dir;
-    memset(block_dir, 0, sizeof(block_dir));
-    block_dir[0].i_number = file_inode -> i_number;
-    memcpy(block_dir[0].filename, dirname, strlen(dirname) * sizeof(char));
-
-    if (rec_avail_for_ins) {
-        if (DEBUG_FILE) logger(DEBUG, "empty block\n");
-        for (int i = 0; i < NUM_INODE_DIRECT; ++i)
-            if (avail_for_ins.direct[i] == -1) {
-                int new_block_addr = new_data_block(&block_dir, avail_for_ins.i_number, i);
-                avail_for_ins.direct[i] = new_block_addr;
-                ++avail_for_ins.num_direct;
-                new_inode_block(&avail_for_ins);
-
-                get_inode_from_inum(&block_inode, par_inum);
-                print(&block_inode);
-
-                fi->fh = file_inode->i_number;
-                new_inode_block(file_inode);
-                return 0;
-            }
-    }
-
-    if (DEBUG_FILE) logger(DEBUG, "create new inode");
-    inode append_inode;
-    file_initialize(&append_inode, MODE_MID_INODE, 0);
-    int new_block_addr = new_data_block(&block_dir,append_inode.i_number, 0);
-    append_inode.direct[0] = new_block_addr;
-    append_inode.num_direct = 1;
-    new_inode_block(&append_inode);
-    tail_inode.next_indirect = append_inode.i_number;
-    new_inode_block(&tail_inode);
-
-    get_inode_from_inum(&block_inode, par_inum);
-    print(&block_inode);
-    
-    fi->fh = file_inode->i_number;
+    int flag = append_parent_dir_entry(head_inode, dirname, file_inode -> i_number);
     new_inode_block(file_inode);
-
-    return 0;
+    return flag;
 }
 
 int o_rename(const char* from, const char* to, unsigned int flags) {
@@ -409,97 +336,10 @@ int o_rename(const char* from, const char* to, unsigned int flags) {
     }
     new_inode_block(&from_par_inode);
 
-    inode block_inode;
-    get_inode_from_inum(&block_inode, to_par_inum);
-    inode head_inode = block_inode;
-
-    bool rec_avail_for_ins = false, accessed = false, firblk = true, afi_firblk, tail_firblk;
-    inode avail_for_ins, tail_inode;
-    while (1) {
-        for (int i = 0; i < NUM_INODE_DIRECT; ++i) {
-            if (block_inode.direct[i] == -1) {
-                if (!rec_avail_for_ins) {
-                    rec_avail_for_ins = true;
-                    avail_for_ins = block_inode;
-                    afi_firblk = firblk;
-                }
-                continue;
-            }
-            directory block_dir;
-            get_block(&block_dir, block_inode.direct[i]);
-            accessed = true;
-            for (int j = 0; j < MAX_DIR_ENTRIES; ++j)
-                if (block_dir[j].i_number == 0) {
-                    block_dir[j].i_number = from_inode.i_number;
-                    memcpy(block_dir[j].filename, to_name, strlen(to_name) * sizeof(char));
-                    int new_block_addr = new_data_block(&block_dir, block_inode.i_number, i);
-                    block_inode.direct[i] = new_block_addr;
-                    
-                    if (firblk) {
-                        if (FUNC_ATIME_DIR)
-                            update_atime(block_inode, cur_time);
-                        block_inode.mtime = block_inode.ctime = cur_time;
-                    } else {
-                        if (FUNC_ATIME_DIR)
-                            update_atime(head_inode, cur_time);
-                        head_inode.mtime = head_inode.ctime = cur_time;
-                        new_inode_block(&head_inode);
-                    }
-                    new_inode_block(&block_inode);
-                    return 0;
-                }
-        }
-        tail_inode = block_inode;
-        tail_firblk = firblk;
-        firblk = false;
-        if (block_inode.next_indirect == 0)
-            break;
-        get_inode_from_inum(&block_inode, block_inode.next_indirect);
-    }
-
-    memset(block_dir, 0, sizeof(block_dir));
-    block_dir[0].i_number = from_inode.i_number;
-    memcpy(block_dir[0].filename, to_name, strlen(to_name) * sizeof(char));
-
-    if (rec_avail_for_ins) {
-        for (int i = 0; i < NUM_INODE_DIRECT; ++i)
-            if (avail_for_ins.direct[i] == -1) {
-                int new_block_addr = new_data_block(&block_dir, avail_for_ins.i_number, i);
-                avail_for_ins.direct[i] = new_block_addr;
-                ++avail_for_ins.num_direct;
-                
-                if (afi_firblk) {
-                    if (FUNC_ATIME_DIR)
-                        update_atime(avail_for_ins, cur_time);
-                    avail_for_ins.mtime = avail_for_ins.ctime = cur_time;
-                } else {
-                    if (FUNC_ATIME_DIR)
-                        update_atime(head_inode, cur_time);
-                    head_inode.mtime = head_inode.ctime = cur_time;
-                    new_inode_block(&head_inode);
-                }
-                new_inode_block(&avail_for_ins);
-                return 0;
-            }
-    }
-
-    if (DEBUG_DIRECTORY)
-        logger(DEBUG, "create new inode");
-    inode append_inode;
-    file_initialize(&append_inode, MODE_MID_INODE, 0);
-    int new_block_addr = new_data_block(&block_dir, append_inode.i_number, 0);
-    append_inode.direct[0] = new_block_addr;
-    append_inode.num_direct = 1;
-    new_inode_block(&append_inode);
-    tail_inode.next_indirect = append_inode.i_number;
-    if (tail_firblk)
-        tail_inode.ctime = cur_time;
-    else {
-        head_inode.ctime = cur_time;
-        new_inode_block(&head_inode);
-    }
-    new_inode_block(&tail_inode);
-    return 0;
+    inode head_inode;
+    get_inode_from_inum(&head_inode, to_par_inum);
+    int flag = append_parent_dir_entry(head_inode, to_name, from_inum);
+    return flag;
 }
 
 int o_unlink(const char* path) {
