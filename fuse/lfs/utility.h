@@ -196,7 +196,7 @@ const bool DEBUG_FILE           = true;     // Print debug information in file.c
 const bool DEBUG_PATH           = true;     // Print debug information in path.cpp.
 const bool DEBUG_LOCATE_REPORT  = false;    // Generate report for each locate() (in path.cpp).
 
-const bool ERROR_METADATA       = false;    // Report errors in metadata.cpp assoc. with locate().
+const bool ERROR_METADATA       = true;     // Report errors in metadata.cpp assoc. with locate().
 const bool ERROR_DIRECTORY      = true;     // Report directory operation errors in directory.cpp.
 const bool ERROR_FILE           = true;     // Report file operation errors in file.cpp.
 const bool ERROR_PATH           = true;     // Report low-level errors in path.cpp.

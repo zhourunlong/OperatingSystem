@@ -12,6 +12,7 @@ int o_rmdir(const char*);
 
 // Universal utility functions for file and directory operations.
 int append_parent_dir_entry(struct inode &head_inode, const char* new_name, int new_inum);
+bool remove_parent_dir_entry(struct inode &block_inode, int del_inum);
 int remove_object(struct inode &head_inode, const char* del_name, int del_mode);
 
 #endif

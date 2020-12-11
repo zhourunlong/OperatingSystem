@@ -4,12 +4,12 @@
 #include "path.h"
 #include "dir.h"
 #include "index.h"
-#include "errno.h"
 #include "blockio.h"
 #include "utility.h"
 
 #include <cstring>
 #include <stdio.h>
+#include <stdlib.h>
 #include <unistd.h>
 #include <errno.h>
 
@@ -34,7 +34,7 @@ int o_open(const char* path, struct fuse_file_info* fi) {
     int perm_flag = get_inode_from_inum(&cur_inode, inode_num);
     if (perm_flag != 0) {
         if (ERROR_FILE)
-            logger(ERROR, "[ERROR] Permission error when loading inode.\n");
+            logger(ERROR, "[ERROR] Permission denied: not allowed to read.\n");
         return perm_flag;
     }
         
@@ -74,7 +74,7 @@ int o_read(const char* path, char *buf, size_t size, off_t offset, struct fuse_f
     int perm_flag = get_inode_from_inum(&cur_inode, inode_num);
     if (perm_flag != 0) {
         if (ERROR_FILE)
-            logger(ERROR, "[ERROR] Permission error when loading inode.\n");
+            logger(ERROR, "[ERROR] Permission denied: not allowed to read.\n");
         return 0;
     }
     
@@ -115,7 +115,7 @@ int o_read(const char* path, char *buf, size_t size, off_t offset, struct fuse_f
     while (cur_buf_pos <= size) {
         get_block(loader, cur_inode.direct[cur_block_ind]);
 
-        // Copy a block: copy_size = min(BLOCI_SIZE-cur_block_offset, size-cur_buf_pos).
+        // Copy a block: copy_size = min(BLOCK_SIZE-cur_block_offset, size-cur_buf_pos).
         copy_size = BLOCK_SIZE - cur_block_offset;
         if (size - cur_buf_pos < copy_size)
             copy_size = size - cur_buf_pos;
@@ -161,7 +161,7 @@ int o_write(const char* path, const char* buf, size_t size, off_t offset, struct
     int perm_flag = get_inode_from_inum(&cur_inode, inode_num);
     if (perm_flag != 0) {
         if (ERROR_FILE)
-            logger(ERROR, "[ERROR] Permission error when loading inode.\n");
+            logger(ERROR, "[ERROR] Permission denied: not allowed to read.\n");
         return 0;
     }
 
@@ -207,32 +207,41 @@ int o_write(const char* path, const char* buf, size_t size, off_t offset, struct
     char loader[BLOCK_SIZE + 10];
     inode head_inode;
     if (is_end == false) {
-        while (cur_buf_pos < size && cur_buf_pos + offset < ((int) (len + BLOCK_SIZE - 1) / BLOCK_SIZE) * BLOCK_SIZE) {
+        int cur_file_blksize = ((int) (len+BLOCK_SIZE-1) / BLOCK_SIZE) * BLOCK_SIZE;
+        while (cur_buf_pos < size && cur_buf_pos + offset < cur_file_blksize) {
             get_block(loader, cur_inode.direct[cur_block_ind]);
+
+            // Copy a block: copy_size = min(BLOCK_SIZE-cur_block_offset, size-cur_buf_pos).
             copy_size = BLOCK_SIZE - cur_block_offset;
             if (size - cur_buf_pos < copy_size)
                 copy_size = size - cur_buf_pos;
             memcpy(loader + cur_block_offset, buf + cur_buf_pos, copy_size);
-            cur_buf_pos += copy_size;
-            cur_block_offset += copy_size;
             file_modify(&cur_inode, cur_block_ind, loader);
             get_block(loader, cur_inode.direct[cur_block_ind]);
-            if (cur_buf_pos == size) {
+
+            // Update buffer pointer and block pointer.
+            cur_buf_pos += copy_size;
+            cur_block_offset += copy_size;
+            if (cur_buf_pos == size)
                 break;
-            }
-            if (cur_block_offset == BLOCK_SIZE && cur_buf_pos + offset != ((len + BLOCK_SIZE - 1) / BLOCK_SIZE) * BLOCK_SIZE) {
-                if (cur_block_ind + 1 == cur_inode.num_direct) {
-                    new_inode_block(&cur_inode); //???
+            if (cur_block_offset == BLOCK_SIZE && cur_buf_pos + offset != cur_file_blksize) {
+                if (cur_inode.num_direct != NUM_INODE_DIRECT) {
+                    logger(ERROR, "[FATAL ERROR] Corrupt file system: inode leak.\n");
+                    exit(-1);
+                }
+                if (cur_block_ind + 1 == cur_inode.num_direct) {  // Reach the end of an inode.
+                    new_inode_block(&cur_inode);
                     get_inode_from_inum(&cur_inode, cur_inode.next_indirect);
                     cur_block_ind = cur_block_offset = 0;
-                }
-                else {
+                } else {
                     cur_block_ind += 1;
                     cur_block_offset = 0;
                 }
             }
         }
         new_inode_block(&cur_inode);
+
+        // Finish because reaching the end of writing: update timestamps.
         if (cur_buf_pos == size) {
             get_inode_from_inum(&head_inode, inode_num);
             if (cur_buf_pos + offset > len) {
@@ -245,20 +254,24 @@ int o_write(const char* path, const char* buf, size_t size, off_t offset, struct
             return size;
         }
     }
-
-    memset(loader, 0, sizeof(loader));
     
+    // Start creating non-existing blocks.
     len = ((len + BLOCK_SIZE - 1) / BLOCK_SIZE) * BLOCK_SIZE;
     while (cur_buf_pos < size) {
+        // Copy a block: copy_size = min(BLOCK_SIZE, size-cur_buf_pos).
         copy_size = BLOCK_SIZE;
         if (size - cur_buf_pos < copy_size)
             copy_size = size - cur_buf_pos;
+        
         memset(loader, 0, sizeof(loader));
         memcpy(loader, buf + cur_buf_pos, copy_size);
         file_add_data(&cur_inode, loader);
+
         cur_buf_pos += copy_size;
         len += copy_size;
     }
+
+    // Update timestamps.
     new_inode_block(&cur_inode);
     get_inode_from_inum(&head_inode, inode_num);
     head_inode.fsize_byte = len;
@@ -275,7 +288,7 @@ int o_create(const char *path, mode_t mode, struct fuse_file_info *fi) {
         logger(DEBUG, "CREATE, %s, %o, %p\n",
                resolve_prefix(path), mode, fi);
     
-    mode |= S_IFREG;
+    mode &= 0777;
     char* parent_dir = relative_to_absolute(path, "../", 0);
     char* dirname = current_fname(path);
     if (strlen(dirname) >= MAX_FILENAME_LEN) {
@@ -290,7 +303,7 @@ int o_create(const char *path, mode_t mode, struct fuse_file_info *fi) {
             logger(ERROR, "[ERROR] Cannot open the parent directory (error #%d).\n", locate_err);
         return locate_err;
     }
-    
+
     inode head_inode;
     int perm_flag;
     perm_flag = get_inode_from_inum(&head_inode, par_inum);
@@ -316,13 +329,12 @@ int o_create(const char *path, mode_t mode, struct fuse_file_info *fi) {
         return -EEXIST;
     }
     
-    inode *file_inode = new inode;
-    file_initialize(file_inode, MODE_FILE, mode);
-
-    fi -> fh = file_inode -> i_number;
+    inode file_inode;
+    file_initialize(&file_inode, MODE_FILE, mode);
+    fi -> fh = file_inode.i_number;
     
-    int flag = append_parent_dir_entry(head_inode, dirname, file_inode -> i_number);
-    new_inode_block(file_inode);
+    int flag = append_parent_dir_entry(head_inode, dirname, file_inode.i_number);
+    new_inode_block(&file_inode);
     return flag;
 }
 
@@ -338,177 +350,127 @@ int o_rename(const char* from, const char* to, unsigned int flags) {
     char* to_parent_dir = relative_to_absolute(to, "../", 0);
     char* from_name = current_fname(from);
     char* to_name = current_fname(to);
+    int from_inum, to_inum, from_par_inum, to_par_inum;
     if (strlen(to_name) >= MAX_FILENAME_LEN) {
-        logger(ERROR, "dirname too long (%d), should < %d!\n", strlen(to_name), MAX_FILENAME_LEN);
+        logger(ERROR, "[ERROR] Directory name too long: length %d > %d.\n", strlen(to_name), MAX_FILENAME_LEN);
         return -ENAMETOOLONG;
     }
-    int from_inum;
-    int to_inum;
-    int from_par_inum;
-    int to_par_inum;
-    int locate_err;
 
+    int locate_err;
     locate_err = locate(from_parent_dir, from_par_inum);
     if (locate_err != 0) {
-        logger(ERROR, "error loading parent dir!\n");
+        logger(ERROR, "[ERROR] Fail to locate source parent directory.\n");
         return locate_err;
     }
     locate_err = locate(to_parent_dir, to_par_inum);
     if (locate_err != 0) {
-        logger(ERROR, "error loading parent dir!\n");
+        logger(ERROR, "[ERROR] Fail to locate destination parent directory.\n");
         return locate_err;
     }
-    
     locate_err = locate(from, from_inum);
     if (locate_err != 0) {
-        logger(ERROR, "error loading source dir!\n");
+        logger(ERROR, "[ERROR] Source file does not exist.\n");
         return locate_err;
     }
-    locate_err = locate(to, to_inum);
 
-    if (locate_err == 0) {
+    locate_err = locate(to, to_inum);  // This is not necessarily an error.
+    if (locate_err == 0) {  // Destination file already exists.
         if (flags == RENAME_NOREPLACE) {
-            logger(ERROR, "already exist!\n");
+            logger(ERROR, "[ERROR] Destination file already exists, and cannot be overwritten.\n");
             return -EEXIST;
         }
 
-        directory block_dir;
+        int perm_flag;
         inode from_inode;
-        int perm_flag = get_inode_from_inum(&from_inode, from_inum);
-        if (perm_flag != 0)
+        perm_flag = get_inode_from_inum(&from_inode, from_inum);
+        if (perm_flag != 0) {
+            if (ERROR_FILE)
+                logger(ERROR, "[ERROR] Permission denied: not allowed to read source file inode.\n");
             return perm_flag;
+        }
         inode from_par_inode;
         perm_flag = get_inode_from_inum(&from_par_inode, from_par_inum);
-        if (perm_flag != 0)
+        if (perm_flag != 0) {
+            if (ERROR_FILE)
+                logger(ERROR, "[ERROR] Permission denied: not allowed to read source dir inode.\n");
             return perm_flag;
+        }
         inode to_inode;
         perm_flag = get_inode_from_inum(&to_inode, to_inum);
-        if (perm_flag != 0)
+        if (perm_flag != 0) {
+            if (ERROR_FILE)
+                logger(ERROR, "[ERROR] Permission denied: not allowed to read dest file inode.\n");
             return perm_flag;
+        }
         inode to_par_inode;
         perm_flag = get_inode_from_inum(&to_par_inode, to_par_inum);
-        if (perm_flag != 0)
+        if (perm_flag != 0) {
+            if (ERROR_FILE)
+                logger(ERROR, "[ERROR] Permission denied: not allowed to read dest dir inode.\n");
             return perm_flag;
+        }
         
+        // Update timestamps.
         to_par_inode.mtime = cur_time;
         from_par_inode.mtime = cur_time;
         new_inode_block(&to_par_inode);
         new_inode_block(&from_par_inode);
         
-        update_atime(to_inode, cur_time);
-        update_atime(from_inode, cur_time);
-        new_inode_block(&to_inode);
-        new_inode_block(&from_inode);
-        
-        bool find = false;
-        while (true) {
-            for (int i = 0; i < NUM_INODE_DIRECT; i++) {
-                if (to_par_inode.direct[i] != -1) {
-                    get_block(block_dir, to_par_inode.direct[i]);
-                    for (int j = 0; j < MAX_DIR_ENTRIES; j++)
-                        if (block_dir[j].i_number == to_inum) {
-                            find = true;
-                            block_dir[j].i_number = 0;
-                            memset(block_dir[j].filename, 0, sizeof(block_dir[j].filename));
-                            break;
-                        }
-                    if (find == true) {
-                        file_modify(&to_par_inode, i, block_dir);
-                        break;
-                    }
-                }
-                if (find == true)
-                    break;
-            }
-            if (find == true)
-                break;
-            get_inode_from_inum(&to_par_inode, to_par_inode.next_indirect);
-        }
-        new_inode_block(&to_par_inode);
+        // Remove destination directory entry.
+        remove_parent_dir_entry(to_par_inode, to_inum);
 
+        // Conflict case 1: exchange files.
         if (flags == RENAME_EXCHANGE) {
-            find = false;
-            while (true) {
-                for (int i = 0; i < NUM_INODE_DIRECT; i++) {
-                    if (from_par_inode.direct[i] != -1) {
-                        get_block(block_dir, from_par_inode.direct[i]);
-                        for (int j = 0; j < MAX_DIR_ENTRIES; j++)
-                            if (block_dir[j].i_number == from_inum) {
-                                find = true;
-                                block_dir[j].i_number = 0;
-                                memset(block_dir[j].filename, 0, sizeof(block_dir[j].filename));
-                                break;
-                            }
-                        if (find == true) {
-                            file_modify(&from_par_inode, i, block_dir);
-                            break;
-                        }
-                    }
-                    if (find == true)
-                        break;
-                }
-                if (find == true)
-                    break;
-                get_inode_from_inum(&from_par_inode, from_par_inode.next_indirect);
-            }
-            new_inode_block(&from_par_inode);
+            // On exchange, remove source directory entry as well.
+            remove_parent_dir_entry(from_par_inode, from_inum);
 
-            int flag;
+            // Update timestamps.
+            to_inode.ctime = cur_time;
+            new_inode_block(&to_inode);
+
             inode head_inode;
             get_inode_from_inum(&head_inode, to_par_inum);
-            flag = append_parent_dir_entry(head_inode, from_name, from_inum);
+            append_parent_dir_entry(head_inode, from_name, from_inum);
 
             get_inode_from_inum(&head_inode, from_par_inum);
-            flag = append_parent_dir_entry(head_inode, to_name, to_inum);
+            int flag = append_parent_dir_entry(head_inode, to_name, to_inum);
             return flag;
         }
-    }
-
+    } 
+    
+    // Conflict case 2: overwrite destination file.
+    // Base case: destination file does not exist.
     inode from_inode;
     int perm_flag = get_inode_from_inum(&from_inode, from_inum);
-    if (perm_flag != 0)
+    if (perm_flag != 0) {
+        if (ERROR_FILE)
+            logger(ERROR, "[ERROR] Permission denied: not allowed to read source file inode.\n");
         return perm_flag;
-    
+    }
     inode from_par_inode;
     perm_flag = get_inode_from_inum(&from_par_inode, from_par_inum);
-    if (perm_flag != 0)
+    if (perm_flag != 0) {
+        if (ERROR_FILE)
+            logger(ERROR, "[ERROR] Permission denied: not allowed to read source dir inode.\n");
         return perm_flag;
+    }
     
+    // Update timestamps.
     from_par_inode.mtime = cur_time;
-    update_atime(from_inode, cur_time);
+    from_inode.ctime = cur_time;
     new_inode_block(&from_par_inode);
     new_inode_block(&from_inode);
 
-    directory block_dir;
-    bool find = false;
-    while (true) {
-        for (int i = 0; i < NUM_INODE_DIRECT; i++) {
-            if (from_par_inode.direct[i] != -1) {
-                get_block(&block_dir, from_par_inode.direct[i]);
-                for (int j = 0; j < MAX_DIR_ENTRIES; j++)
-                    if (block_dir[j].i_number == from_inum) {
-                        find = true;
-                        block_dir[j].i_number = 0;
-                        break;
-                    }
-                if (find == true) {
-                    file_modify(&from_par_inode, i, block_dir);
-                    break;
-                }
-            }
-            if (find == true)
-                break;
-        }
-        if (find == true)
-            break;
-        get_inode_from_inum(&from_par_inode, from_par_inode.next_indirect);
-    }
-    new_inode_block(&from_par_inode);
+    // Remove source directory entry.
+    remove_parent_dir_entry(from_par_inode, from_inum);
 
     inode head_inode;
     perm_flag = get_inode_from_inum(&head_inode, to_par_inum);
-    if (perm_flag != 0)
+    if (perm_flag != 0) {
+        if (ERROR_FILE)
+            logger(ERROR, "[ERROR] Permission denied: not allowed to read dest file inode.\n");
         return perm_flag;
+    }
     int flag = append_parent_dir_entry(head_inode, to_name, from_inum);
     return flag;
 }
@@ -516,20 +478,26 @@ int o_rename(const char* from, const char* to, unsigned int flags) {
 int o_unlink(const char* path) {
     if (DEBUG_PRINT_COMMAND)
         logger(DEBUG, "UNLINK, %s\n", resolve_prefix(path));
+    
     char* parent_dir = relative_to_absolute(path, "../", 0);
     char* file_name = current_fname(path);
+    
     int par_inum, file_inum;
-    int locate_err = locate(parent_dir, par_inum);
-    locate_err = locate(path, file_inum);
+    locate(parent_dir, par_inum);
+    int locate_err = locate(path, file_inum);
     if (locate_err != 0) {
         if (ERROR_FILE)
-            logger(ERROR, "[ERROR] Cannot open the file(error #%d).\n", locate_err);
+            logger(ERROR, "[ERROR] Cannot open the file (error #%d).\n", locate_err);
         return locate_err;
     }
+
     inode head_inode;
     int perm_flag = get_inode_from_inum(&head_inode, par_inum);
-    if (perm_flag != 0)
+    if (perm_flag != 0) {
+        if (ERROR_FILE)
+            logger(ERROR, "[ERROR] Permission denied: not allowed to read.\n");
         return perm_flag;
+    }
     int flag = remove_object(head_inode, file_name, MODE_FILE);
     return flag;
 }
@@ -537,15 +505,19 @@ int o_unlink(const char* path) {
 int o_link(const char* src, const char* dest) {
     if (DEBUG_PRINT_COMMAND)
         logger(DEBUG, "LINK, %s, %s\n", resolve_prefix(src), resolve_prefix(dest));
+    
     timespec cur_time;
     clock_gettime(CLOCK_REALTIME, &cur_time);
+    
     char* src_parent_dir = relative_to_absolute(src, "../", 0);
     char* dest_parent_dir = relative_to_absolute(dest, "../", 0);
     char* src_name = current_fname(src);
     char* dest_name = current_fname(dest);
 
     if (strlen(src_name) >= MAX_FILENAME_LEN || strlen(dest_name) >= MAX_FILENAME_LEN) {
-        return - ENAMETOOLONG;
+        if (ERROR_FILE)
+            logger(ERROR, "[ERROR] Name too long: length %d or %d > %d.\n", strlen(src_name), strlen(dest_name), MAX_FILENAME_LEN);
+        return -ENAMETOOLONG;
     }
 
     int src_par_inum, dest_par_inum;
@@ -554,32 +526,50 @@ int o_link(const char* src, const char* dest) {
 
     int locate_err = locate(src, src_inum);
     if (locate_err != 0) {
+        if (ERROR_FILE)
+            logger(ERROR, "[ERROR] Cannot open source file (error #%d).\n", locate_err);
         return locate_err;
     }
     int perm_flag = get_inode_from_inum(&src_inode, src_inum);
-    if (perm_flag != 0)
+    if (perm_flag != 0) {
+        if (ERROR_FILE)
+            logger(ERROR, "[ERROR] Permission denied: not allowed to read source file.\n");
         return perm_flag;
+    }
     if (src_inode.mode != MODE_FILE) {
+        if (ERROR_FILE)
+            logger(ERROR, "[ERROR] %s is not a file.\n", src_name);
         return -EISDIR;
     }
 
     locate_err = locate(dest_parent_dir, dest_par_inum);
     if (locate_err != 0) {
+        if (ERROR_FILE)
+            logger(ERROR, "[ERROR] Cannot open the destination directory (error #%d).\n", locate_err);
         return locate_err;
     }
     locate_err = locate(dest, dest_inum);
     if (locate_err == 0) {
+        if (ERROR_FILE)
+            logger(ERROR, "[ERROR] Duplicated name: there exists a file / directory with the same name.\n");
         return -EEXIST;
     }
 
     inode dest_par_inode;
     perm_flag = get_inode_from_inum(&dest_par_inode, dest_par_inum);
-    if (perm_flag != 0)
+    if (perm_flag != 0) {
+        if (ERROR_FILE)
+            logger(ERROR, "[ERROR] Permission denied: not allowed to read source directory.\n");
         return perm_flag;
+    }
     int flag = append_parent_dir_entry(dest_par_inode, dest_name, src_inum);
-    perm_flag = get_inode_from_inum(&src_inode, src_inum);
-    if (perm_flag != 0)
+
+    /* perm_flag = get_inode_from_inum(&src_inode, src_inum);
+    if (perm_flag != 0) {
+        if (ERROR_FILE)
+            logger(ERROR, "[ERROR] Permission denied: not allowed to read source directory.\n");
         return perm_flag;
+    } */
     src_inode.num_links += 1;
     src_inode.ctime = cur_time;
     new_inode_block(&src_inode);
@@ -590,25 +580,37 @@ int o_truncate(const char* path, off_t size, struct fuse_file_info *fi) {
     if (DEBUG_PRINT_COMMAND)
         logger(DEBUG, "TRUNCATE, %s, %d, %p\n",
                resolve_prefix(path), size, fi);
+    
     timespec cur_time;
     clock_gettime(CLOCK_REALTIME, &cur_time);
+    
     if (fi == nullptr) {
         int first_flag = 0;
         first_flag = o_open(path, fi);
-        if (first_flag != 0) return first_flag;
+        if (first_flag != 0) {
+            if (ERROR_FILE)
+                logger(ERROR, "[ERROR] Cannot open the file. \n");
+            return first_flag;
+        }
     }
     int inode_num = fi -> fh;
+
     inode cur_inode;
     int perm_flag = get_inode_from_inum(&cur_inode, inode_num);
-    if (perm_flag != 0)
+    if (perm_flag != 0) {
+        if (ERROR_FILE)
+            logger(ERROR, "[ERROR] Permission denied: not allowed to read.\n");
         return perm_flag;
+    }
     if (cur_inode.mode == MODE_DIR) {
+        if (ERROR_FILE)
+            logger(ERROR, "[ERROR] %s is not a file.\n", path);
         return -EISDIR;
     }
+    
     int len = cur_inode.fsize_byte;
-    if (size > len) {
+    if (size > len)    // Do not need to truncate.
         return 0;
-    }
     cur_inode.fsize_byte = size;
     cur_inode.fsize_block = (size + BLOCK_SIZE - 1) / BLOCK_SIZE;
     update_atime(cur_inode, cur_time);

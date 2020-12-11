@@ -32,6 +32,7 @@ void get_block(void* data, int block_addr) {
 /** Retrieve block according to the i_number of inode block.
  * @param  data: pointer of return data.
  * @param  i_number: i_number of block.
+ * @return flag: 0 on success, standard negative error codes on error.
  * Note that the block may be in segment buffer, or in disk file. */
 int get_inode_from_inum(void* data, int i_number) {
     struct inode* block_inode = (struct inode*) data;
@@ -41,10 +42,9 @@ int get_inode_from_inum(void* data, int i_number) {
     struct fuse_context* user_info = fuse_get_context();
     if (   ((user_info->uid == block_inode->perm_uid) && !(block_inode->permission & 0400))
         || ((user_info->gid == block_inode->perm_gid) && !(block_inode->permission & 0040))
-        || !(block_inode->permission & 0004) ) {
-            // memset(data, 0, sizeof(data));
-            return -EACCES;
-        }
+        || !(block_inode->permission & 0004) )
+        { return -EACCES; }
+    
     return 0;
 }
 
@@ -148,7 +148,6 @@ void add_segbuf_imap(int _i_number, int _block_addr) {
 void file_initialize(struct inode* cur_inode, int _mode, int _permission) {
     count_inode++;
     struct fuse_context* user_info = fuse_get_context();  // Get information (uid, gid) of the user who calls LFS interface.
-
     cur_inode->i_number     = count_inode;
     cur_inode->mode         = _mode;
     cur_inode->num_links    = 1;

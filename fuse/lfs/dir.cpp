@@ -27,7 +27,7 @@ int o_opendir(const char* path, struct fuse_file_info* fi) {
     int ginode_err = get_inode_from_inum(&block_inode, fh);
     if (ginode_err != 0) {
         if (ERROR_PERM)
-            logger(ERROR, "[ERROR] Permission error when loading inode.\n");
+            logger(ERROR, "[ERROR] Permission denied: not allowed to read.\n");
         return ginode_err;
     }
 
@@ -69,7 +69,7 @@ int o_readdir(const char* path, void* buf, fuse_fill_dir_t filler, off_t offset,
     int ginode_err = get_inode_from_inum(&head_inode, fi->fh);
     if (ginode_err != 0) {
         if (ERROR_PERM)
-            logger(ERROR, "[ERROR] Permission error when loading inode.\n");
+            logger(ERROR, "[ERROR] Permission denied: not allowed to read.\n");
         return ginode_err;
     }
 
@@ -202,6 +202,40 @@ int append_parent_dir_entry(struct inode &head_inode, const char* new_name, int 
     return 0;
 }
 
+/** Remove an entry for an existing file / directory in its parent directory.
+ * @param  block_inode: first i_node of the parent directory.
+ * @param  del_inum: i_number of the file / directory.
+ * @return bool: whether the removal is successful.
+ * [CAUTION] block_inode may be modified as the search procedure advances. */
+bool remove_parent_dir_entry(struct inode &block_inode, int del_inum)  {
+    bool find = false;
+    directory block_dir;
+    while (true) {
+        for (int i = 0; i < NUM_INODE_DIRECT; i++) {
+            if (block_inode.direct[i] != -1) {
+                get_block(block_dir, block_inode.direct[i]);
+                for (int j = 0; j < MAX_DIR_ENTRIES; j++)
+                    if (block_dir[j].i_number == del_inum) {
+                        find = true;
+                        block_dir[j].i_number = 0;
+                        memset(block_dir[j].filename, 0, sizeof(block_dir[j].filename));
+                        break;
+                    }
+                if (find == true) {
+                    file_modify(&block_inode, i, block_dir);
+                    break;
+                }
+            }
+        }
+        if (find == true) break;
+
+        get_inode_from_inum(&block_inode, block_inode.next_indirect);
+    }
+    if (find) new_inode_block(&block_inode);
+
+    return find;
+}
+
 int o_mkdir(const char* path, mode_t mode) {
     if (DEBUG_PRINT_COMMAND)
         logger(DEBUG, "MKDIR, %s, %o\n", resolve_prefix(path), mode);
@@ -226,7 +260,7 @@ int o_mkdir(const char* path, mode_t mode) {
     int ginode_err = get_inode_from_inum(&head_inode, par_inum);
     if (ginode_err != 0) {
         if (ERROR_PERM)
-            logger(ERROR, "[ERROR] Permission error when loading inode.\n");
+            logger(ERROR, "[ERROR] Permission denied: not allowed to read.\n");
         return ginode_err;
     }
     if (head_inode.mode != MODE_DIR) {
@@ -242,7 +276,7 @@ int o_mkdir(const char* path, mode_t mode) {
         ginode_err = get_inode_from_inum(&tmp_inode, tmp_inum);
         if (ginode_err != 0) {
             if (ERROR_PERM)
-                logger(ERROR, "[ERROR] Permission error when loading inode.\n");
+                logger(ERROR, "[ERROR] Permission denied: not allowed to read.\n");
             return ginode_err;
         }
         if ((tmp_inode.mode == MODE_FILE) && ERROR_DIRECTORY)
@@ -286,7 +320,7 @@ int remove_object(struct inode &head_inode, const char* del_name, int del_mode) 
                     int ginode_err = get_inode_from_inum(&tmp_head_inode, block_dir[j].i_number);
                     if (ginode_err != 0) {
                         if (ERROR_PERM)
-                            logger(ERROR, "[ERROR] Permission error when loading inode.\n");
+                            logger(ERROR, "[ERROR] Permission denied: not allowed to read.\n");
                         return ginode_err;
                     }
 
@@ -440,7 +474,7 @@ int o_rmdir(const char* path) {
     int ginode_err = get_inode_from_inum(&head_inode, par_inum);
     if (ginode_err != 0) {
         if (ERROR_PERM)
-            logger(ERROR, "[ERROR] Permission error when loading inode.\n");
+            logger(ERROR, "[ERROR] Permission denied: not allowed to read.\n");
         return ginode_err;
     }
     if (head_inode.mode != MODE_DIR) {

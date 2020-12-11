@@ -26,17 +26,14 @@ int o_getattr(const char* path, struct stat* sbuf, struct fuse_file_info* fi) {
     int locate_error = locate(path, i_number);
     if (locate_error != 0) {
         if (ERROR_METADATA)
-            logger(ERROR, "[Error] Cannot access the path (error #%d).\n", locate_error);
+            logger(ERROR, "[ERROR] Cannot access the path (error #%d).\n", locate_error);
         return locate_error;
     }
 
+    // Since getattr() is very fundamental, we shall always allow attribute reading.
+    // Otherwise, commands like chmod, chown, etc. do not work correctly.
     struct inode f_inode;
-    int perm_flag = get_inode_from_inum((void*)&f_inode, i_number);
-    if (perm_flag != 0) {
-        if (ERROR_PERM)
-            logger(ERROR, "[ERROR] Permission error when loading inode.\n");
-        return perm_flag;
-    }
+    get_inode_from_inum((void*)&f_inode, i_number);
     if (DEBUG_METADATA_INODE) print(&f_inode);
 
     if (f_inode.i_number != i_number) {
@@ -113,7 +110,7 @@ int o_access(const char* path, int mode) {
     int perm_flag = get_inode_from_inum((void*)&f_inode, i_number);
     if (perm_flag != 0) {
         if (ERROR_PERM)
-            logger(ERROR, "[ERROR] Permission error when loading inode.\n");
+            logger(ERROR, "[ERROR] Permission denied: not allowed to read.\n");
         return perm_flag;
     }
     if (DEBUG_METADATA_INODE) print(&f_inode);
