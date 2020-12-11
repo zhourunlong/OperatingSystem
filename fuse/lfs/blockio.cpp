@@ -8,6 +8,7 @@
 #include <stdlib.h>
 #include <cstring>
 #include <time.h>
+#include <errno.h>
 #include <sys/stat.h>
 #include <fuse.h>
 
@@ -32,8 +33,19 @@ void get_block(void* data, int block_addr) {
  * @param  data: pointer of return data.
  * @param  i_number: i_number of block.
  * Note that the block may be in segment buffer, or in disk file. */
-void get_inode_from_inum(void* data, int i_number) {
-    get_block(data, inode_table[i_number]);
+int get_inode_from_inum(void* data, int i_number) {
+    struct inode* block_inode = (struct inode*) data;
+    get_block(block_inode, inode_table[i_number]);
+    
+    // Verify user permission before returning.
+    struct fuse_context* user_info = fuse_get_context();
+    if (   ((user_info->uid == block_inode->perm_uid) && !(block_inode->permission & 0400))
+        || ((user_info->gid == block_inode->perm_gid) && !(block_inode->permission & 0040))
+        || !(block_inode->permission & 0004) ) {
+            // memset(data, 0, sizeof(data));
+            return -EACCES;
+        }
+    return 0;
 }
 
 /** Increment cur_block, and flush segment buffer if it is full. */
@@ -72,8 +84,7 @@ int new_data_block(void* data, int i_number, int direct_index) {
 
 
 /** Create a new inode block into the segment buffer.
- * @param  data: pointer of data to be appended.
- * @param  i_number: i_number of the added inode.
+ * @param  data: pointer of the inode to be appended.
  * @return block_addr: global block address of the new block.
  * Note that when the segment buffer is full, we have to write it back into disk file. */
 int new_inode_block(struct inode* data) {
@@ -100,8 +111,8 @@ int new_inode_block(struct inode* data) {
 
 /** Append a segment summary entry for a given block.
  * @param  block_index: index of the new block.
- * @param  i_number: i_number of the file (that the data belongs to).
- * @param  direct_index: the index of direct[] in that inode, pointing to the new block. 
+ * @param  _i_number: i_number of the file (that the data belongs to).
+ * @param  _direct_index: the index of direct[] in that inode, pointing to the new block. 
  * [CAUTION] We use index -1 to represent an inode, which is NOT a direct[] pointer. */
 void add_segbuf_summary(int block_index, int _i_number, int _direct_index) {
     int entry_size = sizeof(struct summary_entry);
@@ -131,8 +142,8 @@ void add_segbuf_imap(int _i_number, int _block_addr) {
 
 /** Initialize a new file by creating its inode.
  * @param  cur_inode: struct for the new inode (should be manually allocated before function call).
- * @param  mode: type of the file (1 = file, 2 = dir; -1 = non-head).
- * @param  permission: using UGO x RWX format in base-8 (e.g., 0777). 
+ * @param  _mode: type of the file (1 = file, 2 = dir; -1 = non-head).
+ * @param  _permission: using UGO x RWX format in base-8 (e.g., 0777). 
  * [CAUTION] It is required to use malloc to create cur_inode (see file_add_data() below). */
 void file_initialize(struct inode* cur_inode, int _mode, int _permission) {
     count_inode++;

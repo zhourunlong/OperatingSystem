@@ -112,23 +112,23 @@ int o_access(const char* path, int mode) {
         logger(ERROR, "[FATAL ERROR] Corrupt file system on disk: inode inconsistent with inumber.\n");
         exit(-1);
     }
-
+    
     // Mode 4 (R_OK): test read permission.
-    if ((mode & R_OK) && !( (f_inode.permission & 0004)
-                      || ((user_info->gid == f_inode.perm_gid) && (f_inode.permission & 0040))
-                      || ((user_info->uid == f_inode.perm_uid) && (f_inode.permission & 0400)) ))
+    if ((mode & R_OK) && ( ((user_info->uid == f_inode.perm_uid) && !(f_inode.permission & 0400))
+                      ||   ((user_info->gid == f_inode.perm_gid) && !(f_inode.permission & 0040))
+                      ||   !(f_inode.permission & 0004) ))
             return -EACCES;
     
     // Mode 2 (W_OK): test write permission.
-    if ((mode & W_OK) && !( (f_inode.permission & 0002)
-                      || ((user_info->gid == f_inode.perm_gid) && (f_inode.permission & 0020))
-                      || ((user_info->uid == f_inode.perm_uid) && (f_inode.permission & 0200)) ))
+    if ((mode & W_OK) && ( ((user_info->uid == f_inode.perm_uid) && !(f_inode.permission & 0200))
+                      ||   ((user_info->gid == f_inode.perm_gid) && !(f_inode.permission & 0020))
+                      ||   !(f_inode.permission & 0002) ))
             return -EACCES;
     
     // Mode 1 (X_OK): test write permission.
-    if ((mode & X_OK) && !( (f_inode.permission & 0001)
-                      || ((user_info->gid == f_inode.perm_gid) && (f_inode.permission & 0010))
-                      || ((user_info->uid == f_inode.perm_uid) && (f_inode.permission & 0100)) ))
+    if ((mode & X_OK) && ( ((user_info->uid == f_inode.perm_uid) && !(f_inode.permission & 0100))
+                      ||   ((user_info->gid == f_inode.perm_gid) && !(f_inode.permission & 0010))
+                      ||   !(f_inode.permission & 0001) ))
             return -EACCES;
 
 

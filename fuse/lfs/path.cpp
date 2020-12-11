@@ -4,6 +4,7 @@
 #include "utility.h"
 #include "blockio.h"
 
+#include <fuse.h>
 #include <string.h>  /* strlen strcat strcpy */
 #include <unistd.h>  /* getcwd */
 #include <stdlib.h>  /* malloc free */
@@ -141,6 +142,9 @@ int locate(const char* _path, int &i_number) {
     struct timespec cur_time;
     clock_gettime(CLOCK_REALTIME, &cur_time);
 
+    // Get information (uid, gid) of the user who calls LFS interface.
+    struct fuse_context* user_info = fuse_get_context();
+
     // Traverse split path from LFS root directory.
     struct inode block_inode;
     directory block_dir;
@@ -161,6 +165,7 @@ int locate(const char* _path, int &i_number) {
             logger(DEBUG, "-- Searching inode #%d.\n", cur_inumber);
         }
 
+        // Target is not a directory.
         if (block_inode.mode != MODE_DIR) {
             if (DEBUG_LOCATE_REPORT) {
                 logger(DEBUG, "-x Failed to read the inode: %s is not a directory. Procedure aborted.\n", target.c_str());
@@ -169,6 +174,18 @@ int locate(const char* _path, int &i_number) {
                 logger(ERROR, "[ERROR] %s is not a directory.\n", target.c_str());
             }
             return -ENOTDIR;
+        }
+        // Do not have permission to access target.
+        if (   ((user_info->uid == block_inode.perm_uid) && !(block_inode.permission & 0400))
+            || ((user_info->gid == block_inode.perm_gid) && !(block_inode.permission & 0040))
+            || !(block_inode.permission & 0004) ) {
+            if (DEBUG_LOCATE_REPORT) {
+                logger(DEBUG, "-x Failed to read the inode: permission denied. Procedure aborted.\n", target.c_str());
+                logger(DEBUG, "============================ PRINT LOCATE() REPORT ====================\n\n");
+            } else if (ERROR_PATH) {
+                logger(ERROR, "[ERROR] Cannot access %s: permission denied.\n", target.c_str());
+            }
+            return -EACCES;
         }
 
         flag = false;
@@ -214,7 +231,7 @@ int locate(const char* _path, int &i_number) {
             if (flag) {
                 logger(DEBUG, "=> Successfully retrieved next-level inode entry: '%s' ====> #%d.\n\n", target.c_str(), cur_inumber);
             } else {
-                logger(DEBUG, "-x Failed to retrieve next-level inode entry. Procedure aborted.\n");
+                logger(DEBUG, "-x File / directory does not exist. Procedure aborted.\n");
                 logger(DEBUG, "============================ PRINT LOCATE() REPORT ====================\n\n");
             }
 
