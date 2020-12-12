@@ -393,6 +393,7 @@ int o_rename(const char* from, const char* to, unsigned int flags) {
         int perm_flag;
         inode from_inode;
         perm_flag = get_inode_from_inum(&from_inode, from_inum);
+        perm_flag = 0;
         if (perm_flag != 0) {
             if (ERROR_FILE)
                 logger(ERROR, "[ERROR] Permission denied: not allowed to read source file inode.\n");
@@ -400,13 +401,20 @@ int o_rename(const char* from, const char* to, unsigned int flags) {
         }
         inode from_par_inode;
         perm_flag = get_inode_from_inum(&from_par_inode, from_par_inum);
+        perm_flag = 0;
+        struct fuse_context* user_info = fuse_get_context();
+        if (ENABLE_PERMISSION && (((user_info->uid == from_par_inode.perm_uid) && !(from_par_inode.permission & 0600))
+            || ((user_info->gid == from_par_inode.perm_gid) && !(from_par_inode.permission & 0060))
+            || !(from_par_inode.permission & 0006)) )
+        { perm_flag = -EACCES; }
         if (perm_flag != 0) {
             if (ERROR_FILE)
-                logger(ERROR, "[ERROR] Permission denied: not allowed to read source dir inode.\n");
+                logger(ERROR, "[ERROR] Permission denied: not allowed to write source dir inode.\n");
             return perm_flag;
         }
         inode to_inode;
         perm_flag = get_inode_from_inum(&to_inode, to_inum);
+        perm_flag = 0;
         if (perm_flag != 0) {
             if (ERROR_FILE)
                 logger(ERROR, "[ERROR] Permission denied: not allowed to read dest file inode.\n");
@@ -414,9 +422,14 @@ int o_rename(const char* from, const char* to, unsigned int flags) {
         }
         inode to_par_inode;
         perm_flag = get_inode_from_inum(&to_par_inode, to_par_inum);
+        perm_flag = 0;
+        if (ENABLE_PERMISSION && (((user_info->uid == to_par_inode.perm_uid) && !(to_par_inode.permission & 0600))
+            || ((user_info->gid == to_par_inode.perm_gid) && !(to_par_inode.permission & 0060))
+            || !(to_par_inode.permission & 0006)) )
+        { perm_flag = -EACCES; }
         if (perm_flag != 0) {
             if (ERROR_FILE)
-                logger(ERROR, "[ERROR] Permission denied: not allowed to read dest dir inode.\n");
+                logger(ERROR, "[ERROR] Permission denied: not allowed to write dest dir inode.\n");
             return perm_flag;
         }
         
@@ -454,6 +467,7 @@ int o_rename(const char* from, const char* to, unsigned int flags) {
     // Base case: destination file does not exist.
     inode from_inode;
     int perm_flag = get_inode_from_inum(&from_inode, from_inum);
+    perm_flag = 0;
     if (perm_flag != 0) {
         if (ERROR_FILE)
             logger(ERROR, "[ERROR] Permission denied: not allowed to read source file inode.\n");
@@ -461,6 +475,7 @@ int o_rename(const char* from, const char* to, unsigned int flags) {
     }
     inode from_par_inode;
     perm_flag = get_inode_from_inum(&from_par_inode, from_par_inum);
+    perm_flag = 0;
     if (perm_flag != 0) {
         if (ERROR_FILE)
             logger(ERROR, "[ERROR] Permission denied: not allowed to read source dir inode.\n");
@@ -569,9 +584,15 @@ int o_link(const char* src, const char* dest) {
 
     inode dest_par_inode;
     perm_flag = get_inode_from_inum(&dest_par_inode, dest_par_inum);
+    perm_flag = 0;
+    struct fuse_context* user_info = fuse_get_context();
+    if (ENABLE_PERMISSION && (((user_info->uid == dest_par_inode.perm_uid) && !(dest_par_inode.permission & 0600))
+        || ((user_info->gid == dest_par_inode.perm_gid) && !(dest_par_inode.permission & 0060))
+        || !(dest_par_inode.permission & 0006)) )
+    { perm_flag = -EACCES; }
     if (perm_flag != 0) {
         if (ERROR_FILE)
-            logger(ERROR, "[ERROR] Permission denied: not allowed to read source directory.\n");
+            logger(ERROR, "[ERROR] Permission denied: not allowed to write dest directory.\n");
         return perm_flag;
     }
     int flag = append_parent_dir_entry(dest_par_inode, dest_name, src_inum);
@@ -603,9 +624,14 @@ int o_truncate(const char* path, off_t size, struct fuse_file_info *fi) {
 
     inode cur_inode;
     int perm_flag = get_inode_from_inum(&cur_inode, inode_num);
+    struct fuse_context* user_info = fuse_get_context();
+    if (ENABLE_PERMISSION && (((user_info->uid == cur_inode.perm_uid) && !(cur_inode.permission & 0200))
+        || ((user_info->gid == cur_inode.perm_gid) && !(cur_inode.permission & 0020))
+        || !(cur_inode.permission & 0002)) )
+    { perm_flag = -EACCES; }
     if (perm_flag != 0) {
         if (ERROR_FILE)
-            logger(ERROR, "[ERROR] Permission denied: not allowed to read.\n");
+            logger(ERROR, "[ERROR] Permission denied: not allowed to write.\n");
         return perm_flag;
     }
     if (cur_inode.mode == MODE_DIR) {
