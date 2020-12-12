@@ -204,6 +204,7 @@ const bool ERROR_PATH           = true;     // Report low-level errors in path.c
 const bool ERROR_PERM           = true;     // Report permission operation errors in perm.cpp.
 
 const bool ENABLE_PERMISSION    = false;    // Whether to enable permission control or not.
+const bool ENABLE_ACCESS_PERM   = false;    // Whether to enable permission control in access() or not.
 
 
 /** **************************************
