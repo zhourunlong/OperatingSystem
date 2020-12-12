@@ -152,11 +152,7 @@ void truncate_inode(inode &cur_inode, int block_ind) {
     }
 }
 
-int o_write(const char* path, const char* buf, size_t size, off_t offset, struct fuse_file_info* fi) {
-    if (DEBUG_PRINT_COMMAND)
-        logger(DEBUG, "WRITE, %s, %p, %d, %d, %p\n",
-               resolve_prefix(path), buf, size, offset, fi);
-
+int write_in_file(const char* path, const char* buf, size_t size, off_t offset, struct fuse_file_info* fi) {
     size_t len;
     if (fi == nullptr) {
         int first_flag = 0;
@@ -172,7 +168,7 @@ int o_write(const char* path, const char* buf, size_t size, off_t offset, struct
     inode cur_inode;
     int perm_flag = 0;
     get_inode_from_inum(&cur_inode, inode_num);
-    /*
+    
     struct fuse_context* user_info = fuse_get_context();
     if (ENABLE_PERMISSION && (((user_info->uid == cur_inode.perm_uid) && !(cur_inode.permission & 0200))
                           || ((user_info->gid == cur_inode.perm_gid) && !(cur_inode.permission & 0020))
@@ -183,7 +179,7 @@ int o_write(const char* path, const char* buf, size_t size, off_t offset, struct
             logger(ERROR, "[ERROR] Permission denied: not allowed to write.\n");
         return 0;
     }
-    */
+    
 
     timespec cur_time;
     clock_gettime(CLOCK_REALTIME, &cur_time);
@@ -195,15 +191,6 @@ int o_write(const char* path, const char* buf, size_t size, off_t offset, struct
         if (ERROR_FILE)
             logger(ERROR, "[ERROR] %s is not a file.\n", path);
         return 0;
-    }
-    if (offset > len) {
-        char padding_buf[offset - len + 1];
-        memset(padding_buf, 0, sizeof(padding_buf));
-        printf("invoke padding\n");
-        o_write(path, padding_buf, offset - len, len, fi);
-        printf("inovke real write\n");
-        int write_len = o_write(path, buf, size, offset, fi);
-        return write_len;
     }
 
     // Locate the first inode.
@@ -336,6 +323,54 @@ int o_write(const char* path, const char* buf, size_t size, off_t offset, struct
     new_inode_block(&head_inode);
 
     return cur_buf_pos;
+}
+
+int o_write(const char* path, const char* buf, size_t size, off_t offset, struct fuse_file_info* fi) {
+    if (DEBUG_PRINT_COMMAND)
+        logger(DEBUG, "WRITE, %s, %p, %d, %d, %p\n",
+               resolve_prefix(path), buf, size, offset, fi);
+
+    size_t len;
+    if (fi == nullptr) {
+        int first_flag = 0;
+        first_flag = o_open(path, fi);
+        if (first_flag != 0) {
+            if (ERROR_FILE)
+                logger(ERROR, "[ERROR] Cannot open the file. \n");
+            return 0;
+        }
+    }
+    int inode_num = fi -> fh;
+
+    inode cur_inode;
+    int perm_flag = 0;
+    get_inode_from_inum(&cur_inode, inode_num);
+    
+    struct fuse_context* user_info = fuse_get_context();
+    if (ENABLE_PERMISSION && (((user_info->uid == cur_inode.perm_uid) && !(cur_inode.permission & 0200))
+                          || ((user_info->gid == cur_inode.perm_gid) && !(cur_inode.permission & 0020))
+                          || !(cur_inode.permission & 0002)) )
+        { perm_flag = -EACCES; }
+    if (perm_flag != 0) {
+        if (ERROR_FILE)
+            logger(ERROR, "[ERROR] Permission denied: not allowed to write.\n");
+        return 0;
+    }
+    
+    timespec cur_time;
+    clock_gettime(CLOCK_REALTIME, &cur_time);
+
+    len = cur_inode.fsize_byte;
+    if (offset > len) {
+        char padding_buf[offset - len + 1];
+        memset(padding_buf, 0, sizeof(padding_buf));
+        printf("invoke padding\n");
+        write_in_file(path, padding_buf, offset - len, len, fi);
+        printf("inovke real write\n");
+    }
+
+    int write_len = write_in_file(path, buf, size, offset, fi);
+    return write_len;
 }
 
 int o_create(const char *path, mode_t mode, struct fuse_file_info *fi) {
