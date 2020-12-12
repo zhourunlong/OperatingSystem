@@ -679,12 +679,26 @@ int o_truncate(const char* path, off_t size, struct fuse_file_info *fi) {
     }
     
     int len = cur_inode.fsize_byte;
-    if (size > len)    // Do not need to truncate.
+    if (size >= len)    // Do not need to truncate.
         return 0;
+    
     cur_inode.fsize_byte = size;
     cur_inode.fsize_block = (size + BLOCK_SIZE - 1) / BLOCK_SIZE;
     update_atime(cur_inode, cur_time);
     cur_inode.mtime = cur_time;
+    new_inode_block(&cur_inode);
+    off_t t_offset = size;
+    while (t_offset > 0) {
+        if (t_offset < cur_inode.num_direct * BLOCK_SIZE) {
+            break;
+        }
+        t_offset -= cur_inode.num_direct * BLOCK_SIZE;
+        get_inode_from_inum(&cur_inode, cur_inode.next_indirect);
+    }
+    int cur_block_offset = t_offset, cur_block_ind;
+    cur_block_ind = t_offset / BLOCK_SIZE;
+    cur_block_offset -= cur_block_ind * BLOCK_SIZE;
+    truncate_inode(cur_inode, cur_block_ind);
     new_inode_block(&cur_inode);
     return 0;
 }
