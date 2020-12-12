@@ -18,9 +18,11 @@ int o_open(const char* path, struct fuse_file_info* fi) {
     if (DEBUG_PRINT_COMMAND)
         logger(DEBUG, "OPEN, %s, %p\n", resolve_prefix(path), fi);
     
+    /*
     timespec cur_time;
     clock_gettime(CLOCK_REALTIME, &cur_time);
-    
+    */
+
     int inode_num;
     int flag = locate(path, inode_num);
     if (flag != 0) {
@@ -30,6 +32,7 @@ int o_open(const char* path, struct fuse_file_info* fi) {
     }
     fi -> fh = (uint64_t) inode_num;
     
+    /*
     inode cur_inode;
     int perm_flag = get_inode_from_inum(&cur_inode, inode_num);
     if (perm_flag != 0) {
@@ -40,6 +43,7 @@ int o_open(const char* path, struct fuse_file_info* fi) {
         
     update_atime(cur_inode, cur_time);
     new_inode_block(&cur_inode);
+    */
 
     return 0;
 }
@@ -166,8 +170,9 @@ int o_write(const char* path, const char* buf, size_t size, off_t offset, struct
     int inode_num = fi -> fh;
 
     inode cur_inode;
-    int perm_flag;
+    int perm_flag = 0;
     get_inode_from_inum(&cur_inode, inode_num);
+    /*
     struct fuse_context* user_info = fuse_get_context();
     if (ENABLE_PERMISSION && (((user_info->uid == cur_inode.perm_uid) && !(cur_inode.permission & 0200))
                           || ((user_info->gid == cur_inode.perm_gid) && !(cur_inode.permission & 0020))
@@ -178,6 +183,7 @@ int o_write(const char* path, const char* buf, size_t size, off_t offset, struct
             logger(ERROR, "[ERROR] Permission denied: not allowed to write.\n");
         return 0;
     }
+    */
 
     timespec cur_time;
     clock_gettime(CLOCK_REALTIME, &cur_time);
@@ -191,12 +197,12 @@ int o_write(const char* path, const char* buf, size_t size, off_t offset, struct
         return 0;
     }
     if (offset > len) {
-        char* padding_buf;
-        padding_buf = new char [offset - len + 1];
+        char padding_buf[offset - len + 1];
         memset(padding_buf, 0, sizeof(padding_buf));
+        printf("invoke padding\n");
         o_write(path, padding_buf, offset - len, len, fi);
+        printf("inovke real write\n");
         int write_len = o_write(path, buf, size, offset, fi);
-        delete [] padding_buf;
         return write_len;
     }
 
@@ -227,6 +233,7 @@ int o_write(const char* path, const char* buf, size_t size, off_t offset, struct
     if (is_end == false) {
         int cur_file_blksize = ((int) (len+BLOCK_SIZE-1) / BLOCK_SIZE) * BLOCK_SIZE;
         while (cur_buf_pos < size && cur_buf_pos + offset < cur_file_blksize) {
+            //printf("cur_buf_pos_f = %d size = %d %d\n", cur_buf_pos, _size, cur_buf_pos < _size);
             get_block(loader, cur_inode.direct[cur_block_ind]);
 
             // Copy a block: copy_size = min(BLOCK_SIZE-cur_block_offset, size-cur_buf_pos).
