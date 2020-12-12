@@ -58,7 +58,8 @@ void* o_init(struct fuse_conn_info* conn, struct fuse_config* cfg) {
 
         // Initialize global state variables.
         memset(segment_bitmap, 0, sizeof(segment_bitmap));
-        count_inode = 0; 
+        count_inode = 0;
+        head_segment = 0;
         cur_segment = 0;
         cur_block = 0;
         next_checkpoint = 0;
@@ -119,6 +120,7 @@ void* o_init(struct fuse_conn_info* conn, struct fuse_config* cfg) {
 
         memcpy(segment_bitmap, ckpt[latest_index].segment_bitmap, sizeof(segment_bitmap));
         count_inode = ckpt[latest_index].count_inode;
+        head_segment = ckpt[latest_index].head_segment;
         cur_segment = ckpt[latest_index].cur_segment;
         cur_block = ckpt[latest_index].cur_block;
         next_imap_index = ckpt[latest_index].next_imap_index;
@@ -132,21 +134,67 @@ void* o_init(struct fuse_conn_info* conn, struct fuse_config* cfg) {
         memset(inode_table, -1, sizeof(inode_table));
         inode_map imap;
         imap_entry im_entry;
-        for (int seg=0; seg<TOT_SEGMENTS; seg++) {
-            if (segment_bitmap[seg] == 1) {
+
+        // Traverse all segments.
+        struct segment_metadata seg_metadata;
+        read_segment_metadata(&seg_metadata, cur_segment);
+        int prev_seg_time = 0, prev_seg_block = 0, prev_seg_imap_idx = 0;
+
+        int seg = head_segment;
+        bool is_checkpointed = true;
+        do {
+            struct segment_metadata seg_metadata;
+            read_segment_metadata(&seg_metadata, seg);
+            int cur_seg_time = seg_metadata.update_time;
+            int cur_seg_block = seg_metadata.cur_block;
+
+            if (seg == cur_segment)
+                is_checkpointed = false;
+            if ((is_checkpointed) && (segment_bitmap[seg] == 0)) {
+                logger(ERROR, "[FATAL ERROR] Corrupt file system: inconsecutive occupied segments.\n");
+                exit(-1);
+            }
+
+            if (cur_seg_time < prev_seg_time) {
+                if (prev_seg_block == DATA_BLOCKS_IN_SEGMENT-1) {  // Previous segment is full.
+                    cur_segment = seg;
+                    cur_block = 0;
+                    next_imap_index = 0;
+                } else {  // Previous segment is still appendable.
+                    cur_segment = (seg-1+TOT_SEGMENTS) % TOT_SEGMENTS;
+                    cur_block = prev_seg_block;
+                    next_imap_index = prev_seg_imap_idx;
+                }
+                break;
+            } else {
+                prev_seg_time = cur_seg_time;
+                prev_seg_block = cur_seg_block;
+
                 read_segment_imap(imap, seg);
-                print(imap);
                 for (int i=0; i<DATA_BLOCKS_IN_SEGMENT; i++) {
                     im_entry = imap[i];
                     if ((im_entry.i_number > 0) && (im_entry.inode_block >= 0)) {
-                        // Here we simply regard that segments on the right are newer than those on the left.
-                        // However, this is not necessarily true when we perform garbage collection.
+                        // Entries on the "left" are always earlier than those on the "right" (in circular sense).
                         inode_table[im_entry.i_number] = im_entry.inode_block;
+                        if (im_entry.i_number > count_inode)
+                            count_inode = im_entry.i_number;
+                    } else {
+                        prev_seg_imap_idx = i;
+                        break;
                     }
                 }
-            }
-        }
+            } 
+            seg = (seg+1) % TOT_SEGMENTS;
+        } while (seg != head_segment);
+
         print_inode_table();
+        generate_checkpoint();
+
+        // Determine whether the file system is already full.
+        if ((cur_segment+1) % TOT_SEGMENTS == head_segment) {
+            logger(ERROR, "[FATAL ERROR] File system is full. Please use a larger disk.\n");
+            exit(-1);
+        }
 
         // Initialize segment buffer in memory.
         read_segment(segment_buffer, cur_segment);
@@ -162,7 +210,10 @@ void o_destroy(void* private_data) {
         logger(DEBUG, "DESTROY, %p\n", private_data);
     
     // Save LFS to disk.
+    add_segbuf_metadata();
     write_segment(segment_buffer, cur_segment);
     segment_bitmap[cur_segment] = 1;
-    generate_checkpoint(); 
+    // generate_checkpoint(); 
+    
+    print_inode_table();
 }

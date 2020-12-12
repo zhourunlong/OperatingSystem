@@ -155,7 +155,8 @@ void add_segbuf_metadata() {
     struct timespec cur_time;
     clock_gettime(CLOCK_REALTIME, &cur_time);
     segment_metadata seg_metadata = {
-        update_time : cur_time.tv_sec
+        update_time : cur_time.tv_sec,
+        cur_block   : cur_block
     };
 
     memcpy(segment_buffer + SEGMETA_OFFSET, &seg_metadata, SEGMETA_SIZE);
