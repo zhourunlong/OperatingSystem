@@ -1,6 +1,7 @@
 #pragma once
 
-#include <sys/stat.h>  /* struct timespec */
+#include <sys/stat.h>   /* struct timespec */
+#include <fuse.h>       /* sturct fuse_context */
 
 // [CAUTION] to represent "empty" values, we follow the following convention:
 // (1) "empty" inode = 0;
@@ -97,6 +98,13 @@ struct summary_entry {
 };
 typedef struct summary_entry segment_summary[DATA_BLOCKS_IN_SEGMENT];
 
+/** Segment Metadata Block: storing metadata of the segment.
+ * Up to 64 int variables (256 bytes) can be stored in metadata.
+ */
+struct segment_metadata {
+    int tbd;
+};
+
 
 /** **************************************
  * File-system logical structures.
@@ -191,12 +199,17 @@ const bool ENABLE_ACCESS_PERM   = false;    // Whether to enable permission cont
 
 
 /** **************************************
- * Functionality flags.
+ * Timestamp and permission utilities.
  * ***************************************/
 const bool FUNC_ATIME_DIR       = false;    // Enable atime update for directories.
 const bool FUNC_ATIME_REL       = false;    // Enable relative atime (as with -relatime).
 const int FUNC_ATIME_REL_THRES  = 3600;     // Threshold interval for updating (relative) atime.
 void update_atime(struct inode &cur_inode, struct timespec &new_time);
+
+const int PERM_READ             = 4;        // Read permission (R_OK).
+const int PERM_WRITE            = 2;        // Write permission (W_OK).
+const int PERM_EXEC             = 1;        // Execute permission (X_OK)
+bool verify_permission(int mode, struct inode &f_inode, struct fuse_context &u_info, bool enable);
 
 
 /** **************************************
