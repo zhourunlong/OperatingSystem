@@ -14,136 +14,6 @@
 #include <errno.h>
 
 
-int o_open(const char* path, struct fuse_file_info* fi) {
-    if (DEBUG_PRINT_COMMAND)
-        logger(DEBUG, "OPEN, %s, %p\n", resolve_prefix(path), fi);
-    
-    /*
-    timespec cur_time;
-    clock_gettime(CLOCK_REALTIME, &cur_time);
-    */
-
-    int inode_num;
-    int flag = locate(path, inode_num);
-    if (flag != 0) {
-        if (ERROR_FILE)
-            logger(ERROR, "[ERROR] Cannot open the file (error #%d).\n", flag);
-        return flag;
-    }
-    fi -> fh = (uint64_t) inode_num;
-    
-    /*
-    inode cur_inode;
-    int perm_flag = get_inode_from_inum(&cur_inode, inode_num);
-    if (perm_flag != 0) {
-        if (ERROR_FILE)
-            logger(ERROR, "[ERROR] Permission denied: not allowed to read.\n");
-        return perm_flag;
-    }
-        
-    update_atime(cur_inode, cur_time);
-    new_inode_block(&cur_inode);
-    */
-
-    return 0;
-}
-
-int o_release(const char* path, struct fuse_file_info* fi) {
-    if (DEBUG_PRINT_COMMAND)
-        logger(DEBUG, "RELEASE, %s, %p\n", resolve_prefix(path), fi);
-
-    fi = nullptr;
-
-    return 0;
-}
-
-int o_read(const char* path, char *buf, size_t size, off_t offset, struct fuse_file_info* fi) {
-    if (DEBUG_PRINT_COMMAND)
-        logger(DEBUG, "READ, %s, %p, %d, %d, %p\n",
-               resolve_prefix(path), buf, size, offset, fi);
-    
-    size_t len;
-    if (fi == nullptr) {
-        int first_flag = 0;
-        first_flag = o_open(path, fi);
-        if (first_flag != 0) {
-            if (ERROR_FILE)
-                logger(ERROR, "[ERROR] Cannot open the file. \n");
-            return 0;
-        }
-    }
-    int inode_num = fi -> fh;
-
-    inode cur_inode;
-    int perm_flag = get_inode_from_inum(&cur_inode, inode_num);
-    if (perm_flag != 0) {
-        if (ERROR_FILE)
-            logger(ERROR, "[ERROR] Permission denied: not allowed to read.\n");
-        return 0;
-    }
-    
-    len = cur_inode.fsize_byte;
-    int t_offset = offset;
-    if (cur_inode.mode != MODE_FILE) {
-        if (ERROR_FILE)
-            logger(ERROR, "[ERROR] %s is not a file.\n", path);
-        return 0;
-    }
-    if (offset < len) {
-        if (offset + size > len)
-            size = len - offset;
-    } else {
-        if (ERROR_FILE)
-            logger(ERROR, "[ERROR] Cannot read from an offset larger than file length.\n", path);
-        return 0;
-    }
-
-    // Locate the start inode.
-    while (t_offset > 0) {
-        if (t_offset < cur_inode.num_direct * BLOCK_SIZE) {
-            break;
-        }
-        t_offset -= cur_inode.num_direct * BLOCK_SIZE;
-        get_inode_from_inum(&cur_inode, cur_inode.next_indirect);
-    }
-    
-    // Locate the start block.
-    int cur_block_offset = t_offset, cur_block_ind;
-    cur_block_ind = t_offset / BLOCK_SIZE;
-    cur_block_offset -= cur_block_ind * BLOCK_SIZE;
-
-    // Copy data to buffer.
-    int cur_buf_pos = 0;
-    int copy_size = BLOCK_SIZE;
-    char loader[BLOCK_SIZE + 10];
-    while (cur_buf_pos < size) {
-        get_block(loader, cur_inode.direct[cur_block_ind]);
-
-        // Copy a block: copy_size = min(BLOCK_SIZE-cur_block_offset, size-cur_buf_pos).
-        copy_size = BLOCK_SIZE - cur_block_offset;
-        if (size - cur_buf_pos < copy_size)
-            copy_size = size - cur_buf_pos;
-        memcpy(buf + cur_buf_pos, loader + cur_block_offset, copy_size);
-        
-        // Update buffer pointer and block pointer.
-        cur_buf_pos += copy_size;
-        cur_block_offset += copy_size;
-        if (cur_buf_pos == size)
-            break;
-        if (cur_block_offset == BLOCK_SIZE) {
-            if (cur_block_ind + 1 == cur_inode.num_direct) {
-                get_inode_from_inum(&cur_inode, cur_inode.next_indirect);
-                cur_block_ind = cur_block_offset = 0;
-            } else {
-                cur_block_ind += 1;
-                cur_block_offset = 0;
-            }
-        }
-    }
-
-    return size;
-}
-
 void truncate_inode(inode &cur_inode, int block_ind) {
     cur_inode.num_direct = block_ind + 1;
     cur_inode.next_indirect = 0;
@@ -296,7 +166,6 @@ int write_in_file(const char* path, const char* buf, size_t size, off_t offset, 
         new_inode_block(&cur_inode);
     }
     
-    
     // Start creating non-existing blocks.
     len = ((len + BLOCK_SIZE - 1) / BLOCK_SIZE) * BLOCK_SIZE;
     while (cur_buf_pos < size) {
@@ -324,6 +193,140 @@ int write_in_file(const char* path, const char* buf, size_t size, off_t offset, 
 
     return cur_buf_pos;
 }
+
+
+int o_open(const char* path, struct fuse_file_info* fi) {
+    if (DEBUG_PRINT_COMMAND)
+        logger(DEBUG, "OPEN, %s, %p\n", resolve_prefix(path), fi);
+
+    timespec cur_time;
+    clock_gettime(CLOCK_REALTIME, &cur_time);
+    int inode_num;
+    int flag = locate(path, inode_num);
+    if (flag != 0) {
+        if (ERROR_FILE)
+            logger(ERROR, "[ERROR] Cannot open the file (error #%d).\n", flag);
+        return flag;
+    }
+    fi -> fh = (uint64_t) inode_num;
+
+    int flags = fi -> flags;
+    if ((flags & O_TRUNC) && (flags & O_ACCMODE)) {
+        inode cur_inode;
+        get_inode_from_inum(&cur_inode, inode_num);
+        truncate_inode(cur_inode, 0);
+        cur_inode.fsize_block = cur_inode.fsize_byte = 0;
+        cur_inode.ctime = cur_time;
+        new_inode_block(&cur_inode);
+    }
+
+    return 0;
+}
+
+int o_release(const char* path, struct fuse_file_info* fi) {
+    if (DEBUG_PRINT_COMMAND)
+        logger(DEBUG, "RELEASE, %s, %p\n", resolve_prefix(path), fi);
+
+    fi = nullptr;
+
+    return 0;
+}
+
+int o_read(const char* path, char *buf, size_t size, off_t offset, struct fuse_file_info* fi) {
+    if (DEBUG_PRINT_COMMAND)
+        logger(DEBUG, "READ, %s, %p, %d, %d, %p\n",
+               resolve_prefix(path), buf, size, offset, fi);
+    
+    timespec cur_time;
+    clock_gettime(CLOCK_REALTIME, &cur_time);
+
+    size_t len;
+    if (fi == nullptr) {
+        int first_flag = 0;
+        first_flag = o_open(path, fi);
+        if (first_flag != 0) {
+            if (ERROR_FILE)
+                logger(ERROR, "[ERROR] Cannot open the file. \n");
+            return 0;
+        }
+    }
+    int inode_num = fi -> fh;
+    
+    inode cur_inode;
+    int perm_flag = get_inode_from_inum(&cur_inode, inode_num);
+    if (perm_flag != 0) {
+        if (ERROR_FILE)
+            logger(ERROR, "[ERROR] Permission denied: not allowed to read.\n");
+        return 0;
+    }
+
+    update_atime(cur_inode, cur_time);
+    new_inode_block(&cur_inode);
+    
+    
+    len = cur_inode.fsize_byte;
+    int t_offset = offset;
+    if (cur_inode.mode != MODE_FILE) {
+        if (ERROR_FILE)
+            logger(ERROR, "[ERROR] %s is not a file.\n", path);
+        return 0;
+    }
+    if (offset < len) {
+        if (offset + size > len)
+            size = len - offset;
+    } else {
+        if (ERROR_FILE)
+            logger(ERROR, "[ERROR] Cannot read from an offset larger than file length.\n", path);
+        return 0;
+    }
+
+    // Locate the start inode.
+    while (t_offset > 0) {
+        if (t_offset < cur_inode.num_direct * BLOCK_SIZE) {
+            break;
+        }
+        t_offset -= cur_inode.num_direct * BLOCK_SIZE;
+        get_inode_from_inum(&cur_inode, cur_inode.next_indirect);
+    }
+    
+    // Locate the start block.
+    int cur_block_offset = t_offset, cur_block_ind;
+    cur_block_ind = t_offset / BLOCK_SIZE;
+    cur_block_offset -= cur_block_ind * BLOCK_SIZE;
+
+    // Copy data to buffer.
+    int cur_buf_pos = 0;
+    int copy_size = BLOCK_SIZE;
+    char loader[BLOCK_SIZE + 10];
+    while (cur_buf_pos < size) {
+        get_block(loader, cur_inode.direct[cur_block_ind]);
+
+        // Copy a block: copy_size = min(BLOCK_SIZE-cur_block_offset, size-cur_buf_pos).
+        copy_size = BLOCK_SIZE - cur_block_offset;
+        if (size - cur_buf_pos < copy_size)
+            copy_size = size - cur_buf_pos;
+        memcpy(buf + cur_buf_pos, loader + cur_block_offset, copy_size);
+        
+        // Update buffer pointer and block pointer.
+        cur_buf_pos += copy_size;
+        cur_block_offset += copy_size;
+        if (cur_buf_pos == size)
+            break;
+        if (cur_block_offset == BLOCK_SIZE) {
+            if (cur_block_ind + 1 == cur_inode.num_direct) {
+                get_inode_from_inum(&cur_inode, cur_inode.next_indirect);
+                cur_block_ind = cur_block_offset = 0;
+            } else {
+                cur_block_ind += 1;
+                cur_block_offset = 0;
+            }
+        }
+    }
+
+    return size;
+}
+
+
 
 int o_write(const char* path, const char* buf, size_t size, off_t offset, struct fuse_file_info* fi) {
     if (DEBUG_PRINT_COMMAND)

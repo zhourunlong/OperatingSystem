@@ -30,7 +30,7 @@ int o_chmod(const char* path, mode_t mode, struct fuse_file_info* fi) {
     return 0;
 }
 
-int o_chown(const char* path, uid_t uid, gid_t gid, struct fuse_file_info* fi) {
+int o_chown(const char* path, uid_t uid, gid_t gid, struct fuse_file_info* fi) { //libreoffice may invoke the func and set uid -1
     // Never try to access "fi": it causes segmentation fault.
     if (DEBUG_PRINT_COMMAND)
         logger(DEBUG, "CHOWN, %s, %d, %d, %p\n",
