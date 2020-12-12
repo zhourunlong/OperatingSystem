@@ -161,9 +161,9 @@ int o_write(const char* path, const char* buf, size_t size, off_t offset, struct
     int perm_flag;
     get_inode_from_inum(&cur_inode, inode_num);
     struct fuse_context* user_info = fuse_get_context();
-    if (   ((user_info->uid == cur_inode.perm_uid) && !(cur_inode.permission & 0200))
-        || ((user_info->gid == cur_inode.perm_gid) && !(cur_inode.permission & 0020))
-        || !(cur_inode.permission & 0002) )
+    if (ENABLE_PERMISSION && (((user_info->uid == cur_inode.perm_uid) && !(cur_inode.permission & 0200))
+                          || ((user_info->gid == cur_inode.perm_gid) && !(cur_inode.permission & 0020))
+                          || !(cur_inode.permission & 0002)) )
         { perm_flag = -EACCES; }
     if (perm_flag != 0) {
         if (ERROR_FILE)
