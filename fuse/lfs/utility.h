@@ -209,7 +209,7 @@ void update_atime(struct inode &cur_inode, struct timespec &new_time);
 const int PERM_READ             = 4;        // Read permission (R_OK).
 const int PERM_WRITE            = 2;        // Write permission (W_OK).
 const int PERM_EXEC             = 1;        // Execute permission (X_OK)
-bool verify_permission(int mode, struct inode &f_inode, struct fuse_context &u_info, bool enable);
+bool verify_permission(int mode, struct inode* f_inode, struct fuse_context* u_info, bool enable);
 
 
 /** **************************************

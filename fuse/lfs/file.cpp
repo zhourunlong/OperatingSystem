@@ -47,7 +47,7 @@ int write_in_file(const char* path, const char* buf, size_t size,
     // Write permission control (read permission managed by get_inode_from_inum).
     int perm_flag = 0;
     struct fuse_context* user_info = fuse_get_context();
-    if (verify_permission(PERM_WRITE, cur_inode, user_info, ENABLE_PERMISSION))
+    if (verify_permission(PERM_WRITE, &cur_inode, user_info, ENABLE_PERMISSION))
         perm_flag = -EACCES;
     if (perm_flag != 0) {
         if (ERROR_FILE)
@@ -339,7 +339,7 @@ int o_write(const char* path, const char* buf, size_t size, off_t offset, struct
     
     // Write permission control (read permission managed by get_inode_from_inum).
     struct fuse_context* user_info = fuse_get_context();
-    if (verify_permission(PERM_WRITE, cur_inode, user_info, ENABLE_PERMISSION))
+    if (verify_permission(PERM_WRITE, &cur_inode, user_info, ENABLE_PERMISSION))
         perm_flag = -EACCES;
     if (perm_flag != 0) {
         if (ERROR_FILE)
@@ -469,7 +469,7 @@ int o_rename(const char* from, const char* to, unsigned int flags) {
         perm_flag = get_inode_from_inum(&from_par_inode, from_par_inum);
         perm_flag = 0;
         struct fuse_context* user_info = fuse_get_context();
-        if (verify_permission(PERM_WRITE | PERM_READ, from_par_inode, user_info, ENABLE_PERMISSION))
+        if (verify_permission(PERM_WRITE | PERM_READ, &from_par_inode, user_info, ENABLE_PERMISSION))
             perm_flag = -EACCES;
         if (perm_flag != 0) {
             if (ERROR_FILE)
@@ -487,7 +487,7 @@ int o_rename(const char* from, const char* to, unsigned int flags) {
         inode to_par_inode;
         perm_flag = get_inode_from_inum(&to_par_inode, to_par_inum);
         perm_flag = 0;
-        if (verify_permission(PERM_WRITE | PERM_READ, to_par_inode, user_info, ENABLE_PERMISSION))
+        if (verify_permission(PERM_WRITE | PERM_READ, &to_par_inode, user_info, ENABLE_PERMISSION))
             perm_flag = -EACCES;
         if (perm_flag != 0) {
             if (ERROR_FILE)
@@ -648,7 +648,7 @@ int o_link(const char* src, const char* dest) {
     perm_flag = get_inode_from_inum(&dest_par_inode, dest_par_inum);
     perm_flag = 0;
     struct fuse_context* user_info = fuse_get_context();
-    if (verify_permission(PERM_WRITE | PERM_READ, dest_par_inode, user_info, ENABLE_PERMISSION))
+    if (verify_permission(PERM_WRITE | PERM_READ, &dest_par_inode, user_info, ENABLE_PERMISSION))
         perm_flag = -EACCES;
     if (perm_flag != 0) {
         if (ERROR_FILE)
@@ -686,7 +686,7 @@ int o_truncate(const char* path, off_t size, struct fuse_file_info *fi) {
     inode cur_inode;
     int perm_flag = get_inode_from_inum(&cur_inode, inode_num);
     struct fuse_context* user_info = fuse_get_context();
-    if (verify_permission(PERM_WRITE, cur_inode, user_info, ENABLE_PERMISSION))
+    if (verify_permission(PERM_WRITE, &cur_inode, user_info, ENABLE_PERMISSION))
         perm_flag = -EACCES;
     if (perm_flag != 0) {
         if (ERROR_FILE)

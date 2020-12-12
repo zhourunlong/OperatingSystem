@@ -122,15 +122,15 @@ int o_access(const char* path, int mode) {
     }
     
     // Mode 4 (R_OK): test read permission.
-    if (verify_permission(PERM_READ, f_inode, user_info, (mode & R_OK) && ENABLE_ACCESS_PERM))
+    if (verify_permission(PERM_READ, &f_inode, user_info, (mode & R_OK) && ENABLE_ACCESS_PERM))
         return -EACCES;
     
     // Mode 2 (W_OK): test write permission.
-    if (verify_permission(PERM_WRITE, f_inode, user_info, (mode & W_OK) && ENABLE_ACCESS_PERM))
+    if (verify_permission(PERM_WRITE, &f_inode, user_info, (mode & W_OK) && ENABLE_ACCESS_PERM))
         return -EACCES;
     
     // Mode 1 (X_OK): test write permission.
-    if (verify_permission(PERM_EXEC, f_inode, user_info, (mode & X_OK) && ENABLE_ACCESS_PERM))
+    if (verify_permission(PERM_EXEC, &f_inode, user_info, (mode & X_OK) && ENABLE_ACCESS_PERM))
         return -EACCES;
 
 
