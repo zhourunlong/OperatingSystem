@@ -13,7 +13,6 @@
 #include <sys/stat.h>
 #include <fuse.h>
 
-
 /** Retrieve block according to the block address.
  * @param  data: pointer of return data.
  * @param  block_addr: block address.
@@ -159,7 +158,7 @@ void add_segbuf_imap(int _i_number, int _block_addr) {
 void file_initialize(struct inode* cur_inode, int _mode, int _permission) {
     acquire_writer_lock();
         count_inode++;
-        cur_inode->i_number     = count_inode;
+        cur_inode->i_number = count_inode;
     release_writer_lock();
 
     cur_inode->mode         = _mode;

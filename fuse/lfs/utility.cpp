@@ -180,12 +180,12 @@ void acquire_reader_lock() {
 };
 
 void release_reader_lock() {
-    global_lock.lock();
+    global_lock.unlock();
     return;
 };
 
 void acquire_writer_lock() {
-    global_lock.unlock();
+    global_lock.lock();
     return;
 };
 
