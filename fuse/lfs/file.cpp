@@ -209,7 +209,7 @@ int o_open(const char* path, struct fuse_file_info* fi) {
     if ((flags & O_TRUNC) && (flags & O_ACCMODE)) {
         inode cur_inode;
         get_inode_from_inum(&cur_inode, inode_num);
-        truncate_inode(cur_inode, 0);
+        truncate_inode(cur_inode, -1);
         cur_inode.fsize_block = cur_inode.fsize_byte = 0;
         cur_inode.ctime = cur_time;
         new_inode_block(&cur_inode);
