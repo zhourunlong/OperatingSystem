@@ -6,6 +6,7 @@
 #include <stdio.h>
 #include <fcntl.h>
 #include <unistd.h>
+#include <mutex>
 
 char* lfs_path;
 char segment_buffer[SEGMENT_SIZE];
@@ -14,7 +15,7 @@ int inode_table[MAX_NUM_INODE];
 int count_inode, cur_segment, cur_block;
 int next_checkpoint, next_imap_index;
 struct timespec last_ckpt_update_time;
-
+std::mutex global_lock;
 
 /** **************************************
  * Block operations
@@ -174,17 +175,21 @@ void update_atime(struct inode &cur_inode, struct timespec &new_time) {
  * Public variable locks.
  * ***************************************/
 void acquire_reader_lock() {
+    global_lock.lock();
     return;
 };
 
 void release_reader_lock() {
+    global_lock.lock();
     return;
 };
 
 void acquire_writer_lock() {
+    global_lock.unlock();
     return;
 };
 
 void release_writer_lock() {
+    global_lock.unlock();
     return;
 };
