@@ -140,6 +140,14 @@ int o_read(const char* path, char *buf, size_t size, off_t offset, struct fuse_f
     return size;
 }
 
+void truncate_inode(inode &cur_inode, int block_ind) {
+    cur_inode.num_direct = block_ind + 1;
+    cur_inode.next_indirect = 0;
+    for (int i = cur_inode.num_direct; i < NUM_INODE_DIRECT; i++) {
+        cur_inode.direct[i] = -1;
+    }
+}
+
 int o_write(const char* path, const char* buf, size_t size, off_t offset, struct fuse_file_info* fi) {
     if (DEBUG_PRINT_COMMAND)
         logger(DEBUG, "WRITE, %s, %p, %d, %d, %p\n",
@@ -249,21 +257,51 @@ int o_write(const char* path, const char* buf, size_t size, off_t offset, struct
                 }
             }
         }
-        new_inode_block(&cur_inode);
-
+        
         // Finish because reaching the end of writing: update timestamps.
         if (cur_buf_pos == size) {
-            get_inode_from_inum(&head_inode, inode_num);
             if (cur_buf_pos + offset > len) {
-                head_inode.fsize_byte = cur_buf_pos + offset;
-                head_inode.fsize_block = (cur_buf_pos + offset + BLOCK_SIZE - 1) / BLOCK_SIZE;
+                if (cur_inode.i_number == inode_num) {
+                    cur_inode.fsize_byte = cur_buf_pos + offset;
+                    cur_inode.fsize_block = (cur_buf_pos + offset + BLOCK_SIZE - 1) / BLOCK_SIZE;
+                    update_atime(cur_inode, cur_time);
+                    cur_inode.mtime = cur_time;
+                    new_inode_block(&cur_inode);
+                }
+                else {
+                    new_inode_block(&cur_inode);
+                    get_inode_from_inum(&head_inode, inode_num);
+                    head_inode.fsize_byte = cur_buf_pos + offset;
+                    head_inode.fsize_block = (cur_buf_pos + offset + BLOCK_SIZE - 1) / BLOCK_SIZE;
+                    update_atime(head_inode, cur_time);
+                    head_inode.mtime = cur_time;
+                    new_inode_block(&head_inode);
+                }
             }
-            update_atime(head_inode, cur_time);
-            head_inode.mtime = cur_time;
-            new_inode_block(&head_inode);
+            else {
+                truncate_inode(cur_inode, cur_block_ind);
+                if (cur_inode.i_number == inode_num) {
+                    cur_inode.fsize_byte = size + offset;
+                    cur_inode.fsize_block = (size + offset + BLOCK_SIZE - 1) / BLOCK_SIZE;
+                    update_atime(cur_inode, cur_time);
+                    cur_inode.mtime = cur_time;
+                    new_inode_block(&cur_inode);
+                }
+                else {
+                    new_inode_block(&cur_inode);
+                    get_inode_from_inum(&head_inode, inode_num);
+                    head_inode.fsize_byte = offset + size;
+                    head_inode.fsize_block = (offset + size + BLOCK_SIZE - 1) / BLOCK_SIZE;
+                    update_atime(head_inode, cur_time);
+                    head_inode.mtime = cur_time;
+                    new_inode_block(&head_inode);
+                }
+            }
             return size;
         }
+        new_inode_block(&cur_inode);
     }
+    
     
     // Start creating non-existing blocks.
     len = ((len + BLOCK_SIZE - 1) / BLOCK_SIZE) * BLOCK_SIZE;
