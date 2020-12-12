@@ -33,6 +33,7 @@ void remove_inode(int i_number);
 /* Some lower-level functions that are NOT recommended to be called by users. */
 void add_segbuf_summary(int cur_block, int _i_number, int _direct_index);
 void add_segbuf_imap(int _i_number, int _block_addr);
+void add_segbuf_metadata();
 
 /* Periodical checkpoint generator. */
 void generate_checkpoint();

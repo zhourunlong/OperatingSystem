@@ -52,9 +52,11 @@ int get_inode_from_inum(void* data, int i_number) {
 /** Increment cur_block, and flush segment buffer if it is full. */
 inline void move_to_segment() {
     if (cur_block == DATA_BLOCKS_IN_SEGMENT-1 || next_imap_index == DATA_BLOCKS_IN_SEGMENT) {    // Segment buffer is full, and should be flushed to disk file.
+        add_segbuf_metadata();
         write_segment(segment_buffer, cur_segment);
-        segment_bitmap[cur_segment] = 1;
         memset(segment_buffer, 0, sizeof(segment_buffer));
+
+        segment_bitmap[cur_segment] = 1;
         cur_segment++;
         cur_block = 0;
         next_imap_index = 0;
@@ -145,6 +147,18 @@ void add_segbuf_imap(int _i_number, int _block_addr) {
     };
     memcpy(segment_buffer + buffer_offset, &blk_imentry, entry_size);
     next_imap_index++;
+}
+
+
+/** Append metadata for a segment. */
+void add_segbuf_metadata() {
+    struct timespec cur_time;
+    clock_gettime(CLOCK_REALTIME, &cur_time);
+    segment_metadata seg_metadata = {
+        update_time : cur_time.tv_sec
+    };
+
+    memcpy(segment_buffer + SEGMETA_OFFSET, &seg_metadata, SEGMETA_SIZE);
 }
 
 

@@ -73,8 +73,10 @@ typedef struct dir_entry directory[MAX_DIR_ENTRIES];
  * ***************************************/
 const int IMAP_SIZE = 8 * (BLOCK_SIZE-16);
 const int SUMMARY_SIZE = 8 * (BLOCK_SIZE-16);
-const int IMAP_OFFSET = SEGMENT_SIZE - IMAP_SIZE - SUMMARY_SIZE;
-const int SUMMARY_OFFSET = SEGMENT_SIZE - IMAP_SIZE;
+const int SEGMETA_SIZE = 4;
+const int IMAP_OFFSET = SEGMENT_SIZE - 16*BLOCK_SIZE;
+const int SUMMARY_OFFSET = SEGMENT_SIZE - 16*BLOCK_SIZE + IMAP_SIZE;
+const int SEGMETA_OFFSET = SEGMENT_SIZE - 16*BLOCK_SIZE + IMAP_SIZE + SUMMARY_SIZE;
 const int DATA_BLOCKS_IN_SEGMENT = BLOCKS_IN_SEGMENT - 16;
 
 /** Inode-Map Data Block: tracing all inodes within the segment.
@@ -102,7 +104,7 @@ typedef struct summary_entry segment_summary[DATA_BLOCKS_IN_SEGMENT];
  * Up to 256 bytes (64 int variables can be stored as metadata, although we only use a little.
  */
 struct segment_metadata {
-    int tbd;
+    int update_time;       // Last update time of the segment.
 };
 
 
