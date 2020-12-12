@@ -122,22 +122,16 @@ int o_access(const char* path, int mode) {
     }
     
     // Mode 4 (R_OK): test read permission.
-    if (mode & R_OK && ENABLE_ACCESS_PERM && ( ((user_info->uid == f_inode.perm_uid) && !(f_inode.permission & 0400))
-                    || ((user_info->gid == f_inode.perm_gid) && !(f_inode.permission & 0040))
-                    || !(f_inode.permission & 0004) ))
-            return -EACCES;
+    if verify_permission(PERM_READ, f_inode, user_info, (mode & R_OK) && ENABLE_ACCESS_PERM)
+        return -EACCES;
     
     // Mode 2 (W_OK): test write permission.
-    if (mode & W_OK && ENABLE_ACCESS_PERM && ( ((user_info->uid == f_inode.perm_uid) && !(f_inode.permission & 0200))
-                    || ((user_info->gid == f_inode.perm_gid) && !(f_inode.permission & 0020))
-                    || !(f_inode.permission & 0002) ))
-            return -EACCES;
+    if verify_permission(PERM_WRITE, f_inode, user_info, (mode & W_OK) && ENABLE_ACCESS_PERM)
+        return -EACCES;
     
     // Mode 1 (X_OK): test write permission.
-    if (mode & X_OK && ENABLE_ACCESS_PERM && ( ((user_info->uid == f_inode.perm_uid) && !(f_inode.permission & 0100))
-                    || ((user_info->gid == f_inode.perm_gid) && !(f_inode.permission & 0010))
-                    || !(f_inode.permission & 0001) ))
-            return -EACCES;
+    if verify_permission(PERM_EXEC, f_inode, user_info, (mode & X_OK) && ENABLE_ACCESS_PERM)
+        return -EACCES;
 
 
     /* If it survives till here, the requested permission is granted. */

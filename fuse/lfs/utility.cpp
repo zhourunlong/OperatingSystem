@@ -172,6 +172,12 @@ void update_atime(struct inode &cur_inode, struct timespec &new_time) {
     }
 }
 
+bool verify_permission(int mode, struct inode &f_inode, struct fuse_context &u_info, bool enable) {
+    return ( enable && ( ((u_info->uid == f_inode.perm_uid) && !(f_inode.permission & (mode<<6)))
+                    ||   ((u_info->gid == f_inode.perm_gid) && !(f_inode.permission & (mode<<3)))
+                    ||   !(f_inode.permission & mode) ))
+}
+
 
 /** **************************************
  * Public variable locks.
