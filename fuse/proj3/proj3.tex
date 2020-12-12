@@ -1,0 +1,288 @@
+%!TEX builder = latexmk
+%!TEX program = xelatex
+\documentclass{article}
+\usepackage{enumitem}
+\setenumerate[1]{leftmargin=2em, itemsep=0pt, partopsep=0pt, parsep=\parskip, topsep=0pt}
+\setenumerate[2]{leftmargin=2em, itemsep=0pt, partopsep=0pt, parsep=\parskip, topsep=0pt}
+\setitemize[1]{leftmargin=2em, itemsep=0pt, partopsep=0pt, parsep=\parskip, topsep=0pt}
+\setitemize[2]{leftmargin=2em, itemsep=0pt, partopsep=0pt, parsep=\parskip, topsep=0pt}
+\usepackage{amsmath,amsfonts,amsthm,amssymb}
+\usepackage{setspace}
+\usepackage{fancyhdr}
+\usepackage{lastpage}
+\usepackage{extramarks}
+\usepackage{chngpage}
+\usepackage{soul,color}
+\usepackage{graphicx,float,wrapfig}
+\usepackage{CJK}
+\usepackage{algorithm}  
+\usepackage{algpseudocode} 
+\usepackage{longtable}
+\usepackage{listings}
+\usepackage{color}
+\usepackage{extarrows}
+\usepackage{subfigure}
+\usepackage{indentfirst}
+\newcommand{\Class}{Operating System}
+\newcommand{\ClassInstructor}{Wei Xu}
+
+% Homework Specific Information. Change it to your own
+\newcommand{\Title}{Project 3}
+\newcommand{\DueDate}{Dec 13, 2020}
+\newcommand{\StudentName}{}
+\newcommand{\StudentClass}{}
+\newcommand{\StudentNumber}{}
+
+% In case you need to adjust margins:
+\topmargin=-0.45in      %
+\evensidemargin=0in     %
+\oddsidemargin=0in      %
+\textwidth=6.5in        %
+\textheight=9.0in       %
+\headsep=0.25in         %
+
+% Setup the header and footer
+\pagestyle{fancy}                                                       %
+\lhead{\StudentName}                                                 %
+\chead{\Title}  %
+\rhead{\firstxmark}                                                     %
+\lfoot{\lastxmark}                                                      %
+\cfoot{}                                                                %
+\rfoot{Page\ \thepage\ of\ \protect\pageref{LastPage}}                          %
+\renewcommand\headrulewidth{0.4pt}                                      %
+\renewcommand\footrulewidth{0.4pt}                                      %
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+% Some tools
+\newcommand{\enterProblemHeader}[1]{\nobreak\extramarks{#1}{#1 continued on next page\ldots}\nobreak%
+                                    \nobreak\extramarks{#1 (continued)}{#1 continued on next page\ldots}\nobreak}%
+\newcommand{\exitProblemHeader}[1]{\nobreak\extramarks{#1 (continued)}{#1 continued on next page\ldots}\nobreak%
+                                   \nobreak\extramarks{#1}{}\nobreak}%
+
+\newcommand{\homeworkProblemName}{}%
+\newcounter{homeworkProblemCounter}%
+\newenvironment{homeworkProblem}[1][Problem \arabic{homeworkProblemCounter}]%
+  {\stepcounter{homeworkProblemCounter}%
+   \renewcommand{\homeworkProblemName}{#1}%
+   \section*{\homeworkProblemName}%
+   \enterProblemHeader{\homeworkProblemName}}%
+  {\exitProblemHeader{\homeworkProblemName}}%
+
+\newcommand{\homeworkSectionName}{}%
+\newlength{\homeworkSectionLabelLength}{}%
+\newenvironment{homeworkSection}[1]%
+  {% We put this space here to make sure we're not connected to the above.
+
+   \renewcommand{\homeworkSectionName}{#1}%
+   \settowidth{\homeworkSectionLabelLength}{\homeworkSectionName}%
+   \addtolength{\homeworkSectionLabelLength}{0.25in}%
+   \changetext{}{-\homeworkSectionLabelLength}{}{}{}%
+   \subsection*{\homeworkSectionName}%
+   \enterProblemHeader{\homeworkProblemName\ [\homeworkSectionName]}}%
+  {\enterProblemHeader{\homeworkProblemName}%
+
+   % We put the blank space above in order to make sure this margin
+   % change doesn't happen too soon.
+   \changetext{}{+\homeworkSectionLabelLength}{}{}{}}%
+
+\newcommand{\Answer}{\textbf{Answer:} }
+\newcommand{\Acknowledgement}[1]{\ \\{\bf Acknowledgement:} #1}
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+% Make title
+\title{\textmd{\bf \Class: \Title}\\{\large Instructed by \textit{\ClassInstructor}}\\\normalsize\vspace{0.1in}\small{Due\ on\ \DueDate}}
+\date{}
+\author{\textbf{\StudentName}\ \ \StudentClass\ \ \StudentNumber}
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+% Listing Settings
+\definecolor{mygreen}{rgb}{0,0.6,0}
+\definecolor{mygray}{rgb}{0.5,0.5,0.5}
+\definecolor{mymauve}{rgb}{0.58,0,0.82}
+
+\lstset{
+  aboveskip=1em,                   % above skip space
+  backgroundcolor=\color[rgb]{0.9,0.9,0.9},
+                                   % choose the background color; you must add \usepackage{color} or \usepackage{xcolor}; should come as last argument
+  basicstyle=\ttfamily,            % the size of the fonts that are used for the code
+  breakatwhitespace=false,         % sets if automatic breaks should only happen at whitespace
+  breaklines=true,                 % sets automatic line breaking
+  captionpos=b,                    % sets the caption-position to bottom
+  commentstyle=\color{mygreen},    % comment style
+  deletekeywords={...},            % if you want to delete keywords from the given language
+  escapeinside={\%*}{*)},          % if you want to add LaTeX within your code
+  extendedchars=true,              % lets you use non-ASCII characters; for 8-bits encodings only, does not work with UTF-8
+  frame=single,                    % adds a frame around the code
+  keepspaces=true,                 % keeps spaces in text, useful for keeping indentation of code (possibly needs columns=flexible)
+  keywordstyle=\color{blue},       % keyword style
+  morekeywords={algexpr, frac, sqrt, pwr, b1, b2, b3, ln, sin, term},  
+                                   % if you want to add more keywords to the set
+  numbers=left,                    % where to put the line-numbers; possible values are (none, left, right)
+  numbersep=5pt,                   % how far the line-numbers are from the code
+  numberstyle=\color{mygray},      % the style that is used for the line-numbers
+  rulecolor=\color{black},         % if not set, the frame-color may be changed on line-breaks within not-black text (e.g. comments (green here))
+  showspaces=false,                % show spaces everywhere adding particular underscores; it overrides 'showstringspaces'
+  showstringspaces=false,          % underline spaces within strings only
+  showtabs=false,                  % show tabs within strings adding particular underscores
+  stepnumber=5,                    % the step between two line-numbers. If it's 1, each line will be numbered
+  stringstyle=\color{mymauve},     % string literal style
+  tabsize=2,                       % sets default tabsize to 2 spaces
+  title=\lstname,                  % show the filename of files included with \lstinputlisting; also try caption instead of title
+  xleftmargin=2em,                 % left margin
+  xrightmargin=2em,                % right margin
+}
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+
+\renewcommand{\algorithmicrequire}{\textbf{Input:}}  % Use Input in the format of Algorithm  
+\renewcommand{\algorithmicensure}{\textbf{Output:}} % Use Output in the format of Algorithm  
+
+
+\newcommand*{\dif}{\mathop{}\!\mathrm{d}}
+\newcommand*{\img}{\mathrm{i}}
+\newcommand*{\dps}{\displaystyle}
+\newcommand*{\lf}{\left\lfloor}
+\newcommand*{\rf}{\right\rfloor}
+\newcommand*{\lc}{\left\lceil}
+\newcommand*{\rc}{\right\rceil}
+\newcommand*{\ovt}[2]{\dps{\mathop{#1}^{#2}}}
+
+\newtheorem{lma}{Lemma}
+
+\newcommand{\lm}[1]{\textbf{Lemma \ref{#1}}}
+\newcommand{\lgd}[2]{\left(\frac{#1}{#2}\right)}
+\newcommand{\ds}[2]{\dps \frac{\partial #1}{\partial #2}}
+\newcommand{\bds}[2]{\dps \frac{\partial}{\partial #2}\left(#1\right)}
+\newcommand{\Eds}[2]{\dps \frac{\partial^2 #1}{\partial #2^2}}
+\newcommand{\eds}[3]{\dps \frac{\partial^2 #1}{\partial #2\partial #3}}
+\newcommand{\E}[1]{\mathbb{E}\left[#1\right]}
+\newcommand{\Var}[1]{\mathrm{Var}\left[#1\right]}
+\newcommand{\Cov}[1]{\mathrm{Cov}\left[#1\right]}
+
+\newcommand{\Fig}[1]{\textbf{Figure \ref{#1}}}
+
+\begin{document}
+\begin{spacing}{1.1}
+\maketitle \thispagestyle{empty}
+%\cite{}
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+% Begin edit from here
+
+\begin{homeworkProblem}[Tests for File Management Syscalls]
+
+  The listed C programs test different features of the file management syscalls.
+  
+  
+  \noindent\fbox{\textbf{\ttfamily testFileBasic.c}}
+  
+  This program tests the basic functionalities of \texttt{creat}, \texttt{open}, \texttt{read}, \texttt{write}, \texttt{close} and \texttt{unlink}:
+  \begin{itemize}
+    \item open \texttt{testFileBasic0.file}, read the content (``Reading.''), and then close the file;
+    \item create \texttt{testFileBasic1.file}, write the content (``Writing.''), and close the file; then reopen it for reading to verify whether we have successfully written;
+    \item simultaneously handle two files \texttt{testFileBasic1.file} and \texttt{testFileBasic2.file} (creating, writing some new content (``Rewrite.'') and closing);
+    \item check the content of \texttt{testFileBasic1.file} to verify that \texttt{creat} successfully overwrites an exiting file;
+    \item delete \texttt{testFileBasic2.file}.
+  \end{itemize}
+  
+  \noindent\fbox{\textbf{\ttfamily testFileMultiple.c}}
+  
+  This program tests whether the syscalls correctly manage multiple files:
+  \begin{itemize}
+    \item try to create 16 files (\texttt{testFileMultiple**.file}); since two file descriptors have been occupied by \texttt{stdin} and \texttt{stdout}, the last two attempts should fail and return $-1$, while other attempts should return the correct descriptors (in default settings, $2$ through $15$ are allocated);
+    \item write some initial content (``Testing.'') to all 14 files and close them;
+    \item recreate the first 7 files with some new content (``Rewrite.'');
+    \item open all 14 files, examine their contents and close them.
+  \end{itemize}
+  
+  \noindent\fbox{\textbf{\ttfamily testFileBig.c}}
+  
+  This program tests whether we can correctly read and write big files (files longer than one page):
+  \begin{itemize}
+    \item first write 2048 characters into a newly created file \texttt{testFileBig.file}, and close it;
+    \item then reopen it and read its contents for verification (we cannot print due to restrictions of \texttt{stdout}).
+  \end{itemize}
+  
+  \noindent\fbox{\textbf{\ttfamily testFileError.c}}
+  
+  This program tests some common erroneous file operations (for which the kernel should not crash):
+  \begin{itemize}
+    \item open and unlink non-existing files (should return $-1$);
+    \item read and write unallocated file descriptors (should return $-1$);
+    \item test for the case where read/write length is larger than the buffer size (in the last case, even writing the entire virtual memory into a file); however, this should not trigger any exception with C, since memory leak is not regarded as an error (as long as the memory addresses are valid);
+    \item test for the case where read/write length is $0$;
+    \item try to close \texttt{stdin} and \texttt{stdout} (note that after closing \texttt{stdout}, we cannot output any characters to the console, and any further \texttt{write} syscall will lead to errors).
+  \end{itemize}
+  
+  \noindent\fbox{\textbf{\ttfamily testFileUnlink.c}}
+  
+  This program tests for the case where we try to unlink an open file (postponed deletion until closing is expected) and read file contents before closing it (this is valid, since unlink does nothing before closing).
+  
+  However, it seems that the file system does not support delayed unlink, so the \texttt{unlink} syscall directly fails and returns $-1$ (unsuccessful deletion), while the program runs straight to the end. As discussed online, this should be regarded as a bug of NachOS internals (beyond our implementations).
+  
+  \noindent\fbox{\textbf{\ttfamily testFileConflict.c} and \textbf{\ttfamily testFileConflictChild.c}}
+  
+  This program tests for the case where multiple processes try to open (or even overwrite) the same file. In a typical OS, multiple opening is allowed, but overwriting should be illegal. However, NachOS does not guarantee to handle this correctly, which should also be regarded as a bug of NachOS internals.
+
+\end{homeworkProblem}
+
+
+
+\begin{homeworkProblem}[Tests for Process Management Syscalls]
+
+  \noindent\fbox{\textbf{\ttfamily child\_*.c}}
+  
+  \texttt{child\_1} invokes and joins \texttt{child\_2} first.
+Then \texttt{child\_1} does its own output. Finally, it invokes but does not join
+\texttt{child\_3}, which contains an infinite loop. 
+
+If directly call \texttt{child\_1}, the bash will never halt. If call \texttt{child\_1}
+in \texttt{sh}, the process \texttt{child\_3} will run in background.
+  
+  \noindent\fbox{\textbf{\ttfamily text\_halt.c}}
+  
+  This program plays the role as an evil user who invokes \texttt{halt()}. In
+this test, the OS prints error message to console and the bash does not really
+halt.
+
+  \noindent\fbox{\textbf{\ttfamily textExecNesting.c}}
+  
+  This program tests for nested \texttt{exec} calls, which receives a parameter $n$. When $n > 0$, it runs another instance of itself with parameter $(n-1)$; when $n = 0$, it executes \texttt{testFileMultiple.c}. Due to the limited memory size by default, we shall never run 5 processes simultaneously, so only the case $n=1$ succeeds, while any larger $n$ will results in early returning (and no-free-memory error messages). 
+
+\end{homeworkProblem}
+
+
+
+\begin{homeworkProblem}[Test for Memory Management]
+
+  \noindent\fbox{\textbf{\ttfamily testMemoryStack.c} and \textbf{\ttfamily testMemoryStatic.c}}
+  
+  This program tests for the layout of different sections within memory. Note that the 10000-byte buffer is allocated in the stack in \texttt{testMemoryStack.c}, and it is allocated in the static section in \texttt{testMemoryStatic.c}. Since the stack always covers 8 pages, the stack version will overflow, and overwrite part of the file name (\texttt{char*} in stack) so that the file opening operation fails; while the static version runs smoothly. \textit{(This is an interesting overflow ``bug'' we met in testing; we only include it here for fun.)}
+
+\end{homeworkProblem}
+
+
+\begin{homeworkProblem}[Test for Lottery Scheduler]
+
+Basically, we reuse the tests for schedulers in project 1. 
+
+	\noindent \fbox{\textbf{\ttfamily Lock.schedulerTest() in Lock.java}}
+
+	We construct 9 threads which are waiting for a lock that is held by a thread with relatively low priority. Meanwhile, a thread with higher priority consumes CPU time as long as the lock is not free and it revokes the $yield$ function periodically. Without priority donation, thread 0 will be stuck forever. 
+
+	\noindent \fbox{\textbf{\ttfamily Condition2.schedulerTest()}}
+
+	Test (\texttt{Condition2.schedulerTest}) relies on the Consumer-Producer model to test whether the queue is correctly organized when the number of consumers get larger. 
+
+\end{homeworkProblem}
+
+% End edit to here
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\end{spacing}
+\end{document}
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%

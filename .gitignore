@@ -10,3 +10,6 @@ fuse/lfs/fuse
 fuse/lfs/lfs.data
 .vscode/*.json
 fuse/lfs/test/*
+*.aux
+*.log
+*.synctex.gz
