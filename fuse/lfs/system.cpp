@@ -164,5 +164,5 @@ void o_destroy(void* private_data) {
     // Save LFS to disk.
     write_segment(segment_buffer, cur_segment);
     segment_bitmap[cur_segment] = 1;
-    /* generate_checkpoint(); */
+    generate_checkpoint(); 
 }
