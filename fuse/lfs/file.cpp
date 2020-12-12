@@ -158,7 +158,8 @@ int o_write(const char* path, const char* buf, size_t size, off_t offset, struct
     int inode_num = fi -> fh;
 
     inode cur_inode;
-    int perm_flag = get_inode_from_inum(&cur_inode, inode_num);
+    int perm_flag;
+    get_inode_from_inum(&cur_inode, inode_num);
     struct fuse_context* user_info = fuse_get_context();
     if (   ((user_info->uid == cur_inode.perm_uid) && !(cur_inode.permission & 0200))
         || ((user_info->gid == cur_inode.perm_gid) && !(cur_inode.permission & 0020))
