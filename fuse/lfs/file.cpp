@@ -235,11 +235,11 @@ int o_write(const char* path, const char* buf, size_t size, off_t offset, struct
             if (cur_buf_pos == size)
                 break;
             if (cur_block_offset == BLOCK_SIZE && cur_buf_pos + offset != cur_file_blksize) {
-                if (cur_inode.num_direct != NUM_INODE_DIRECT) {
-                    logger(ERROR, "[FATAL ERROR] Corrupt file system: inode leak.\n");
-                    exit(-1);
-                }
                 if (cur_block_ind + 1 == cur_inode.num_direct) {  // Reach the end of an inode.
+                    if (cur_inode.num_direct != NUM_INODE_DIRECT) {
+                        logger(ERROR, "[FATAL ERROR] Corrupt file system: inode leak.\n");
+                        exit(-1);
+                    }
                     new_inode_block(&cur_inode);
                     get_inode_from_inum(&cur_inode, cur_inode.next_indirect);
                     cur_block_ind = cur_block_offset = 0;
