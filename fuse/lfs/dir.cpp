@@ -287,6 +287,12 @@ int o_mkdir(const char* path, mode_t mode) {
         return -EEXIST;
     }
 
+    struct fuse_context* user_info = fuse_get_context();
+    if (verify_permission(PERM_WRITE, &head_inode, user_info, ENABLE_PERMISSION)) {
+        logger(ERROR, "[ERROR] Permission denied: not allowed to write.\n");
+        return -EACCES;
+    }
+
     inode dir_inode;
     file_initialize(&dir_inode, MODE_DIR, mode);
     new_inode_block(&dir_inode);
@@ -481,6 +487,12 @@ int o_rmdir(const char* path) {
         if (ERROR_DIRECTORY)
             logger(ERROR, "[ERROR] %s is not a directory.\n", parent_dir);
         return -ENOTDIR;
+    }
+
+    struct fuse_context* user_info = fuse_get_context();
+    if (verify_permission(PERM_WRITE, &head_inode, user_info, ENABLE_PERMISSION)) {
+        logger(ERROR, "[ERROR] Permission denied: not allowed to write.\n");
+        return -EACCES;
     }
 
     int flag = remove_object(head_inode, dirname, MODE_DIR);
