@@ -1,0 +1,14 @@
+#include <bits/stdc++.h>
+using namespace std;
+int main() {
+    for (int i = 0; i < 10000; ++i) {
+        char s[999];
+        sprintf(s, "mkdir ../zrl/%d\n", i);
+        system(s);
+    }
+    for (int i = 0; i < 10000; ++i) {
+        char s[999];
+        sprintf(s, "touch ../zrl/%d/%d\n", i, i);
+        system(s);
+    }
+}
