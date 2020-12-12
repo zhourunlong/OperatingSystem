@@ -159,9 +159,14 @@ int o_write(const char* path, const char* buf, size_t size, off_t offset, struct
 
     inode cur_inode;
     int perm_flag = get_inode_from_inum(&cur_inode, inode_num);
+    struct fuse_context* user_info = fuse_get_context();
+    if (   ((user_info->uid == cur_inode.perm_uid) && !(cur_inode.permission & 0200))
+        || ((user_info->gid == cur_inode.perm_gid) && !(cur_inode.permission & 0020))
+        || !(cur_inode.permission & 0002) )
+        { perm_flag = -EACCES; }
     if (perm_flag != 0) {
         if (ERROR_FILE)
-            logger(ERROR, "[ERROR] Permission denied: not allowed to read.\n");
+            logger(ERROR, "[ERROR] Permission denied: not allowed to write.\n");
         return 0;
     }
 
@@ -180,8 +185,8 @@ int o_write(const char* path, const char* buf, size_t size, off_t offset, struct
         char* padding_buf;
         padding_buf = new char [offset - len + 1];
         memset(padding_buf, 0, sizeof(padding_buf));
-        int write_len = o_write(path, padding_buf, offset - len, len, fi);
-        write_len += o_write(path, buf, size, offset, fi);
+        o_write(path, padding_buf, offset - len, len, fi);
+        int write_len = o_write(path, buf, size, offset, fi);
         delete [] padding_buf;
         return write_len;
     }
@@ -417,6 +422,8 @@ int o_rename(const char* from, const char* to, unsigned int flags) {
         // Update timestamps.
         to_par_inode.mtime = cur_time;
         from_par_inode.mtime = cur_time;
+        to_par_inode.ctime = cur_time;
+        from_par_inode.ctime = cur_time;
         new_inode_block(&to_par_inode);
         new_inode_block(&from_par_inode);
         
