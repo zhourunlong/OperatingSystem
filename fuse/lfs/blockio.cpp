@@ -23,7 +23,10 @@ void get_block(void* data, int block_addr) {
 
     if (segment == cur_segment) {    // Data in segment buffer.
         int buffer_offset = block * BLOCK_SIZE;
-        memcpy(data, segment_buffer + buffer_offset, BLOCK_SIZE);
+
+        acquire_reader_lock();
+            memcpy(data, segment_buffer + buffer_offset, BLOCK_SIZE);
+        release_reader_lock();
     } else {    // Data in disk file.
         read_block(data, block_addr);
     }
@@ -40,9 +43,9 @@ int get_inode_from_inum(void* data, int i_number) {
     
     // Verify user permission before returning.
     struct fuse_context* user_info = fuse_get_context();
-    if (   ((user_info->uid == block_inode->perm_uid) && !(block_inode->permission & 0400))
-        || ((user_info->gid == block_inode->perm_gid) && !(block_inode->permission & 0040))
-        || !(block_inode->permission & 0004) )
+    if (ENABLE_PERMISSION && (((user_info->uid == block_inode->perm_uid) && !(block_inode->permission & 0400))
+                          || ((user_info->gid == block_inode->perm_gid) && !(block_inode->permission & 0040))
+                          || !(block_inode->permission & 0004)) )
         { return -EACCES; }
     
     return 0;
@@ -71,13 +74,16 @@ int new_data_block(void* data, int i_number, int direct_index) {
     int buffer_offset = cur_block * BLOCK_SIZE;
     int block_addr = cur_segment * BLOCKS_IN_SEGMENT + cur_block;
 
-    // Append data block.
-    memcpy(segment_buffer + buffer_offset, data, BLOCK_SIZE);
+    acquire_writer_lock();
+        // Append data block.
+        memcpy(segment_buffer + buffer_offset, data, BLOCK_SIZE);
 
-    // Append segment summary for this block.
-    add_segbuf_summary(cur_block, i_number, direct_index);
-    
-    move_to_segment();
+        // Append segment summary for this block.
+        add_segbuf_summary(cur_block, i_number, direct_index);
+        
+        // Write back segment buffer if necessary.
+        move_to_segment();
+    release_writer_lock();
     
     return block_addr;
 }
@@ -92,18 +98,21 @@ int new_inode_block(struct inode* data) {
     int buffer_offset = cur_block * BLOCK_SIZE;
     int block_addr = cur_segment * BLOCKS_IN_SEGMENT + cur_block;
 
-    // Append inode block.
-    memcpy(segment_buffer + buffer_offset, data, BLOCK_SIZE);
+    acquire_writer_lock();
+        // Append inode block.
+        memcpy(segment_buffer + buffer_offset, data, BLOCK_SIZE);
 
-    // Append segment summary for this block.
-    // [CAUTION] We use index -1 to represent an inode, rather than a direct[] pointer.
-    add_segbuf_summary(cur_block, i_number, -1);
+        // Append segment summary for this block.
+        // [CAUTION] We use index -1 to represent an inode, rather than a direct[] pointer.
+        add_segbuf_summary(cur_block, i_number, -1);
 
-    // Append imap entry for this inode, and update inode_table.
-    add_segbuf_imap(i_number, block_addr);
-    inode_table[i_number] = block_addr;
-    
-    move_to_segment();
+        // Append imap entry for this inode, and update inode_table.
+        add_segbuf_imap(i_number, block_addr);
+        inode_table[i_number] = block_addr;
+        
+        // Write back segment buffer if necessary.
+        move_to_segment();
+    release_writer_lock();
 
     return block_addr;
 }
@@ -146,21 +155,25 @@ void add_segbuf_imap(int _i_number, int _block_addr) {
  * @param  _permission: using UGO x RWX format in base-8 (e.g., 0777). 
  * [CAUTION] It is required to use malloc to create cur_inode (see file_add_data() below). */
 void file_initialize(struct inode* cur_inode, int _mode, int _permission) {
-    count_inode++;
-    struct fuse_context* user_info = fuse_get_context();  // Get information (uid, gid) of the user who calls LFS interface.
-    cur_inode->i_number     = count_inode;
+    acquire_writer_lock();
+        count_inode++;
+        cur_inode->i_number     = count_inode;
+    release_writer_lock();
+
     cur_inode->mode         = _mode;
     cur_inode->num_links    = 1;
     cur_inode->fsize_byte   = 0;
     cur_inode->fsize_block  = 0;
     cur_inode->io_block     = 1;
     cur_inode->permission   = _permission;
-    cur_inode->perm_uid     = user_info->uid;
-    cur_inode->perm_gid     = user_info->gid;
     cur_inode->device       = USER_DEVICE;
     cur_inode->num_direct   = 0;
     memset(cur_inode->direct, -1, sizeof(cur_inode->direct));
     cur_inode->next_indirect = 0;
+
+    struct fuse_context* user_info = fuse_get_context();  // Get information (uid, gid) of the user who calls LFS interface.
+    cur_inode->perm_uid     = user_info->uid;
+    cur_inode->perm_gid     = user_info->gid;
 
     // Update current inode time.
     struct timespec cur_time;
@@ -221,21 +234,33 @@ void file_modify(struct inode* cur_inode, int direct_index, void* data) {
 }
 
 
+/** Remove an existing inode.
+ * @param  i_number: i_number of an existing inode. */
+void remove_inode(int i_number) {
+    acquire_writer_block();
+        inode_table[i_number] = -1;
+        add_segbuf_imap(i_number, -1);
+    release_writer_block();
+}
+
+
 /** Generate a checkpoint and save it to disk file. */
 void generate_checkpoint() {
-    checkpoints ckpt;
-    read_checkpoints(&ckpt);
+    acquire_writer_block();  // ???
+        checkpoints ckpt;
+        read_checkpoints(&ckpt);
 
-    time_t cur_time;
-    time(&cur_time);
+        time_t cur_time;
+        time(&cur_time);
 
-    memcpy(ckpt[next_checkpoint].segment_bitmap, segment_bitmap, sizeof(segment_bitmap));
-    ckpt[next_checkpoint].count_inode = count_inode;
-    ckpt[next_checkpoint].cur_block = cur_block;
-    ckpt[next_checkpoint].cur_segment = cur_segment;
-    ckpt[next_checkpoint].next_imap_index = next_imap_index;
-    ckpt[next_checkpoint].timestamp = (int)cur_time;
+        memcpy(ckpt[next_checkpoint].segment_bitmap, segment_bitmap, sizeof(segment_bitmap));
+        ckpt[next_checkpoint].count_inode = count_inode;
+        ckpt[next_checkpoint].cur_block = cur_block;
+        ckpt[next_checkpoint].cur_segment = cur_segment;
+        ckpt[next_checkpoint].next_imap_index = next_imap_index;
+        ckpt[next_checkpoint].timestamp = (int)cur_time;
 
-    write_checkpoints(&ckpt);
-    next_checkpoint = 1 - next_checkpoint;
+        write_checkpoints(&ckpt);
+        next_checkpoint = 1 - next_checkpoint;
+    acquire_writer_block();
 }

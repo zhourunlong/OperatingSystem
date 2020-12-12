@@ -414,13 +414,12 @@ int remove_object(struct inode &head_inode, const char* del_name, int del_mode) 
 
                     // Remove i_map and i_table pointers to the object.
                     if (del_mode == MODE_DIR) {
-                        inode_table[block_dir[j].i_number] = -1;
-                        add_segbuf_imap(block_dir[j].i_number, -1);
+                        // Directories have no user-level hard links.
+                        remove_inode(block_dir[j].i_number);
                     } else if (del_mode == MODE_FILE) {
                         if (tmp_head_inode.num_links == 1) {
-                            // Delete the file (the same as dir).
-                            inode_table[block_dir[j].i_number] = -1;
-                            add_segbuf_imap(block_dir[j].i_number, -1);
+                            // Delete the file if nlink = 0 after deletion.
+                            remove_inode(block_dir[j].i_number);
                         } else {
                             // Decrement link count by 1, and update ctime.
                             tmp_head_inode.num_links--;

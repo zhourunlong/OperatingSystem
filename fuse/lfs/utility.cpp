@@ -432,3 +432,23 @@ void update_atime(struct inode &cur_inode, struct timespec &new_time) {
         cur_inode.ctime = new_time;
     }
 }
+
+
+/** **************************************
+ * Public variable locks.
+ * ***************************************/
+void acquire_reader_lock() {
+    return;
+};
+
+void release_reader_lock() {
+    return;
+};
+
+void acquire_writer_lock() {
+    return;
+};
+
+void release_writer_lock() {
+    return;
+};

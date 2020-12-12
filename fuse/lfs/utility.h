@@ -203,6 +203,8 @@ const bool ERROR_FILE           = true;     // Report file operation errors in f
 const bool ERROR_PATH           = true;     // Report low-level errors in path.cpp.
 const bool ERROR_PERM           = true;     // Report permission operation errors in perm.cpp.
 
+const bool ENABLE_PERMISSION    = false;    // Whether to enable permission control or not.
+
 
 /** **************************************
  * Functionality flags.
@@ -211,3 +213,12 @@ const bool FUNC_ATIME_DIR       = false;    // Enable atime update for directori
 const bool FUNC_ATIME_REL       = false;    // Enable relative atime (as with -relatime).
 const int FUNC_ATIME_REL_THRES  = 3600;     // Threshold interval for updating (relative) atime.
 void update_atime(struct inode &cur_inode, struct timespec &new_time);
+
+
+/** **************************************
+ * Public variable locks.
+ * ***************************************/
+void acquire_reader_lock();
+void release_reader_lock();
+void acquire_writer_lock();
+void release_writer_lock();
