@@ -87,6 +87,8 @@ void* o_init(struct fuse_conn_info* conn, struct fuse_config* cfg) {
         free(buf);
         
         new_inode_block(root_inode);
+        write_segment(segment_buffer, 0);
+        segment_bitmap[0] = 1;
 
         // Generate first checkpoint.
         generate_checkpoint();
@@ -162,5 +164,5 @@ void o_destroy(void* private_data) {
     // Save LFS to disk.
     write_segment(segment_buffer, cur_segment);
     segment_bitmap[cur_segment] = 1;
-    generate_checkpoint();
+    /* generate_checkpoint(); */
 }
