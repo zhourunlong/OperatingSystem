@@ -178,6 +178,7 @@ const bool DEBUG_DIRECTORY      = true;     // Print debug information in direct
 const bool DEBUG_FILE           = true;     // Print debug information in file.cpp.
 const bool DEBUG_PATH           = true;     // Print debug information in path.cpp.
 const bool DEBUG_LOCATE_REPORT  = false;    // Generate report for each locate() (in path.cpp).
+const bool DEBUG_CKPT_REPORT    = true;     // Print checkpoint after each storation.
 
 const bool ERROR_METADATA       = true;     // Report errors in metadata.cpp assoc. with locate().
 const bool ERROR_DIRECTORY      = true;     // Report directory operation errors in directory.cpp.

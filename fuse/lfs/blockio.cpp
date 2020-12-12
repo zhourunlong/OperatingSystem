@@ -56,6 +56,7 @@ int get_inode_from_inum(void* data, int i_number) {
 inline void move_to_segment() {
     if (cur_block == DATA_BLOCKS_IN_SEGMENT-1 || next_imap_index == DATA_BLOCKS_IN_SEGMENT) {    // Segment buffer is full, and should be flushed to disk file.
         write_segment(segment_buffer, cur_segment);
+        segment_bitmap[cur_segment] = 1;
         memset(segment_buffer, 0, sizeof(segment_buffer));
         cur_segment++;
         cur_block = 0;
@@ -115,7 +116,6 @@ int new_inode_block(struct inode* data) {
         move_to_segment();
     release_writer_lock();
 
-    printf("block_addr = %d\n", block_addr);
     return block_addr;
 }
 
@@ -265,4 +265,7 @@ void generate_checkpoint() {
         write_checkpoints(&ckpt);
         next_checkpoint = 1 - next_checkpoint;
     release_writer_lock();
+
+    if (DEBUG_CKPT_REPORT)
+        print(ckpt);
 }

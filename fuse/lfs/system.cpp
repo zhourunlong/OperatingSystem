@@ -10,6 +10,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <string>
+#include <sys/stat.h>
 
 extern char* current_working_dir;
 
@@ -19,6 +20,11 @@ void* o_init(struct fuse_conn_info* conn, struct fuse_config* cfg) {
 
     (void) conn;
 	cfg->kernel_cache = 1;
+
+    /* Retrive system time (for atime updates). */
+    struct timespec cur_time;
+    clock_gettime(CLOCK_REALTIME, &cur_time);
+    last_ckpt_update_time = cur_time;
 
 
     /* ****************************************
@@ -86,7 +92,6 @@ void* o_init(struct fuse_conn_info* conn, struct fuse_config* cfg) {
         generate_checkpoint();
         checkpoints ckpt;
         read_checkpoints(&ckpt);
-        print(ckpt);
 
         logger(DEBUG, "[INFO] Successfully initialized the file system.\n");
     } else {

@@ -1,6 +1,7 @@
 #include "utility.h"
 
 #include "logger.h"
+#include "print.h"
 #include "blockio.h"
 
 #include <stdio.h>
@@ -166,6 +167,7 @@ void update_atime(struct inode &cur_inode, struct timespec &new_time) {
     if (new_time.tv_sec - last_ckpt_update_time.tv_sec >= CKPT_UPDATE_INTERVAL) {
         generate_checkpoint();
         last_ckpt_update_time = new_time;
+        logger(DEBUG, "[DEBUG] Successfully created chekpoint at time %d.\n", new_time.tv_sec);
     }
 }
 

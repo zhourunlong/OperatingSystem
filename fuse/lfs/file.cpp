@@ -15,6 +15,10 @@
 #include <errno.h>
 
 
+/** (for internal uses only) Set direct[block_ind:] in cur_inode to -1.
+ * @param  cur_inode: the inode to be operated on.
+ * @param  block_ind: the start position of truncation.
+ * [CAUTION] Since num_direct = block_ind + 1, we allow block_ind to be -1. */
 void truncate_inode(inode &cur_inode, int block_ind) {
     cur_inode.num_direct = block_ind + 1;
     cur_inode.next_indirect = 0;
@@ -23,23 +27,24 @@ void truncate_inode(inode &cur_inode, int block_ind) {
     }
 }
 
-int write_in_file(const char* path, const char* buf, size_t size, off_t offset, struct fuse_file_info* fi) {
-    size_t len;
-    if (fi == nullptr) {
-        int first_flag = 0;
-        first_flag = o_open(path, fi);
-        if (first_flag != 0) {
-            if (ERROR_FILE)
-                logger(ERROR, "[ERROR] Cannot open the file. \n");
-            return 0;
-        }
-    }
-    int inode_num = fi -> fh;
 
-    inode cur_inode;
-    int perm_flag = 0;
-    get_inode_from_inum(&cur_inode, inode_num);
+/** (for internal uses only) Write the specified segment of file.
+ * @param  ...: please refer to standard ".write" interface. */
+int write_in_file(const char* path, const char* buf, size_t size,
+                  off_t offset, struct fuse_file_info* fi) {
+    timespec cur_time;
+    clock_gettime(CLOCK_REALTIME, &cur_time);
     
+    inode cur_inode;
+    get_inode_from_inum(&cur_inode, inode_num);
+    if (cur_inode.mode != MODE_FILE) {
+        if (ERROR_FILE)
+            logger(ERROR, "[ERROR] %s is not a file.\n", path);
+        return 0;
+    }
+    
+    // Write permission control (read permission managed by get_inode_from_inum).
+    int perm_flag = 0;
     struct fuse_context* user_info = fuse_get_context();
     if (ENABLE_PERMISSION && (((user_info->uid == cur_inode.perm_uid) && !(cur_inode.permission & 0200))
                           || ((user_info->gid == cur_inode.perm_gid) && !(cur_inode.permission & 0020))
@@ -50,19 +55,9 @@ int write_in_file(const char* path, const char* buf, size_t size, off_t offset, 
             logger(ERROR, "[ERROR] Permission denied: not allowed to write.\n");
         return 0;
     }
-    
-
-    timespec cur_time;
-    clock_gettime(CLOCK_REALTIME, &cur_time);
 
     len = cur_inode.fsize_byte;
     int t_offset = offset;
-    
-    if (cur_inode.mode != MODE_FILE) {
-        if (ERROR_FILE)
-            logger(ERROR, "[ERROR] %s is not a file.\n", path);
-        return 0;
-    }
 
     // Locate the first inode.
     bool is_end = false;
@@ -91,7 +86,6 @@ int write_in_file(const char* path, const char* buf, size_t size, off_t offset, 
     if (is_end == false) {
         int cur_file_blksize = ((int) (len+BLOCK_SIZE-1) / BLOCK_SIZE) * BLOCK_SIZE;
         while (cur_buf_pos < size && cur_buf_pos + offset < cur_file_blksize) {
-            //printf("cur_buf_pos_f = %d size = %d %d\n", cur_buf_pos, _size, cur_buf_pos < _size);
             get_block(loader, cur_inode.direct[cur_block_ind]);
 
             // Copy a block: copy_size = min(BLOCK_SIZE-cur_block_offset, size-cur_buf_pos).
@@ -233,6 +227,7 @@ int o_read(const char* path, char *buf, size_t size, off_t offset, struct fuse_f
     timespec cur_time;
     clock_gettime(CLOCK_REALTIME, &cur_time);
 
+    // In case the file is not open yet.
     size_t len;
     if (fi == nullptr) {
         int first_flag = 0;
@@ -253,9 +248,9 @@ int o_read(const char* path, char *buf, size_t size, off_t offset, struct fuse_f
         return 0;
     }
 
+    // Update access time.
     update_atime(cur_inode, cur_time);
     new_inode_block(&cur_inode);
-    
     
     len = cur_inode.fsize_byte;
     int t_offset = offset;
@@ -326,6 +321,7 @@ int o_write(const char* path, const char* buf, size_t size, off_t offset, struct
         logger(DEBUG, "WRITE, %s, %p, %d, %d, %p\n",
                resolve_prefix(path), buf, size, offset, fi);
 
+    // In case the file is not open yet.
     size_t len;
     if (fi == nullptr) {
         int first_flag = 0;
@@ -342,6 +338,7 @@ int o_write(const char* path, const char* buf, size_t size, off_t offset, struct
     int perm_flag = 0;
     get_inode_from_inum(&cur_inode, inode_num);
     
+    // Write permission control (read permission managed by get_inode_from_inum).
     struct fuse_context* user_info = fuse_get_context();
     if (ENABLE_PERMISSION && (((user_info->uid == cur_inode.perm_uid) && !(cur_inode.permission & 0200))
                           || ((user_info->gid == cur_inode.perm_gid) && !(cur_inode.permission & 0020))
@@ -352,17 +349,13 @@ int o_write(const char* path, const char* buf, size_t size, off_t offset, struct
             logger(ERROR, "[ERROR] Permission denied: not allowed to write.\n");
         return 0;
     }
-    
-    timespec cur_time;
-    clock_gettime(CLOCK_REALTIME, &cur_time);
 
+    // If offset exceeds current length, pad 0 in the gap.
     len = cur_inode.fsize_byte;
     if (offset > len) {
         char padding_buf[offset - len + 1];
         memset(padding_buf, 0, sizeof(padding_buf));
-        printf("invoke padding\n");
         write_in_file(path, padding_buf, offset - len, len, fi);
-        printf("inovke real write\n");
     }
 
     int write_len = write_in_file(path, buf, size, offset, fi);
@@ -687,6 +680,7 @@ int o_truncate(const char* path, off_t size, struct fuse_file_info *fi) {
     timespec cur_time;
     clock_gettime(CLOCK_REALTIME, &cur_time);
     
+    // In case the file is not open yet.
     if (fi == nullptr) {
         int first_flag = 0;
         first_flag = o_open(path, fi);
