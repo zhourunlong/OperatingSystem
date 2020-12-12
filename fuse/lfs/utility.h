@@ -116,7 +116,8 @@ struct superblock {
 
 
 const int CHECKPOINT_ADDR = TOT_SEGMENTS * SEGMENT_SIZE + BLOCK_SIZE;
-const int CHECKPOINT_SIZE = 2 * (24+TOT_SEGMENTS);
+const int CHECKPOINT_SIZE = 2 * (20+TOT_SEGMENTS);
+const int CKPT_UPDATE_INTERVAL = 30;    // Minimum interval for checkpoint update (in seconds).
 /** Checkpoint Block: recording periodical checkpoints of volatile information.
  * We should assign 2 checkpoints and use them in turns (for failure restoration).
  */
@@ -130,25 +131,6 @@ struct checkpoint_entry {
 };
 typedef struct checkpoint_entry checkpoints[2];
 
-
-/** **************************************
- * Pretty-print functions.
- * ***************************************/
-void print(struct inode* node);
-void print(directory dir);
-void print(inode_map imap);
-void print(segment_summary segsum);
-void print(struct superblock* sblk);
-void print(checkpoints ckpt);
-
-const int DISP_BIT_BIN = 1;
-const int DISP_BYTE_DEC = 2;
-const int DISP_BYTE_HEX = 3;
-const int DISP_WORD_DEC = 4;
-const int DISP_WORD_HEX = 5;
-void print(block blk, int disp);
-
-void print_inode_table();
 
 /** **************************************
  * Functions for actual file reads / writes.
@@ -175,13 +157,13 @@ int write_superblock(void* buf);
 /** **************************************
  * Global state variables.
  * ***************************************/
-// extern int file_handle;  // File handle should be local.
-extern char* lfs_path;
+extern char* lfs_path;                          // File handle should be local: only store the path.
 extern char segment_buffer[SEGMENT_SIZE];
 extern char segment_bitmap[TOT_SEGMENTS];
 extern int inode_table[MAX_NUM_INODE];
-extern int count_inode, cur_segment, cur_block;  // cur_block is the first available block.
+extern int count_inode, cur_segment, cur_block; // cur_block is the NEXT available block.
 extern int next_checkpoint, next_imap_index;
+extern struct timespec last_ckpt_update_time;   // Record the last time to update checkpoints.
 
 const long long FILE_SIZE = 1ll * SEGMENT_SIZE * TOT_SEGMENTS + 2 * BLOCK_SIZE;
 const int ROOT_DIR_INUMBER = 1;

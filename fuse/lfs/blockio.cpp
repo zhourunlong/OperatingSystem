@@ -1,6 +1,7 @@
 #include "blockio.h"
 
 #include "logger.h"
+#include "print.h"
 #include "utility.h"
 
 #include <unistd.h>
@@ -247,7 +248,7 @@ void remove_inode(int i_number) {
 
 /** Generate a checkpoint and save it to disk file. */
 void generate_checkpoint() {
-    acquire_writer_lock();  // ???
+    acquire_writer_lock();    // The lock here is to guarantee checkpoint consistency.
         checkpoints ckpt;
         read_checkpoints(&ckpt);
 

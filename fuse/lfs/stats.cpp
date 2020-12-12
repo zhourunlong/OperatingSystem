@@ -1,6 +1,7 @@
 #include "stats.h"
 
 #include "logger.h"
+#include "print.h"
 #include "utility.h"
 #include "path.h"
 #include "blockio.h"

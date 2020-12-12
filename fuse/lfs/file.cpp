@@ -1,6 +1,7 @@
 #include "file.h"
 
 #include "logger.h"
+#include "print.h"
 #include "path.h"
 #include "dir.h"
 #include "index.h"
@@ -131,8 +132,7 @@ int write_in_file(const char* path, const char* buf, size_t size, off_t offset, 
                     update_atime(cur_inode, cur_time);
                     cur_inode.mtime = cur_time;
                     new_inode_block(&cur_inode);
-                }
-                else {
+                } else {
                     new_inode_block(&cur_inode);
                     get_inode_from_inum(&head_inode, inode_num);
                     head_inode.fsize_byte = cur_buf_pos + offset;
@@ -141,14 +141,12 @@ int write_in_file(const char* path, const char* buf, size_t size, off_t offset, 
                     head_inode.mtime = cur_time;
                     new_inode_block(&head_inode);
                 }
-            }
-            else {
+            } else {
                 if (cur_inode.i_number == inode_num) {
                     update_atime(cur_inode, cur_time);
                     cur_inode.mtime = cur_time;
                     new_inode_block(&cur_inode);
-                }
-                else {
+                } else {
                     new_inode_block(&cur_inode);
                     get_inode_from_inum(&head_inode, inode_num);
                     update_atime(head_inode, cur_time);
