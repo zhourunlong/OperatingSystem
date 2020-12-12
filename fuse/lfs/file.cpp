@@ -35,6 +35,7 @@ int write_in_file(const char* path, const char* buf, size_t size,
     timespec cur_time;
     clock_gettime(CLOCK_REALTIME, &cur_time);
     
+    int inode_num = fi -> fh;
     inode cur_inode;
     get_inode_from_inum(&cur_inode, inode_num);
     if (cur_inode.mode != MODE_FILE) {
@@ -56,7 +57,7 @@ int write_in_file(const char* path, const char* buf, size_t size,
         return 0;
     }
 
-    len = cur_inode.fsize_byte;
+    size_t len = cur_inode.fsize_byte;
     int t_offset = offset;
 
     // Locate the first inode.
