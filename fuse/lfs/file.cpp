@@ -124,42 +124,21 @@ int write_in_file(const char* path, const char* buf, size_t size, off_t offset, 
         
         // Finish because reaching the end of writing: update timestamps.
         if (cur_buf_pos == size) {
-            if (cur_buf_pos + offset > len) {
-                if (cur_inode.i_number == inode_num) {
-                    cur_inode.fsize_byte = cur_buf_pos + offset;
-                    cur_inode.fsize_block = (cur_buf_pos + offset + BLOCK_SIZE - 1) / BLOCK_SIZE;
-                    update_atime(cur_inode, cur_time);
-                    cur_inode.mtime = cur_time;
-                    new_inode_block(&cur_inode);
-                }
-                else {
-                    new_inode_block(&cur_inode);
-                    get_inode_from_inum(&head_inode, inode_num);
-                    head_inode.fsize_byte = cur_buf_pos + offset;
-                    head_inode.fsize_block = (cur_buf_pos + offset + BLOCK_SIZE - 1) / BLOCK_SIZE;
-                    update_atime(head_inode, cur_time);
-                    head_inode.mtime = cur_time;
-                    new_inode_block(&head_inode);
-                }
+            if (cur_inode.i_number == inode_num) {
+                cur_inode.fsize_byte = cur_buf_pos + offset;
+                cur_inode.fsize_block = (cur_buf_pos + offset + BLOCK_SIZE - 1) / BLOCK_SIZE;
+                update_atime(cur_inode, cur_time);
+                cur_inode.mtime = cur_time;
+                new_inode_block(&cur_inode);
             }
             else {
-                truncate_inode(cur_inode, cur_block_ind);
-                if (cur_inode.i_number == inode_num) {
-                    cur_inode.fsize_byte = size + offset;
-                    cur_inode.fsize_block = (size + offset + BLOCK_SIZE - 1) / BLOCK_SIZE;
-                    update_atime(cur_inode, cur_time);
-                    cur_inode.mtime = cur_time;
-                    new_inode_block(&cur_inode);
-                }
-                else {
-                    new_inode_block(&cur_inode);
-                    get_inode_from_inum(&head_inode, inode_num);
-                    head_inode.fsize_byte = offset + size;
-                    head_inode.fsize_block = (offset + size + BLOCK_SIZE - 1) / BLOCK_SIZE;
-                    update_atime(head_inode, cur_time);
-                    head_inode.mtime = cur_time;
-                    new_inode_block(&head_inode);
-                }
+                new_inode_block(&cur_inode);
+                get_inode_from_inum(&head_inode, inode_num);
+                head_inode.fsize_byte = cur_buf_pos + offset;
+                head_inode.fsize_block = (cur_buf_pos + offset + BLOCK_SIZE - 1) / BLOCK_SIZE;
+                update_atime(head_inode, cur_time);
+                head_inode.mtime = cur_time;
+                new_inode_block(&head_inode);
             }
             return size;
         }
