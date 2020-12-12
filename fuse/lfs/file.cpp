@@ -112,7 +112,7 @@ int o_read(const char* path, char *buf, size_t size, off_t offset, struct fuse_f
     int cur_buf_pos = 0;
     int copy_size = BLOCK_SIZE;
     char loader[BLOCK_SIZE + 10];
-    while (cur_buf_pos <= size) {
+    while (cur_buf_pos < size) {
         get_block(loader, cur_inode.direct[cur_block_ind]);
 
         // Copy a block: copy_size = min(BLOCK_SIZE-cur_block_offset, size-cur_buf_pos).
