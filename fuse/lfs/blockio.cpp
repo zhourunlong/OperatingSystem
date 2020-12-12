@@ -114,6 +114,7 @@ int new_inode_block(struct inode* data) {
         move_to_segment();
     release_writer_lock();
 
+    printf("block_addr = %d\n", block_addr);
     return block_addr;
 }
 
@@ -237,16 +238,16 @@ void file_modify(struct inode* cur_inode, int direct_index, void* data) {
 /** Remove an existing inode.
  * @param  i_number: i_number of an existing inode. */
 void remove_inode(int i_number) {
-    acquire_writer_block();
+    acquire_writer_lock();
         inode_table[i_number] = -1;
         add_segbuf_imap(i_number, -1);
-    release_writer_block();
+    release_writer_lock();
 }
 
 
 /** Generate a checkpoint and save it to disk file. */
 void generate_checkpoint() {
-    acquire_writer_block();  // ???
+    acquire_writer_lock();  // ???
         checkpoints ckpt;
         read_checkpoints(&ckpt);
 
@@ -262,5 +263,5 @@ void generate_checkpoint() {
 
         write_checkpoints(&ckpt);
         next_checkpoint = 1 - next_checkpoint;
-    acquire_writer_block();
+    release_writer_lock();
 }
