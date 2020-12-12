@@ -99,7 +99,7 @@ struct summary_entry {
 typedef struct summary_entry segment_summary[DATA_BLOCKS_IN_SEGMENT];
 
 /** Segment Metadata Block: storing metadata of the segment.
- * Up to 64 int variables (256 bytes) can be stored in metadata.
+ * Up to 256 bytes (64 int variables can be stored as metadata, although we only use a little.
  */
 struct segment_metadata {
     int tbd;

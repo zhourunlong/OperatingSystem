@@ -43,10 +43,8 @@ int get_inode_from_inum(void* data, int i_number) {
     
     // Verify user permission before returning.
     struct fuse_context* user_info = fuse_get_context();
-    if (ENABLE_PERMISSION && (((user_info->uid == block_inode->perm_uid) && !(block_inode->permission & 0400))
-                          || ((user_info->gid == block_inode->perm_gid) && !(block_inode->permission & 0040))
-                          || !(block_inode->permission & 0004)) )
-        { return -EACCES; }
+    if (verify_permission(PERM_READ, block_inode, user_info, ENABLE_PERMISSION))
+        return -EACCES;
     
     return 0;
 }
