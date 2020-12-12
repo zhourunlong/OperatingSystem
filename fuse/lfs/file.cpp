@@ -177,9 +177,13 @@ int o_write(const char* path, const char* buf, size_t size, off_t offset, struct
         return 0;
     }
     if (offset > len) {
-        if (ERROR_FILE)
-            logger(ERROR, "[ERROR] Cannot write from an offset larger than file length..\n", path);
-        return 0;
+        char* padding_buf;
+        padding_buf = new char [offset - len + 1];
+        memset(padding_buf, 0, sizeof(padding_buf));
+        int write_len = o_write(path, padding_buf, offset - len, len, fi);
+        write_len += o_write(path, buf, size, offset, fi);
+        delete [] padding_buf;
+        return write_len;
     }
 
     // Locate the first inode.
