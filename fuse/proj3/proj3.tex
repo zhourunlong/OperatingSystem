@@ -217,7 +217,15 @@ We also declare several constants to describe the properties of the system. Theo
 Functions in the system are classified into different abstract levels for clarity and robustness. Header files \texttt{*.h} contain functions that can be called from other files, while source files \texttt{*.cpp} contain their implementation and some auxiliary files. Non-interface functions are equipped with explanatory comments.
 
 \begin{itemize}
-  \item 
+  \item \colorbox{shade}{\textbf{\ttfamily utility.*}} contains all global data structure declarations, constants, global variables (line 173-184), debug switches (190-204) and behaviour flags (206-207, 213-215) (in header file). It also provides \textit{lowest-level I/O interfaces} (a sequence of ``read''s and ``write''s) and \textit{lock interfaces} (not implemented yet).
+  
+  \item \colorbox{shade}{\textbf{\ttfamily path.*}} contains functions regarding path resolution and path traversal (\texttt{locate()}).
+  
+  \item \colorbox{shade}{\textbf{\ttfamily blockio.*}} contains \textit{higher-level I/O interfaces} that handle segment ``read''s and ``write''s. These functions automatically locate the data (in memory / on disk), append blocks at the end of the segment, update segment metadata, write-back full segments, and generate checkpoints.
+  
+  \item \colorbox{shade}{\textbf{\ttfamily file.*}, \textbf{\ttfamily dir.*}, \textbf{\ttfamily buffer.*}, \textbf{\ttfamily metadata.*}, \textbf{\ttfamily stats.*}, \textbf{\ttfamily perm.*} and \textbf{\ttfamily system.*}} implement necessary FUSE interfaces. \colorbox{shade}{\textbf{\ttfamily index.*}} manages these interfaces, and \colorbox{shade}{\textbf{\ttfamily main.cpp}} passes these interfaces to FUSE.
+  
+  \item \colorbox{shade}{\textbf{\ttfamily logger.*} and \textbf{\ttfamily print.*}} provide output interface and pretty-print functions for all data structures.
 \end{itemize}
 
 \end{homeworkProblem}
@@ -363,7 +371,7 @@ segment summary and imap table in each segment.
   \end{itemize}
   
   
-  \noindent\fbox{\colorbox{shade}{\textbf{Test for crash recoveries}}}
+  \noindent\fbox{\colorbox{shade}{\textbf{Test for crash recoveries}}} The FUSE background console can be called out by adding \texttt{-f} argument after mount path (e.g., \colorbox{shade}{\texttt{./fuse disk100Mi -f}}). The system can be crashed by sending \colorbox{shade}{\texttt{Ctrl-C}} to the console, or use debug tools like \colorbox{shade}{\texttt{gdb}}. \textit{{\bfseries Note:}} \textit{to make it even harder, you may avoid generating checkpoints on exit (by commenting line 232 out in \texttt{system.cpp}). Our system survives crashes without checkpoints.}
 
 
 \begin{homeworkProblem}[Manual]
@@ -372,20 +380,49 @@ segment summary and imap table in each segment.
 
 \item To compile, execute \colorbox{shade}{\texttt{scons}} in 
 \colorbox{shade}{\texttt{lfs/}} directory. If any issue happens, you may need
-to use Ubuntu 20.04 and install scons.
+to use Ubuntu 20.04 and install \texttt{scons}. The environment we use is equipped with \texttt{scons 3.1.2} and \texttt{gcc 9.3.0}.
 
 \item To mount file system, either execute \colorbox{shade}{\texttt{bash buildfs.sh}}
 in \colorbox{shade}{\texttt{proj3/}} directory, or manually execute
 (this also applies to the ``echo file system'' in task 1)
-\colorbox{shade}{\texttt{./fuse <mount directory> <options>}}.
+\colorbox{shade}{\texttt{./fuse <mount directory> <options>}}. For example, to show debug and error messages in background console, you should append option \colorbox{shade}{\texttt{-f}}.
 
 \item Line 190-204 of \colorbox{shade}{\texttt{lfs/utility.h}} contain several
-debug options. To enable ``echo'' in log-structured file system (should add
-\colorbox{shade}{\texttt{-f}} to options), toggle on \texttt{DEBUG\_PRINT\_COMMAND}.
+debug switches. To make them work, add \colorbox{shade}{\texttt{-f}} first.
+\begin{itemize}
+  \item To enable ``echo'' in LFS, toggle on \texttt{DEBUG\_PRINT\_COMMAND} (\textit{on by default}).
+  
+  \item To print the procedure of name resolution (in \texttt{locate()}), toggle on \texttt{DEBUG\_LOCATE\_REPORT}.
+  
+  \item To print checkpoints after each update, toggle on \texttt{DEBUG\_CKPT\_REPORT} (\textit{on by default}).
+\end{itemize}
 
-\item Line 213 of \colorbox{shade}{\texttt{lfs/utility.h}} is a switch for 
-directory access time updates. When \texttt{FUNC\_ATIME\_DIR} is $1$, access
-timestamps of all files along the path will be updated.
+\item Line 206-207, 213-215 of \colorbox{shade}{\texttt{lfs/utility.h}} provide some flags for modifying system behaviour.
+\begin{itemize}
+  \item \texttt{FUNC\_ATIME\_DIR} is a flag for 
+directory \texttt{atime} updates. When it is turned on, access
+timestamps of all files \textit{along the path} will be updated.
+Note that this will be very space-consuming.
+
+  \item \texttt{FUNC\_ATIME\_REL} is a flag for 
+``relative'' \texttt{atime} updates. When it is turned on, access
+timestamps of all files and directories will be updated only if (1)
+\texttt{atime} is earlier than \texttt{mtime} or \textbf{ctime}, or
+(2) it has been a long time since last update (longer than
+\texttt{FUNC\_ATIME\_REL\_THRES}.
+
+  \item \texttt{ENABLE\_ACCESS\_PERM} is a flag for
+external permission queries. When it is turned on, the \texttt{o\_access()}
+interface will report true permissions of the request. \textit{{\bfseries Note:}}
+\textit{all Linux commands use \texttt{o\_access()} to request for file permission.
+Therefore, when you use it for a test, the internal permission control does not really
+obtain an opportunity to work, although it prints debug messages. }
+
+  \item \texttt{ENABLE\_PERMISSION} is a flag for
+internal permission control.
+\end{itemize}
+
+\item Since we provide a full set of overloaded pretty-print functions (in \texttt{print.*}), we do not provide an explicit \texttt{block\_dump} class (which is equally hard to be called from outside). If you want to print anything out for checking, just add appropriate print functions in \texttt{o\_init} (probably after a \texttt{Ctrl-C} crash).
 
 \end{itemize}
 
@@ -394,7 +431,7 @@ timestamps of all files along the path will be updated.
 \begin{homeworkProblem}[Limitations]
 
 We have not implemented garbage collection, so when the file system is full, we
-can not even delete files.
+can not even delete files. This will be settled in Project 4.
 
 \end{homeworkProblem}
 
