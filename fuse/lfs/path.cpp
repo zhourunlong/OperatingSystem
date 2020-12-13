@@ -20,10 +20,11 @@
 
 char* current_working_dir = NULL;
 char* mount_root_dir = NULL;
+int mount_dir_len;
 
 const int SC = sizeof(char);
 
-char* relative_to_absolute(const char* root, const char* path, const int bgi = 0) {
+void relative_to_absolute(const char* root, const char* path, const int bgi, char* nret) {
     int rlen = strlen(root), plen = strlen(path);
 
     char* ret = (char*) malloc((rlen + plen + 10) * SC);
@@ -57,49 +58,56 @@ char* relative_to_absolute(const char* root, const char* path, const int bgi = 0
     }
     if (path[plen - 1] != '/')
         --rend;
-    char* nret = (char*) malloc((rend + 1) * SC);
+    
     memcpy(nret, ret, rend * SC);
     nret[rend] = 0;
-    return nret;
+    free(ret);
 }
 
-char* resolve_prefix(const char* path) {
-    return relative_to_absolute(mount_root_dir, path, path[0] == '/');
+void resolve_prefix(const char* path, char* nret) {
+    relative_to_absolute(mount_root_dir, path, path[0] == '/', nret);
 }
 
 void generate_prefix(const char* path) {
     int cwd_len = 0;
+    char* _current_working_dir = NULL;
     do {
         cwd_len += 10;
-        if (current_working_dir != NULL)
-            free(current_working_dir);
-        current_working_dir = (char*) malloc(cwd_len * SC);
+        if (_current_working_dir != NULL)
+            free(_current_working_dir);
+        _current_working_dir = (char*) malloc(cwd_len * SC);
         errno = 0;
-        getcwd(current_working_dir, cwd_len * SC);
+        getcwd(_current_working_dir, cwd_len * SC);
     } while (errno == ERANGE);
-    current_working_dir = relative_to_absolute(current_working_dir, "./");
-    if (DEBUG_PATH) logger(DEBUG, "Current working dir =\t%s.\n", current_working_dir);
     
-    mount_root_dir = relative_to_absolute(current_working_dir, path);
-    if (DEBUG_PATH) logger(DEBUG, "Mount root dir =\t%s.\n", mount_root_dir);
+    current_working_dir = (char*) malloc(strlen(_current_working_dir) + 2);
+    relative_to_absolute(_current_working_dir, "./", 0, current_working_dir);
+    if (DEBUG_PATH)
+        logger(DEBUG, "Current working dir =\t%s.\n", current_working_dir);
+    
+    mount_root_dir = (char*) malloc(strlen(_current_working_dir) + strlen(path));
+    relative_to_absolute(_current_working_dir, path, 0, mount_root_dir);
+    if (DEBUG_PATH)
+        logger(DEBUG, "Mount root dir =\t%s.\n", mount_root_dir);
+    mount_dir_len = strlen(mount_root_dir);
+
+    free(_current_working_dir);
 }
 
-char* current_fname(const char* path) {
+void current_fname(const char* path, char* ret) {
     int plen = strlen(path);
     while (plen && path[plen - 1] == '/')
         --plen;
     if (!plen) {
         if (ERROR_PATH)
             logger(ERROR, "[ERROR] Current file is root directory.");
-        return NULL;
     }
     int i = plen - 1;
     while (i && path[i] != '/')
         --i;
-    char* ret = (char*) malloc((plen - i) * SC);
+    
     memcpy(ret, path + i + 1, (plen - i - 1) * SC);
     ret[plen - i - 1] = 0;
-    return ret;
 }
 
 /** Traverse an absolute path to retrieve inode number.

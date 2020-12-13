@@ -95,6 +95,7 @@ void* o_init(struct fuse_conn_info* conn, struct fuse_config* cfg) {
         generate_checkpoint();
         checkpoints ckpt;
         read_checkpoints(&ckpt);
+        print(ckpt);
 
         logger(DEBUG, "[INFO] Successfully initialized the file system.\n");
     } else {
@@ -112,12 +113,12 @@ void* o_init(struct fuse_conn_info* conn, struct fuse_config* cfg) {
         checkpoints ckpt;
         read_checkpoints(&ckpt);
         print(ckpt);
-
+        
         int latest_index = 0;
         if (ckpt[0].timestamp < ckpt[1].timestamp)
             latest_index = 1;
         next_checkpoint = 1 - latest_index;
-
+        
         memcpy(segment_bitmap, ckpt[latest_index].segment_bitmap, sizeof(segment_bitmap));
         count_inode = ckpt[latest_index].count_inode;
         head_segment = ckpt[latest_index].head_segment;
@@ -129,17 +130,17 @@ void* o_init(struct fuse_conn_info* conn, struct fuse_config* cfg) {
             logger(ERROR, "[FATAL ERROR] Corrupt file system on disk: invalid checkpoint entry.\n");
             exit(-1);
         }
-
+        
         // Initialize inode table in memory (by simulation).
         memset(inode_table, -1, sizeof(inode_table));
         inode_map imap;
         imap_entry im_entry;
-
+        
         // Traverse all segments.
         struct segment_metadata seg_metadata;
         read_segment_metadata(&seg_metadata, cur_segment);
         int prev_seg_time = 0, prev_seg_block = 0, prev_seg_imap_idx = 0;
-
+        
         int seg = head_segment;
         bool is_checkpointed = true;
         do {
@@ -189,18 +190,18 @@ void* o_init(struct fuse_conn_info* conn, struct fuse_config* cfg) {
 
         print_inode_table();
         generate_checkpoint();
-
+        
         // Determine whether the file system is already full.
         if ((cur_segment+1) % TOT_SEGMENTS == head_segment) {
             logger(ERROR, "[FATAL ERROR] File system is full. Please use a larger disk.\n");
             exit(-1);
         }
-
+        
         // Initialize segment buffer in memory.
         read_segment(segment_buffer, cur_segment);
         memset(segment_buffer + cur_block*BLOCK_SIZE, 0, (DATA_BLOCKS_IN_SEGMENT-cur_block)*BLOCK_SIZE);
     }
-    
+
 	return NULL;
 }
 

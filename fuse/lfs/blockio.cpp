@@ -75,6 +75,9 @@ int new_data_block(void* data, int i_number, int direct_index) {
     int buffer_offset = cur_block * BLOCK_SIZE;
     int block_addr = cur_segment * BLOCKS_IN_SEGMENT + cur_block;
 
+    if (DEBUG_BLOCKIO)
+        logger(DEBUG, "Add data block at (segment %d, block %d).\n", cur_segment, cur_block);
+
     acquire_writer_lock();
         // Append data block.
         memcpy(segment_buffer + buffer_offset, data, BLOCK_SIZE);
@@ -98,6 +101,9 @@ int new_inode_block(struct inode* data) {
     int i_number = data->i_number;
     int buffer_offset = cur_block * BLOCK_SIZE;
     int block_addr = cur_segment * BLOCKS_IN_SEGMENT + cur_block;
+
+    if (DEBUG_BLOCKIO)
+        logger(DEBUG, "Add inode block at (segment %d, block %d)..\n", cur_segment, cur_block);
 
     acquire_writer_lock();
         // Append inode block.

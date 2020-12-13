@@ -189,6 +189,7 @@ const bool DEBUG_METADATA_INODE = false;    // Print inode for each metadata que
 const bool DEBUG_DIRECTORY      = true;     // Print debug information in directory.cpp.
 const bool DEBUG_FILE           = true;     // Print debug information in file.cpp.
 const bool DEBUG_PATH           = true;     // Print debug information in path.cpp.
+const bool DEBUG_BLOCKIO        = true;     // Print (seg, blk) for each appended block.
 const bool DEBUG_LOCATE_REPORT  = false;    // Generate report for each locate() (in path.cpp).
 const bool DEBUG_CKPT_REPORT    = true;     // Print checkpoint after each storation.
 

@@ -8,7 +8,7 @@
 #include "blockio.h"
 #include "utility.h"
 
-#include <cstring>
+#include <string.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <unistd.h>
@@ -182,8 +182,12 @@ int write_in_file(const char* path, const char* buf, size_t size,
 
 
 int o_open(const char* path, struct fuse_file_info* fi) {
-    if (DEBUG_PRINT_COMMAND)
-        logger(DEBUG, "OPEN, %s, %p\n", resolve_prefix(path), fi);
+    if (DEBUG_PRINT_COMMAND) {
+        char* _path = (char*) malloc(mount_dir_len+strlen(path)+4);
+        resolve_prefix(path, _path);
+        logger(DEBUG, "OPEN, %s, %p\n", _path, fi);
+        free(_path);
+    }
 
     timespec cur_time;
     clock_gettime(CLOCK_REALTIME, &cur_time);
@@ -210,8 +214,12 @@ int o_open(const char* path, struct fuse_file_info* fi) {
 }
 
 int o_release(const char* path, struct fuse_file_info* fi) {
-    if (DEBUG_PRINT_COMMAND)
-        logger(DEBUG, "RELEASE, %s, %p\n", resolve_prefix(path), fi);
+    if (DEBUG_PRINT_COMMAND) {
+        char* _path = (char*) malloc(mount_dir_len+strlen(path)+4);
+        resolve_prefix(path, _path);
+        logger(DEBUG, "RELEASE, %s, %p\n", _path, fi);
+        free(_path);
+    }
 
     fi = nullptr;
 
@@ -219,9 +227,13 @@ int o_release(const char* path, struct fuse_file_info* fi) {
 }
 
 int o_read(const char* path, char *buf, size_t size, off_t offset, struct fuse_file_info* fi) {
-    if (DEBUG_PRINT_COMMAND)
+    if (DEBUG_PRINT_COMMAND) {
+        char* _path = (char*) malloc(mount_dir_len+strlen(path)+4);
+        resolve_prefix(path, _path);
         logger(DEBUG, "READ, %s, %p, %d, %d, %p\n",
-               resolve_prefix(path), buf, size, offset, fi);
+               _path, buf, size, offset, fi);
+        free(_path);
+    }
     
     timespec cur_time;
     clock_gettime(CLOCK_REALTIME, &cur_time);
@@ -316,9 +328,13 @@ int o_read(const char* path, char *buf, size_t size, off_t offset, struct fuse_f
 
 
 int o_write(const char* path, const char* buf, size_t size, off_t offset, struct fuse_file_info* fi) {
-    if (DEBUG_PRINT_COMMAND)
+    if (DEBUG_PRINT_COMMAND) {
+        char* _path = (char*) malloc(mount_dir_len+strlen(path)+4);
+        resolve_prefix(path, _path);
         logger(DEBUG, "WRITE, %s, %p, %d, %d, %p\n",
-               resolve_prefix(path), buf, size, offset, fi);
+               _path, buf, size, offset, fi);
+        free(_path);
+    }
 
     // In case the file is not open yet.
     size_t len;
@@ -360,16 +376,24 @@ int o_write(const char* path, const char* buf, size_t size, off_t offset, struct
 }
 
 int o_create(const char *path, mode_t mode, struct fuse_file_info *fi) {
-    if (DEBUG_PRINT_COMMAND)
+    if (DEBUG_PRINT_COMMAND) {
+        char* _path = (char*) malloc(mount_dir_len+strlen(path)+4);
+        resolve_prefix(path, _path);
         logger(DEBUG, "CREATE, %s, %o, %p\n",
-               resolve_prefix(path), mode, fi);
+               _path, mode, fi);
+        free(_path);
+    }
+
     
     mode &= 0777;
-    char* parent_dir = relative_to_absolute(path, "../", 0);
-    char* dirname = current_fname(path);
+    char* parent_dir = (char*) malloc(strlen(path)+4);
+    relative_to_absolute(path, "../", 0, parent_dir);
+    char* dirname = (char*) malloc(strlen(path));
+    current_fname(path, dirname);
     if (strlen(dirname) >= MAX_FILENAME_LEN) {
         if (ERROR_FILE)
             logger(ERROR, "[ERROR] Directory name too long: length %d > %d.\n", strlen(dirname), MAX_FILENAME_LEN);
+        free(parent_dir); free(dirname);
         return -ENAMETOOLONG;
     }
     int par_inum;
@@ -377,17 +401,21 @@ int o_create(const char *path, mode_t mode, struct fuse_file_info *fi) {
     if (locate_err != 0) {
         if (ERROR_FILE)
             logger(ERROR, "[ERROR] Cannot open the parent directory (error #%d).\n", locate_err);
+        free(parent_dir); free(dirname);
         return locate_err;
     }
 
     inode head_inode;
     int perm_flag;
     perm_flag = get_inode_from_inum(&head_inode, par_inum);
-    if (perm_flag != 0)
+    if (perm_flag != 0) {
+        free(parent_dir); free(dirname);
         return perm_flag;
+    }
     if (head_inode.mode != MODE_DIR) {
         if (ERROR_FILE)
             logger(ERROR, "[ERROR] %s is not a directory.\n", parent_dir);
+        free(parent_dir); free(dirname);
         return -ENOTDIR;
     }
     
@@ -396,12 +424,15 @@ int o_create(const char *path, mode_t mode, struct fuse_file_info *fi) {
     if (locate_err == 0) {
         inode tmp_inode;
         perm_flag = get_inode_from_inum(&tmp_inode, tmp_inum);
-        if (perm_flag != 0)
+        if (perm_flag != 0) {
+            free(parent_dir); free(dirname);
             return perm_flag;
+        }
         if ((tmp_inode.mode == MODE_FILE) && ERROR_FILE)
             logger(ERROR, "[ERROR] Duplicated name: there is a file with the same name.\n");
         if ((tmp_inode.mode == MODE_DIR) && ERROR_FILE)
             logger(ERROR, "[ERROR] Duplicated name: directory already exists.\n");
+        free(parent_dir); free(dirname);
         return -EEXIST;
     }
     
@@ -411,24 +442,38 @@ int o_create(const char *path, mode_t mode, struct fuse_file_info *fi) {
     
     int flag = append_parent_dir_entry(head_inode, dirname, file_inode.i_number);
     new_inode_block(&file_inode);
+    free(parent_dir); free(dirname);
     return flag;
 }
 
 int o_rename(const char* from, const char* to, unsigned int flags) {
-    if (DEBUG_PRINT_COMMAND)
+    if (DEBUG_PRINT_COMMAND) {
+        char* _from = (char*) malloc(strlen(from));
+        resolve_prefix(from, _from);
+        char* _to = (char*) malloc(strlen(to));
+        resolve_prefix(to, _to);
         logger(DEBUG, "RENAME, %s, %s, %d\n",
-               resolve_prefix(from), resolve_prefix(to), flags);
+               _from, _to, flags);
+        free(_from); free(_to);
+    }
     
     timespec cur_time;
     clock_gettime(CLOCK_REALTIME, &cur_time);
     
-    char* from_parent_dir = relative_to_absolute(from, "../", 0);
-    char* to_parent_dir = relative_to_absolute(to, "../", 0);
-    char* from_name = current_fname(from);
-    char* to_name = current_fname(to);
+    char* from_parent_dir = (char*) malloc(strlen(from)+4);
+    char* to_parent_dir = (char*) malloc(strlen(to)+4);
+    relative_to_absolute(from, "../", 0, from_parent_dir);
+    relative_to_absolute(to, "../", 0, to_parent_dir);
+
+    char* from_name = (char*) malloc(strlen(from));
+    char* to_name = (char*) malloc(strlen(to));
+    current_fname(from, from_name);
+    current_fname(to, to_name);
+
     int from_inum, to_inum, from_par_inum, to_par_inum;
     if (strlen(to_name) >= MAX_FILENAME_LEN) {
         logger(ERROR, "[ERROR] Directory name too long: length %d > %d.\n", strlen(to_name), MAX_FILENAME_LEN);
+        free(from_parent_dir); free(to_parent_dir); free(from_name); free(to_name);
         return -ENAMETOOLONG;
     }
 
@@ -436,16 +481,19 @@ int o_rename(const char* from, const char* to, unsigned int flags) {
     locate_err = locate(from_parent_dir, from_par_inum);
     if (locate_err != 0) {
         logger(ERROR, "[ERROR] Fail to locate source parent directory.\n");
+        free(from_parent_dir); free(to_parent_dir); free(from_name); free(to_name);
         return locate_err;
     }
     locate_err = locate(to_parent_dir, to_par_inum);
     if (locate_err != 0) {
         logger(ERROR, "[ERROR] Fail to locate destination parent directory.\n");
+        free(from_parent_dir); free(to_parent_dir); free(from_name); free(to_name);
         return locate_err;
     }
     locate_err = locate(from, from_inum);
     if (locate_err != 0) {
         logger(ERROR, "[ERROR] Source file does not exist.\n");
+        free(from_parent_dir); free(to_parent_dir); free(from_name); free(to_name);
         return locate_err;
     }
 
@@ -453,6 +501,7 @@ int o_rename(const char* from, const char* to, unsigned int flags) {
     if (locate_err == 0) {  // Destination file already exists.
         if (flags == RENAME_NOREPLACE) {
             logger(ERROR, "[ERROR] Destination file already exists, and cannot be overwritten.\n");
+            free(from_parent_dir); free(to_parent_dir); free(from_name); free(to_name);
             return -EEXIST;
         }
 
@@ -463,6 +512,7 @@ int o_rename(const char* from, const char* to, unsigned int flags) {
         if (perm_flag != 0) {
             if (ERROR_FILE)
                 logger(ERROR, "[ERROR] Permission denied: not allowed to read source file inode.\n");
+            free(from_parent_dir); free(to_parent_dir); free(from_name); free(to_name);
             return perm_flag;
         }
         inode from_par_inode;
@@ -474,6 +524,7 @@ int o_rename(const char* from, const char* to, unsigned int flags) {
         if (perm_flag != 0) {
             if (ERROR_FILE)
                 logger(ERROR, "[ERROR] Permission denied: not allowed to write source dir inode.\n");
+            free(from_parent_dir); free(to_parent_dir); free(from_name); free(to_name);
             return perm_flag;
         }
         inode to_inode;
@@ -482,6 +533,7 @@ int o_rename(const char* from, const char* to, unsigned int flags) {
         if (perm_flag != 0) {
             if (ERROR_FILE)
                 logger(ERROR, "[ERROR] Permission denied: not allowed to read dest file inode.\n");
+            free(from_parent_dir); free(to_parent_dir); free(from_name); free(to_name);
             return perm_flag;
         }
         inode to_par_inode;
@@ -492,6 +544,7 @@ int o_rename(const char* from, const char* to, unsigned int flags) {
         if (perm_flag != 0) {
             if (ERROR_FILE)
                 logger(ERROR, "[ERROR] Permission denied: not allowed to write dest dir inode.\n");
+            free(from_parent_dir); free(to_parent_dir); free(from_name); free(to_name);
             return perm_flag;
         }
         
@@ -521,6 +574,7 @@ int o_rename(const char* from, const char* to, unsigned int flags) {
 
             get_inode_from_inum(&head_inode, from_par_inum);
             int flag = append_parent_dir_entry(head_inode, to_name, to_inum);
+            free(from_parent_dir); free(to_parent_dir); free(from_name); free(to_name);
             return flag;
         }
     } 
@@ -533,6 +587,7 @@ int o_rename(const char* from, const char* to, unsigned int flags) {
     if (perm_flag != 0) {
         if (ERROR_FILE)
             logger(ERROR, "[ERROR] Permission denied: not allowed to read source file inode.\n");
+        free(from_parent_dir); free(to_parent_dir); free(from_name); free(to_name);
         return perm_flag;
     }
     inode from_par_inode;
@@ -541,6 +596,7 @@ int o_rename(const char* from, const char* to, unsigned int flags) {
     if (perm_flag != 0) {
         if (ERROR_FILE)
             logger(ERROR, "[ERROR] Permission denied: not allowed to read source dir inode.\n");
+        free(from_parent_dir); free(to_parent_dir); free(from_name); free(to_name);
         return perm_flag;
     }
     
@@ -561,22 +617,30 @@ int o_rename(const char* from, const char* to, unsigned int flags) {
         return perm_flag;
     }
     int flag = append_parent_dir_entry(head_inode, to_name, from_inum);
+    free(from_parent_dir); free(to_parent_dir); free(from_name); free(to_name);
     return flag;
 }
 
 int o_unlink(const char* path) {
-    if (DEBUG_PRINT_COMMAND)
-        logger(DEBUG, "UNLINK, %s\n", resolve_prefix(path));
+    if (DEBUG_PRINT_COMMAND) {
+        char* _path = (char*) malloc(mount_dir_len+strlen(path)+4);
+        resolve_prefix(path, _path);
+        logger(DEBUG, "UNLINK, %s\n", _path);
+        free(_path);
+    }
     
-    char* parent_dir = relative_to_absolute(path, "../", 0);
-    char* file_name = current_fname(path);
-    
+    char* parent_dir = (char*) malloc(strlen(path)+4);
+    relative_to_absolute(path, "../", 0, parent_dir);
+    char* file_name = (char*) malloc(strlen(path));
+    current_fname(path, file_name);
+
     int par_inum, file_inum;
     locate(parent_dir, par_inum);
     int locate_err = locate(path, file_inum);
     if (locate_err != 0) {
         if (ERROR_FILE)
             logger(ERROR, "[ERROR] Cannot open the file (error #%d).\n", locate_err);
+        free(parent_dir); free(file_name);
         return locate_err;
     }
 
@@ -585,27 +649,41 @@ int o_unlink(const char* path) {
     if (perm_flag != 0) {
         if (ERROR_FILE)
             logger(ERROR, "[ERROR] Permission denied: not allowed to read.\n");
+        free(parent_dir); free(file_name);
         return perm_flag;
     }
     int flag = remove_object(head_inode, file_name, MODE_FILE);
+    free(parent_dir); free(file_name);
     return flag;
 }
 
 int o_link(const char* src, const char* dest) {
-    if (DEBUG_PRINT_COMMAND)
-        logger(DEBUG, "LINK, %s, %s\n", resolve_prefix(src), resolve_prefix(dest));
+    if (DEBUG_PRINT_COMMAND) {
+        char* _src = (char*) malloc(strlen(src));
+        resolve_prefix(src, _src);
+        char* _dest = (char*) malloc(strlen(dest));
+        resolve_prefix(dest, _dest);
+        logger(DEBUG, "LINK, %s, %s\n", _src, _dest);
+        free(_src); free(_dest);
+    }
     
     timespec cur_time;
     clock_gettime(CLOCK_REALTIME, &cur_time);
     
-    char* src_parent_dir = relative_to_absolute(src, "../", 0);
-    char* dest_parent_dir = relative_to_absolute(dest, "../", 0);
-    char* src_name = current_fname(src);
-    char* dest_name = current_fname(dest);
+    char* src_parent_dir = (char*) malloc(strlen(src)+4);
+    char* dest_parent_dir = (char*) malloc(strlen(dest)+4);
+    relative_to_absolute(src, "../", 0, src_parent_dir);
+    relative_to_absolute(dest, "../", 0, dest_parent_dir);
+
+    char* src_name = (char*) malloc(strlen(src));
+    char* dest_name = (char*) malloc(strlen(dest));
+    current_fname(src, src_name);
+    current_fname(dest, dest_name);
 
     if (strlen(src_name) >= MAX_FILENAME_LEN || strlen(dest_name) >= MAX_FILENAME_LEN) {
         if (ERROR_FILE)
             logger(ERROR, "[ERROR] Name too long: length %d or %d > %d.\n", strlen(src_name), strlen(dest_name), MAX_FILENAME_LEN);
+        free(src_parent_dir); free(dest_parent_dir); free(src_name); free(dest_name);
         return -ENAMETOOLONG;
     }
 
@@ -617,17 +695,20 @@ int o_link(const char* src, const char* dest) {
     if (locate_err != 0) {
         if (ERROR_FILE)
             logger(ERROR, "[ERROR] Cannot open source file (error #%d).\n", locate_err);
+        free(src_parent_dir); free(dest_parent_dir); free(src_name); free(dest_name);
         return locate_err;
     }
     int perm_flag = get_inode_from_inum(&src_inode, src_inum);
     if (perm_flag != 0) {
         if (ERROR_FILE)
             logger(ERROR, "[ERROR] Permission denied: not allowed to read source file.\n");
+        free(src_parent_dir); free(dest_parent_dir); free(src_name); free(dest_name);
         return perm_flag;
     }
     if (src_inode.mode != MODE_FILE) {
         if (ERROR_FILE)
             logger(ERROR, "[ERROR] %s is not a file.\n", src_name);
+        free(src_parent_dir); free(dest_parent_dir); free(src_name); free(dest_name);
         return -EISDIR;
     }
 
@@ -635,12 +716,14 @@ int o_link(const char* src, const char* dest) {
     if (locate_err != 0) {
         if (ERROR_FILE)
             logger(ERROR, "[ERROR] Cannot open the destination directory (error #%d).\n", locate_err);
+        free(src_parent_dir); free(dest_parent_dir); free(src_name); free(dest_name);
         return locate_err;
     }
     locate_err = locate(dest, dest_inum);
     if (locate_err == 0) {
         if (ERROR_FILE)
             logger(ERROR, "[ERROR] Duplicated name: there exists a file / directory with the same name.\n");
+        free(src_parent_dir); free(dest_parent_dir); free(src_name); free(dest_name);
         return -EEXIST;
     }
 
@@ -653,6 +736,7 @@ int o_link(const char* src, const char* dest) {
     if (perm_flag != 0) {
         if (ERROR_FILE)
             logger(ERROR, "[ERROR] Permission denied: not allowed to write dest directory.\n");
+        free(src_parent_dir); free(dest_parent_dir); free(src_name); free(dest_name);
         return perm_flag;
     }
     int flag = append_parent_dir_entry(dest_par_inode, dest_name, src_inum);
@@ -660,13 +744,18 @@ int o_link(const char* src, const char* dest) {
     src_inode.num_links += 1;
     src_inode.ctime = cur_time;
     new_inode_block(&src_inode);
+    free(src_parent_dir); free(dest_parent_dir); free(src_name); free(dest_name);
     return flag;
 }
 
 int o_truncate(const char* path, off_t size, struct fuse_file_info *fi) {
-    if (DEBUG_PRINT_COMMAND)
+    if (DEBUG_PRINT_COMMAND) {
+        char* _path = (char*) malloc(mount_dir_len+strlen(path)+4);
+        resolve_prefix(path, _path);
         logger(DEBUG, "TRUNCATE, %s, %d, %p\n",
-               resolve_prefix(path), size, fi);
+               _path, size, fi);
+        free(_path);
+    }
     
     timespec cur_time;
     clock_gettime(CLOCK_REALTIME, &cur_time);

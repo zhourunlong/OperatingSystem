@@ -5,12 +5,12 @@
 #include <string.h>
 using namespace std;
 int main() {
-    for (int i = 0; i < 3; ++i) {
+    for (int i = 0; i < 99; ++i) {
         char s[999];
         sprintf(s, "mkdir ../test/%d\n", i);
         system(s);
     }
-    for (int i = 0; i < 3; ++i) {
+    for (int i = 0; i < 99; ++i) {
         char s[999];
         //sprintf(s, "touch ../test/%d/%d\n", i, i);
         //system(s);
