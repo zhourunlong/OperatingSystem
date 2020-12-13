@@ -176,6 +176,24 @@
 % Begin edit from here
 
 \begin{homeworkProblem}[Data Structures]
+
+Our system consists of data structures corresponding to physical and logical entities, which keeps complete information to restore a consistent state of LFS. To make read and write easier, they are all structs and arrays (instead of classes). Detailed declarations can all be found in header file \colorbox{shade}{\textbf{\ttfamily utility.h}}:
+\begin{itemize}
+  \item The disk file (representing hard disks) is usually read in blocks and written in segments. For clarity, \colorbox{shade}{\textbf{\ttfamily block}} is an \texttt{char} array. For parameters we may simply use \texttt{char*} or even \texttt{void*}.
+  
+  \begin{itemize}
+    \item \textit{File data blocks} are struct-less, which means they are plainly bytes without extra information.
+    
+    \item \textit{Directory data blocks} consist of 
+    
+    \item \textit{Inode blocks} have fixed internal structure defined as \colorbox{shade}{\textbf{\ttfamily struct inode}} (of length 1024 B exactly).
+  \end{itemize}
+  
+  \item 
+\end{itemize}
+
+We also declare a sequence of constants.
+
 \end{homeworkProblem}
 
 \begin{homeworkProblem}[Code]
@@ -307,7 +325,18 @@ segment summary and imap table in each segment.
       \specialrule{1.5pt}{0pt}{0pt}
     \end{tabular}
   \end{table}
+  
+  \textit{{\bfseries Note:}} \textit{we implement different \texttt{atime} policy as Linux does. You may turn on \texttt{nodiratime} by setting \texttt{FUNC\_ATIME\_DIR}, and turn on \texttt{relatime} by setting \texttt{FUNC\_ATIME\_REL}. You may refer to the manual below.}
 \end{homeworkProblem}
+
+  
+  \noindent\fbox{\colorbox{shade}{\textbf{Test for common commands {\ttfamily ln}, {\ttfamily mv} and {\ttfamily cp}}}}
+  Run through the following commands.
+  \begin{itemize}
+    \item \colorbox{shade}{\textbf{\ttfamily touch a; chmod 664 a; echo "abc" >> a; ln a b}}: use \texttt{cat} and \texttt{ls} to verify that they are identical. \textit{{\bfseries Note:}} \textit{\texttt{stat} may return different inode numbers, but this seems to be a FUSE bug. By opening debug switch \texttt{DEBUG\_METADATA\_INODE}, you may verify they are actually the same.}
+    \item \colorbox{shade}{\textbf{\ttfamily mv b c; echo "def" >> c}}: after renaming the link, \textbf{ls} will return \texttt{a, c}, and both will contain ``def''.
+    \item \colorbox{shade}{\textbf{\ttfamily touch d; chmod 666 d; cp c d; echo "ghi" >> d}}: by copying a hard link, a new file completely irrelevant of the linked file is created. Only file \texttt{d} contains ``ghi'', while files \texttt{a} and \texttt{c} remain the same.
+  \end{itemize}
 
 
 \begin{homeworkProblem}[Manual]
