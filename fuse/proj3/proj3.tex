@@ -181,6 +181,28 @@
 \end{homeworkProblem}
 
 \begin{homeworkProblem}[Details for Requirements 7-10]
+
+\begin{itemize}
+
+\item \emph{Requirement 7:} \texttt{chmod} and \texttt{chown} by
+modifying metadata in inodes.
+
+\item \emph{Requirement 8:} A global lock is declaired in
+\colorbox{shade}{\texttt{lfs/utility.cpp}}. For simplicity in project 3, all
+functions require this lock when start and return this lock before return.
+
+\item \emph{Requirement 9:} We implemented a segment buffer, and flush it
+whenever \texttt{sync} is called.
+
+\item \emph{Requirement 10:} \texttt{init} function in
+\colorbox{shade}{\texttt{lfs/system.cpp}} scans the permanent storage file on
+disk, and restores the file system before crash. It only takes into account
+segments which have been successfully written to disk, which can be determined by
+extra timestamps recorded in each segment. Inode maps can be restored by reading
+segment summary and imap table in each segment.
+
+\end{itemize}
+
 \end{homeworkProblem}
 
 \begin{homeworkProblem}[Tests]
