@@ -16,7 +16,8 @@
 \usepackage{graphicx,float,wrapfig}
 \usepackage{CJK}
 \usepackage{algorithm}  
-\usepackage{algpseudocode} 
+\usepackage{algpseudocode}
+\usepackage{array,booktabs} 
 \usepackage{longtable}
 \usepackage{listings}
 \usepackage{color}
@@ -239,6 +240,53 @@
   If the file system functions properly, there should be exactly
   $n\times m$ directories.
 \end{homeworkProblem}
+
+
+\begin{homeworkProblem}[Command-line Tests]
+
+  Open a shell in directory \colorbox{shade}{\texttt{lfs}}, and execute \colorbox{shade}{\texttt{./fuse disk100Mi}} first. Then you are free to try any of the following command-line tests. To deal with file name conflicts between tests, you may directly use \colorbox{shade}{\texttt{rm -rf *}} to wipe LFS. These tests are based on Linux shell commands, so the correct results can be obtained by trying on a real Linux system (however, updates for \texttt{atime} may be slightly different).
+  
+  
+  \textit{{\bfseries Note:}} \textit{due to the implementation of FUSE, commands are executed under the permission of \colorbox{shade}{\texttt{others}}. This should be dealt with caution when analyzing the results of the following tests.}
+
+  \noindent\fbox{\colorbox{shade}{\textbf{Test for permission control}}}
+  Run through the following commands to test permission control of files and directories. Use \colorbox{shade}{\texttt{chmod}} to change permission. Directory should contain some files initially.
+  
+  \textbf{(1) Files.} Under permission \colorbox{shade}{\texttt{774}}, file is readable but not writable; under permission \colorbox{shade}{\texttt{776}}, file is both readable and writable. It is trickier to test for \colorbox{shade}{\texttt{772}} (file is writable but not readable), and you have to write a simple C++ program. \textit{{\bfseries Note:}} \textit{file permission is \colorbox{shade}{\texttt{664}} by default, so we manually run \colorbox{shade}{\texttt{chmod 666}} below.}
+  
+  \textbf{(2) Directories.} Under permission \colorbox{shade}{\texttt{774}}, \colorbox{shade}{\texttt{772}} and \colorbox{shade}{\texttt{771}}, the directory (\texttt{a}) can only be read (e.g. \colorbox{shade}{\texttt{ls a}}), write (e.g. \colorbox{shade}{\texttt{touch a/f.txt}}) and accessed (e.g. \colorbox{shade}{\texttt{cd a}}), respectively. Permissions are composable.
+  
+  \textit{{\bfseries Note:}} \textit{you may disable permission by flags \colorbox{shade}{\texttt{ENABLE\_PERMISSION}} (for internal control by internal ``\textbf{if}''s) and \colorbox{shade}{\texttt{ENABLE\_ACCESS\_PERM}} (for external permission queries through \texttt{access}), since they follow different mechanisms. You may refer to the manual below.}
+  
+  
+  \noindent\fbox{\colorbox{shade}{\textbf{Test for timestamps}}}
+  Run through the following commands in the first column of the table.
+  
+  \newcommand{\tabincell}[2]{\begin{tabular}{@{}#1@{}} #2 \end{tabular}}
+  \newcolumntype{C}{m{2.0cm}<{\centering}}
+  \begin{table}[H]
+    \centering
+    \vspace*{-8pt}
+    \begin{tabular}{!{\vrule width 1.5pt}c!{\vrule width 1.5pt}c|C|C|C!{\vrule width 1.5pt}}
+      \specialrule{1.5pt}{0pt}{0pt}
+      \textbf{Commands} & \textbf{\ttfamily stat ?} & \textbf{no flags} & \textbf{\ttfamily nodiratime} & \textbf{\ttfamily \tabincell{c}{nodiratime \\ \& relatime}} \\
+      \specialrule{1.5pt}{0pt}{0pt}
+      \texttt{mkdir a} & \texttt{a} & \multicolumn{3}{c!{\vrule width 1.5pt}}{\texttt{a}, \texttt{m}, \texttt{c} are initialized to the same.} \\\hline
+      \texttt{touch a/x.txt} & \texttt{a} & \texttt{a}, \texttt{m}, \texttt{c} & \texttt{m}, \texttt{c} & \texttt{a}, \texttt{m}, \texttt{c} \\\hline
+      \texttt{ls a} & \texttt{a} & \texttt{a}, \texttt{c} & --- & --- \\\hline
+      \texttt{mv a b} & \texttt{b} & \texttt{c} & \texttt{c} & \texttt{c} \\\hline
+      \texttt{ls b} & \texttt{b} & \texttt{a}, \texttt{c} & --- & \texttt{a}, \texttt{c} \\
+      \specialrule{1.5pt}{0pt}{0pt}
+      \texttt{chmod 666 b/x.txt} & \texttt{x.txt} & \texttt{c} & \texttt{c} & \texttt{c} \\\hline
+      \texttt{echo "abc" >> b/x.txt} & \texttt{x.txt} & \texttt{a}, \texttt{m}, \texttt{c} & \texttt{a}, \texttt{m}, \texttt{c} & \texttt{a}, \texttt{m}, \texttt{c} \\\hline
+      \texttt{cat b/x.txt} & \texttt{x.txt} & \texttt{a}, \texttt{c} & \texttt{a}, \texttt{c} & --- \\\hline
+      \texttt{mv b/x.txt b/y.txt} & \texttt{y.txt} & \texttt{c} & \texttt{c} & \texttt{c} \\\hline
+      \texttt{cat b/y.txt} & \texttt{y.txt} & \texttt{a}, \texttt{c} & \texttt{a}, \texttt{c} & \texttt{a}, \texttt{c} \\
+      \specialrule{1.5pt}{0pt}{0pt}
+    \end{tabular}
+  \end{table}
+\end{homeworkProblem}
+
 
 \begin{homeworkProblem}[Manual]
 \end{homeworkProblem}
