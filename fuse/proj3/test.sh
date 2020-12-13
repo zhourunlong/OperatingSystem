@@ -1,3 +1,4 @@
+#!/bin/bash
 cd ../lfs
 cp tests disk100Mi/tests -r
 cd disk100Mi/tests
@@ -36,3 +37,7 @@ cp testconcurrency Testconcurrency/run
 cd Testconcurrency
 ./run 12 50
 cd ..
+
+cd ../..
+fusermount -u disk100Mi
+
