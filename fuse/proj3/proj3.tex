@@ -186,7 +186,7 @@
 \begin{homeworkProblem}[Tests]
 
   Open terminal in \colorbox{shade}{\texttt{proj3}} directory, then run 
-  \colorbox{shade}{\texttt{test.sh}}. This will execute all five tests.
+  \colorbox{shade}{\texttt{bash test.sh}}. This will execute all five tests.
   Refer to \colorbox{shade}{\texttt{test.sh}} for compile options if you
   want to run each test separately.
 
@@ -241,9 +241,35 @@
 \end{homeworkProblem}
 
 \begin{homeworkProblem}[Manual]
+
+\begin{itemize}
+
+\item To compile, execute \colorbox{shade}{\texttt{scons}} in 
+\colorbox{shade}{\texttt{lfs/}} directory. If any issue happens, you may need
+to use Ubuntu 20.04 and install scons.
+
+\item To mount file system, either execute \colorbox{shade}{\texttt{bash buildfs.sh}}
+in \colorbox{shade}{\texttt{proj3/}} directory, or manually execute
+(this also applies to the ``echo file system'' in task 1)
+\colorbox{shade}{\texttt{./fuse <mount directory> <options>}}.
+
+\item Line 190-204 of \colorbox{shade}{\texttt{lfs/utility.h}} contain several
+debug options. To enable ``echo'' in log-structured file system (should add
+\colorbox{shade}{\texttt{-f}} to options), toggle on \texttt{DEBUG\_PRINT\_COMMAND}.
+
+\item Line 213 of \colorbox{shade}{\texttt{lfs/utility.h}} is a switch for 
+directory access time updates. When \texttt{FUNC\_ATIME\_DIR} is $1$, access
+timestamps of all files along the path will be updated.
+
+\end{itemize}
+
 \end{homeworkProblem}
 
-\begin{homeworkProblem}[Bugs]
+\begin{homeworkProblem}[Limitations]
+
+We have not implemented garbage collection, so when the file system is full, we
+can not even delete files.
+
 \end{homeworkProblem}
 
 % End edit to here
