@@ -63,12 +63,13 @@ void move_to_segment() {
         memset(segment_buffer, 0, sizeof(segment_buffer));
         segment_bitmap[cur_segment] = 1;
 
-        // Update only when whether LFS is not full yet.
+        // Update only when LFS is not full yet.
         cur_segment = (cur_segment+1) % TOT_SEGMENTS;
         if (cur_segment == head_segment) {
             cur_segment = (cur_segment+TOT_SEGMENTS-1) % TOT_SEGMENTS;
             is_full = true;
             logger(WARN, "[WARNING] The file system is already full. Please run garbage collection to release space.\n");
+            logger(WARN, "* Current operation at (segment %d, block %d) is discarded.\n", cur_segment, cur_block);
             // TBD: garbage collection.
             return;
         } else {
@@ -91,7 +92,7 @@ int new_data_block(void* data, int i_number, int direct_index) {
     int block_addr = cur_segment * BLOCKS_IN_SEGMENT + cur_block;
 
     if (DEBUG_BLOCKIO)
-        logger(DEBUG, "Add data block at (segment %d, block %d).\n", cur_segment, cur_block);
+        logger(DEBUG, "Add data block at (segment %d, block %d). Next imap: #%d.\n", cur_segment, cur_block, next_imap_index);
 
     acquire_writer_lock();
         if (!is_full) {
@@ -120,7 +121,7 @@ int new_inode_block(struct inode* data) {
     int block_addr = cur_segment * BLOCKS_IN_SEGMENT + cur_block;
 
     if (DEBUG_BLOCKIO)
-        logger(DEBUG, "Add inode block at (segment %d, block %d)..\n", cur_segment, cur_block);
+        logger(DEBUG, "Add inode block at (segment %d, block %d). Write to imap: #%d.\n", cur_segment, cur_block, next_imap_index);
 
     acquire_writer_lock();
         if (!is_full) {
@@ -277,8 +278,33 @@ void file_modify(struct inode* cur_inode, int direct_index, void* data) {
  * @param  i_number: i_number of an existing inode. */
 void remove_inode(int i_number) {
     acquire_writer_lock();
+        if (DEBUG_BLOCKIO)
+            logger(DEBUG, "Remove inode block. Written to imap: #%d.\n", next_imap_index);
         inode_table[i_number] = -1;
         add_segbuf_imap(i_number, -1);
+        
+        // Imap modification may also trigger segment writeback.
+        // If segment buffer is full, it should be flushed to disk file.
+        if (cur_block == DATA_BLOCKS_IN_SEGMENT-1 || next_imap_index == DATA_BLOCKS_IN_SEGMENT) {
+            add_segbuf_metadata();
+            write_segment(segment_buffer, cur_segment);
+            memset(segment_buffer, 0, sizeof(segment_buffer));
+            segment_bitmap[cur_segment] = 1;
+
+            // Update only when LFS is not full yet.
+            cur_segment = (cur_segment+1) % TOT_SEGMENTS;
+            if (cur_segment == head_segment) {
+                cur_segment = (cur_segment+TOT_SEGMENTS-1) % TOT_SEGMENTS;
+                is_full = true;
+                logger(WARN, "[WARNING] The file system is already full. Please run garbage collection to release space.\n");
+                logger(WARN, "* Current operation at (segment %d, imap %d) is discarded.\n", cur_segment, next_imap_index-1);
+                // TBD: garbage collection.
+                return;
+            } else {
+                cur_block = 0;
+                next_imap_index = 0;
+            }
+        }
     release_writer_lock();
 }
 
