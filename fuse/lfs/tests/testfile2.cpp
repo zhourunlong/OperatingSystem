@@ -23,5 +23,6 @@ int main() {
         free(buf);
         close(file_handle);
     }
+    system("rm -rf *");
     return 0;
 }
