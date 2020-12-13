@@ -38,6 +38,8 @@ int o_getattr(const char* path, struct stat* sbuf, struct fuse_file_info* fi) {
     if (DEBUG_METADATA_INODE) print(&f_inode);
 
     if (f_inode.i_number != i_number) {
+        printf("inum = %d\n", i_number);
+        //print_inode_table();
         logger(ERROR, "[FATAL ERROR] Corrupt file system on disk: inode inconsistent with inumber.\n");
         exit(-1);
     }
@@ -117,6 +119,8 @@ int o_access(const char* path, int mode) {
     if (DEBUG_METADATA_INODE) print(&f_inode);
     
     if (f_inode.i_number != i_number) {
+        printf("inum = %d\n", i_number);
+        //print_inode_table();
         logger(ERROR, "[FATAL ERROR] Corrupt file system on disk: inode inconsistent with inumber.\n");
         exit(-1);
     }

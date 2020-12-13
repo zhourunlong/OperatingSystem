@@ -48,7 +48,7 @@ int o_releasedir(const char* path, struct fuse_file_info* fi) {
     if (DEBUG_PRINT_COMMAND)
         logger(DEBUG, "RELEASEDIR, %s, %p\n", resolve_prefix(path).c_str(), fi);
 
-    fi = nullptr;
+    fi->fh = 0;
 
     return 0;
 }
@@ -247,7 +247,7 @@ int o_mkdir(const char* path, mode_t mode) {
         logger(DEBUG, "MKDIR, %s, %o\n", resolve_prefix(path).c_str(), mode);
 
     mode &= 0777;
-    
+
     std::string tmp = relative_to_absolute(path, "../", 0);
     char* parent_dir = (char*) malloc((tmp.length() + 1) * SC);
     strcpy(parent_dir, tmp.c_str());
@@ -389,6 +389,14 @@ int remove_object(struct inode &head_inode, const char* del_name, int del_mode) 
                         }
                     }
 
+                    if (del_mode == MODE_DIR || tmp_head_inode.num_links == 1)
+                        remove_inode(block_dir[j].i_number);
+                    else {
+                        tmp_head_inode.num_links--;
+                        tmp_head_inode.ctime = cur_time;
+                        new_inode_block(&tmp_head_inode);
+                    }
+
                     // Remove parent directory entry: discard empty inodes.
                     int cnt = 0;
                     for (int k = 0; k < MAX_DIR_ENTRIES; ++k)
@@ -409,6 +417,7 @@ int remove_object(struct inode &head_inode, const char* del_name, int del_mode) 
                             }
                             new_inode_block(&block_inode);
                         } else {
+                            remove_inode(tail_inode.next_indirect);
                             tail_inode.next_indirect = block_inode.next_indirect;
                             if (tail_firblk) {
                                 if (FUNC_ATIME_DIR)
@@ -438,22 +447,6 @@ int remove_object(struct inode &head_inode, const char* del_name, int del_mode) 
                             new_inode_block(&head_inode);
                         }
                         new_inode_block(&block_inode);
-                    }
-
-                    // Remove i_map and i_table pointers to the object.
-                    if (del_mode == MODE_DIR) {
-                        // Directories have no user-level hard links.
-                        remove_inode(block_dir[j].i_number);
-                    } else if (del_mode == MODE_FILE) {
-                        if (tmp_head_inode.num_links == 1) {
-                            // Delete the file if nlink = 0 after deletion.
-                            remove_inode(block_dir[j].i_number);
-                        } else {
-                            // Decrement link count by 1, and update ctime.
-                            tmp_head_inode.num_links--;
-                            tmp_head_inode.ctime = cur_time;
-                            new_inode_block(&tmp_head_inode);
-                        }
                     }
                     return 0;
                 }
