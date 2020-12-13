@@ -1,6 +1,6 @@
 #include <bits/stdc++.h>
 using namespace std;
-const int N = 5000;
+const int N = 2005;
 int f[N];
 set <int> g[N];
 vector <int> stk, avail;
@@ -9,21 +9,24 @@ void dfs(int u) {
     string t = "";
     for (int i = 0; i < stk.size(); ++i)
         t += "/" + to_string(stk[i]);
-    char s[999];
-    sprintf(s, "mkdir ../test%s", t.c_str());
+    char* s = (char*) malloc(999 * sizeof(char));
+    sprintf(s, "mkdir .%s", t.c_str());
     system(s);
+    free(s);
     for (set <int> :: iterator itr = g[u].begin(); itr != g[u].end(); ++itr)
         dfs(*itr);
     stk.pop_back();
 }
-int main() {
+int main(int argc, char *argv[]) {
+    int n = atoi(argv[2]);
+    assert(n < N);
     srand(time(NULL));
-    for (int i = 2; i < N; ++i) {
+    for (int i = 2; i <= n; ++i) {
         f[i] = rand() % (i - 1) + 1;
         g[f[i]].insert(i);
     }
     dfs(1);
-    for (int i = 1; i < N; ++i)
+    for (int i = 1; i <= n; ++i)
         avail.push_back(i);
     while (1) {
         int z = rand() % avail.size();
@@ -39,7 +42,7 @@ int main() {
         for (int i = 0; i < stk.size(); ++i)
             t += "/" + to_string(stk[i]);
         char s[999];
-        sprintf(s, "rmdir ../test%s\n", t.c_str());
+        sprintf(s, "rmdir .%s\n", t.c_str());
         int ret = system(s);
         //fprintf(stderr, "%s", s);
         int correct = 1;
