@@ -52,7 +52,7 @@ int get_inode_from_inum(void* data, int i_number) {
 /** Increment cur_block, and flush segment buffer if it is full. */
 void move_to_segment() {
     if (is_full) {
-        logger(WARN, "[WARNING] The file system is already full. Please run garbage collection to release space.\n");
+        logger(WARN, "[WARNING] The file system is already full.\n* Please run garbage collection to release space.\n");
         // TBD: garbage collection.
         return;
     }
@@ -66,9 +66,14 @@ void move_to_segment() {
         // Update only when LFS is not full yet.
         cur_segment = (cur_segment+1) % TOT_SEGMENTS;
         if (cur_segment == head_segment) {
+            // Return to the last state.
             cur_segment = (cur_segment+TOT_SEGMENTS-1) % TOT_SEGMENTS;
+            read_segment(segment_buffer, cur_segment);
+
             is_full = true;
-            logger(WARN, "[WARNING] The file system is already full. Please run garbage collection to release space.\n");
+            generate_checkpoint();  // A checkpoint is necessary for correct recovery.
+
+            logger(WARN, "[WARNING] The file system is already full.\n* Please run garbage collection to release space.\n");
             logger(WARN, "* Current operation at (segment %d, block %d) is discarded.\n", cur_segment, cur_block);
             // TBD: garbage collection.
             return;
@@ -296,7 +301,7 @@ void remove_inode(int i_number) {
             if (cur_segment == head_segment) {
                 cur_segment = (cur_segment+TOT_SEGMENTS-1) % TOT_SEGMENTS;
                 is_full = true;
-                logger(WARN, "[WARNING] The file system is already full. Please run garbage collection to release space.\n");
+                logger(WARN, "[WARNING] The file system is already full.\n* Please run garbage collection to release space.\n");
                 logger(WARN, "* Current operation at (segment %d, imap %d) is discarded.\n", cur_segment, next_imap_index-1);
                 // TBD: garbage collection.
                 return;

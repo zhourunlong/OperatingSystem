@@ -205,12 +205,9 @@ void* o_init(struct fuse_conn_info* conn, struct fuse_config* cfg) {
                     next_imap_index = prev_seg_imap_idx;
                 }
 
-        // Determine whether the file system is already full after recovery.
-        if ( ((cur_segment+1) % TOT_SEGMENTS == head_segment)
-             && ((cur_block == DATA_BLOCKS_IN_SEGMENT) || (next_imap_index == DATA_BLOCKS_IN_SEGMENT)))
-            is_full = true;
+        // Warn if the file system is already full after recovery.
         if (is_full) {
-            logger(WARN, "[WARNING] The file system is already full. Please run garbage collection to release space.\n");
+            logger(WARN, "[WARNING] The file system is already full.\n* Please run garbage collection to release space.\n");
             // TBD: garbage collection.
         }
         // print_inode_table();
@@ -218,7 +215,6 @@ void* o_init(struct fuse_conn_info* conn, struct fuse_config* cfg) {
         
         // Initialize segment buffer in memory.
         read_segment(segment_buffer, cur_segment);
-        memset(segment_buffer + cur_block*BLOCK_SIZE, 0, (DATA_BLOCKS_IN_SEGMENT-cur_block)*BLOCK_SIZE);
     }
 
 	return NULL;
