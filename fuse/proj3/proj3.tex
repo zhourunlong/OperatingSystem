@@ -179,25 +179,49 @@
 
 Our system consists of data structures corresponding to physical and logical entities, which keeps complete information to restore a consistent state of LFS. To make read and write easier, they are all structs and arrays (instead of classes). Detailed declarations can all be found in header file \colorbox{shade}{\textbf{\ttfamily utility.h}}:
 \begin{itemize}
-  \item The disk file (representing hard disks) is usually read in blocks and written in segments. For clarity, \colorbox{shade}{\textbf{\ttfamily block}} is an \texttt{char} array. For parameters we may simply use \texttt{char*} or even \texttt{void*}.
-  
+  \item The disk file (representing hard disks) is usually read in blocks and written in segments. For clarity, \colorbox{shade}{\textbf{\ttfamily block}} is an \texttt{char[1024]} array. For parameters we may simply use \texttt{char*} or even \texttt{void*}.
   \begin{itemize}
     \item \textit{File data blocks} are struct-less, which means they are plainly bytes without extra information.
     
-    \item \textit{Directory data blocks} consist of 
+    \item \textit{Directory data blocks} consist of 16 directory entries in type \colorbox{shade}{\textbf{\ttfamily dir\_entry}}. Each entry contains a \texttt{filename} field as \texttt{char[60]}, and a \texttt{i\_number} field as \texttt{int}. The maximum length of name can be modified, as long as the total size of a {\textbf{\ttfamily directory}} is 1024 B.
     
     \item \textit{Inode blocks} have fixed internal structure defined as \colorbox{shade}{\textbf{\ttfamily struct inode}} (of length 1024 B exactly).
+    
+    \item \textit{Indirect blocks} are not separately structured for the sake of convenience. Rather, we borrow inodes to represent indirect blocks (with mode set to \texttt{-1}). Note that these ``fake'' inodes are also recorded in local \texttt{inode\_map}s and the global \texttt{inode\_table} (see below), but direct access to them will return an error. \textit{\bfseries Note:} \textit{this design not only makes the path-traversing procedure easier, but also reduces the update cost, since we only have to update a few inodes rather than the complete chain.}
   \end{itemize}
   
+  \item Segment is a logical unit for efficient write-backs and metadata management. Since we do not explicitly read segments out, we only have to maintain a \colorbox{shade}{\textbf{\ttfamily segment\_buffer}} in memory. Segments consist of consecutive blocks" the first 1008 of them are normal blocks (declared above), while the last 16 of them store segment metadata, including \textit{inode map}, \textit{segment summary} and \textit{segment metadata}.
+  \begin{itemize}
+    \item \textit{Inode map} is an array consisting of inode map entries (\colorbox{shade}{\textbf{\ttfamily struct imap\_entry}}). An inode map entry consists of \texttt{i\_number} and \texttt{inode\_block} fields, representing a map from inode number to its block number. There may be several entries with identical inode number even in the same segment, but the last one always stands for the latest version, and is cached in a linear table \texttt{inode\_table}.
+    
+    \item \textit{Segment summary} is an array consisting of summary entries (\colorbox{shade}{\textbf{\ttfamily struct summary\_entry}}). An inode map entry consists of \texttt{i\_number} and \texttt{direct\_index} fields, where the latter stands for the offset of the data block within the file, represented using the index in \texttt{index[]} (write \texttt{-1} for inodes).
+    
+    \item \textit{Segment metadata} is an array consisting of other metadata (up to 256 bytes that remains free). Currently we maintain \texttt{updata\_time} (last write-back time) and \texttt{cur\_block} (next block number).
+  \end{itemize}
+  
+  \item Following the 100 segments, we store some metadata for the whole file system.
+  \begin{itemize}
+    \item \textit{LFS ``superblock''} (as \colorbox{shade}{\textbf{\ttfamily struct superblock}}) keeps basic properties of the file system. In our project these are all constants, so we only write them once, and do not directly read them.
+    
+    \item \textit{LFS checkpoints} (as \colorbox{shade}{\textbf{\ttfamily struct checkpoint}}) keep periodical state snapshots (most global variables in memory) of the file system. The two checkpoint fields will be alternatingly written to ensure completeness of the snapshot. Checkpoints are read only at initialization state (for crash recoveries). 
+  \end{itemize}
+\end{itemize}
+
+We also declare several constants to describe the properties of the system. Theoretically, any \textit{coherent} set of constants should work fine with the system, but we only test with the constants provided in the code.
+
+\end{homeworkProblem}
+
+
+\begin{homeworkProblem}[Code]
+
+Functions in the system are classified into different abstract levels for clarity and robustness. Header files \texttt{*.h} contain functions that can be called from other files, while source files \texttt{*.cpp} contain their implementation and some auxiliary files. Non-interface functions are equipped with explanatory comments.
+
+\begin{itemize}
   \item 
 \end{itemize}
 
-We also declare a sequence of constants.
-
 \end{homeworkProblem}
 
-\begin{homeworkProblem}[Code]
-\end{homeworkProblem}
 
 \begin{homeworkProblem}[Details for Requirements 7-10]
 
@@ -337,6 +361,9 @@ segment summary and imap table in each segment.
     \item \colorbox{shade}{\textbf{\ttfamily mv b c; echo "def" >> c}}: after renaming the link, \textbf{ls} will return \texttt{a, c}, and both will contain ``def''.
     \item \colorbox{shade}{\textbf{\ttfamily touch d; chmod 666 d; cp c d; echo "ghi" >> d}}: by copying a hard link, a new file completely irrelevant of the linked file is created. Only file \texttt{d} contains ``ghi'', while files \texttt{a} and \texttt{c} remain the same.
   \end{itemize}
+  
+  
+  \noindent\fbox{\colorbox{shade}{\textbf{Test for crash recoveries}}}
 
 
 \begin{homeworkProblem}[Manual]
