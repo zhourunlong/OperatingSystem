@@ -39,6 +39,7 @@ std::lock_guard <std::mutex> guard(global_lock);
     if (DEBUG_METADATA_INODE) print(&f_inode);
 
     if (f_inode.i_number != i_number) {
+        printf("%d: %d.\n", i_number, inode_table[i_number]);
         print(&f_inode);
         logger(ERROR, "[FATAL ERROR] Corrupt file system on disk: inode inconsistent with inumber.\n");
         exit(-1);
@@ -120,6 +121,7 @@ std::lock_guard <std::mutex> guard(global_lock);
     if (DEBUG_METADATA_INODE) print(&f_inode);
     
     if (f_inode.i_number != i_number) {
+        printf("%d: %d.\n", i_number, inode_table[i_number]);
         print(&f_inode);
         logger(ERROR, "[FATAL ERROR] Corrupt file system on disk: inode inconsistent with inumber.\n");
         exit(-1);

@@ -128,7 +128,7 @@ struct superblock {
 
 
 const int CHECKPOINT_ADDR = TOT_SEGMENTS * SEGMENT_SIZE + BLOCK_SIZE;
-const int CHECKPOINT_SIZE = 2 * (25+TOT_SEGMENTS);
+const int CHECKPOINT_SIZE = 2 * (28+TOT_SEGMENTS);
 const int CKPT_UPDATE_INTERVAL = 30;    // Minimum interval for checkpoint update (in seconds).
 /** Checkpoint Block: recording periodical checkpoints of volatile information.
  * We should assign 2 checkpoints and use them in turns (for failure restoration).
