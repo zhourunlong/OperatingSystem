@@ -63,8 +63,10 @@ std::lock_guard <std::mutex> guard(global_lock);
 
     inode block_inode;
     get_inode_from_inum(&block_inode, fh);
-    block_inode.perm_uid = uid;
-    block_inode.perm_gid = gid;
+    if (uid != -1)
+        block_inode.perm_uid = uid;
+    if (gid != -1)
+        block_inode.perm_gid = gid;
     clock_gettime(CLOCK_REALTIME, &block_inode.ctime);
     new_inode_block(&block_inode);
 
