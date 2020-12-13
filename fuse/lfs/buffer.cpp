@@ -11,23 +11,15 @@
 #include <string.h>
 
 int o_flush(const char* path, struct fuse_file_info* fi) {
-    if (DEBUG_PRINT_COMMAND) {
-        char* _path = (char*) malloc(mount_dir_len+strlen(path)+4);
-        resolve_prefix(path, _path);
-        logger(DEBUG, "FLUSH, %s, %p\n", _path, fi);
-        free(_path);
-    }
+    if (DEBUG_PRINT_COMMAND)
+        logger(DEBUG, "FLUSH, %s, %p\n", resolve_prefix(path).c_str(), fi);
     return 0;
 }
 
 int o_fsync(const char* path, int isdatasync, struct fuse_file_info* fi) {
-    if (DEBUG_PRINT_COMMAND) {
-        char* _path = (char*) malloc(mount_dir_len+strlen(path)+4);
-        resolve_prefix(path, _path);
+    if (DEBUG_PRINT_COMMAND)
         logger(DEBUG, "FSYNC, %s, %d, %p\n",
-               _path, isdatasync, fi);
-        free(_path);
-    }
+               resolve_prefix(path).c_str(), isdatasync, fi);
     
     // Currently flush the whole segment buffer to disk (the same as destroy()).
     add_segbuf_metadata();
@@ -46,13 +38,9 @@ int o_fsync(const char* path, int isdatasync, struct fuse_file_info* fi) {
 }
 
 int o_fsyncdir(const char* path, int isdatasync, struct fuse_file_info* fi) {
-    if (DEBUG_PRINT_COMMAND) {
-        char* _path = (char*) malloc(mount_dir_len+strlen(path)+4);
-        resolve_prefix(path, _path);
+    if (DEBUG_PRINT_COMMAND)
         logger(DEBUG, "FSYNCDIR, %s, %d, %p\n",
-               _path, isdatasync, fi);
-        free(_path);
-   }
+               resolve_prefix(path).c_str(), isdatasync, fi);
     
     // Currently flush the whole segment buffer to disk (the same as destroy()).
     add_segbuf_metadata();

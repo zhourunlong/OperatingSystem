@@ -14,6 +14,7 @@
 #include <unistd.h>
 #include <errno.h>
 
+const int SC = sizeof(char);
 
 /** (for internal uses only) Set direct[block_ind:] in cur_inode to -1.
  * @param  cur_inode: the inode to be operated on.
@@ -182,12 +183,8 @@ int write_in_file(const char* path, const char* buf, size_t size,
 
 
 int o_open(const char* path, struct fuse_file_info* fi) {
-    if (DEBUG_PRINT_COMMAND) {
-        char* _path = (char*) malloc(mount_dir_len+strlen(path)+4);
-        resolve_prefix(path, _path);
-        logger(DEBUG, "OPEN, %s, %p\n", _path, fi);
-        free(_path);
-    }
+    if (DEBUG_PRINT_COMMAND)
+        logger(DEBUG, "OPEN, %s, %p\n", resolve_prefix(path).c_str(), fi);
 
     timespec cur_time;
     clock_gettime(CLOCK_REALTIME, &cur_time);
@@ -214,12 +211,8 @@ int o_open(const char* path, struct fuse_file_info* fi) {
 }
 
 int o_release(const char* path, struct fuse_file_info* fi) {
-    if (DEBUG_PRINT_COMMAND) {
-        char* _path = (char*) malloc(mount_dir_len+strlen(path)+4);
-        resolve_prefix(path, _path);
-        logger(DEBUG, "RELEASE, %s, %p\n", _path, fi);
-        free(_path);
-    }
+    if (DEBUG_PRINT_COMMAND)
+        logger(DEBUG, "RELEASE, %s, %p\n", resolve_prefix(path).c_str(), fi);
 
     fi = nullptr;
 
@@ -227,13 +220,9 @@ int o_release(const char* path, struct fuse_file_info* fi) {
 }
 
 int o_read(const char* path, char *buf, size_t size, off_t offset, struct fuse_file_info* fi) {
-    if (DEBUG_PRINT_COMMAND) {
-        char* _path = (char*) malloc(mount_dir_len+strlen(path)+4);
-        resolve_prefix(path, _path);
+    if (DEBUG_PRINT_COMMAND)
         logger(DEBUG, "READ, %s, %p, %d, %d, %p\n",
-               _path, buf, size, offset, fi);
-        free(_path);
-    }
+               resolve_prefix(path).c_str(), buf, size, offset, fi);
     
     timespec cur_time;
     clock_gettime(CLOCK_REALTIME, &cur_time);
@@ -328,13 +317,9 @@ int o_read(const char* path, char *buf, size_t size, off_t offset, struct fuse_f
 
 
 int o_write(const char* path, const char* buf, size_t size, off_t offset, struct fuse_file_info* fi) {
-    if (DEBUG_PRINT_COMMAND) {
-        char* _path = (char*) malloc(mount_dir_len+strlen(path)+4);
-        resolve_prefix(path, _path);
+    if (DEBUG_PRINT_COMMAND)
         logger(DEBUG, "WRITE, %s, %p, %d, %d, %p\n",
-               _path, buf, size, offset, fi);
-        free(_path);
-    }
+               resolve_prefix(path).c_str(), buf, size, offset, fi);
 
     // In case the file is not open yet.
     size_t len;
@@ -376,20 +361,21 @@ int o_write(const char* path, const char* buf, size_t size, off_t offset, struct
 }
 
 int o_create(const char *path, mode_t mode, struct fuse_file_info *fi) {
-    if (DEBUG_PRINT_COMMAND) {
-        char* _path = (char*) malloc(mount_dir_len+strlen(path)+4);
-        resolve_prefix(path, _path);
+    if (DEBUG_PRINT_COMMAND)
         logger(DEBUG, "CREATE, %s, %o, %p\n",
-               _path, mode, fi);
-        free(_path);
-    }
+               resolve_prefix(path).c_str(), mode, fi);
 
     
     mode &= 0777;
-    char* parent_dir = (char*) malloc(strlen(path)+4);
-    relative_to_absolute(path, "../", 0, parent_dir);
-    char* dirname = (char*) malloc(strlen(path));
-    current_fname(path, dirname);
+    
+    std::string tmp = relative_to_absolute(path, "../", 0);
+    char* parent_dir = (char*) malloc((tmp.length() + 1) * SC);
+    strcpy(parent_dir, tmp.c_str());
+
+    tmp = current_fname(path);
+    char* dirname = (char*) malloc((tmp.length() + 1) * SC);
+    strcpy(dirname, tmp.c_str());
+
     if (strlen(dirname) >= MAX_FILENAME_LEN) {
         if (ERROR_FILE)
             logger(ERROR, "[ERROR] Directory name too long: length %d > %d.\n", strlen(dirname), MAX_FILENAME_LEN);
@@ -409,6 +395,8 @@ int o_create(const char *path, mode_t mode, struct fuse_file_info *fi) {
     int perm_flag;
     perm_flag = get_inode_from_inum(&head_inode, par_inum);
     if (perm_flag != 0) {
+        if (ERROR_PERM)
+            logger(ERROR, "[ERROR] Permission denied: not allowed to read.\n");
         free(parent_dir); free(dirname);
         return perm_flag;
     }
@@ -447,28 +435,28 @@ int o_create(const char *path, mode_t mode, struct fuse_file_info *fi) {
 }
 
 int o_rename(const char* from, const char* to, unsigned int flags) {
-    if (DEBUG_PRINT_COMMAND) {
-        char* _from = (char*) malloc(strlen(from));
-        resolve_prefix(from, _from);
-        char* _to = (char*) malloc(strlen(to));
-        resolve_prefix(to, _to);
+    if (DEBUG_PRINT_COMMAND)
         logger(DEBUG, "RENAME, %s, %s, %d\n",
-               _from, _to, flags);
-        free(_from); free(_to);
-    }
+               resolve_prefix(from).c_str(), resolve_prefix(to).c_str(), flags);
     
     timespec cur_time;
     clock_gettime(CLOCK_REALTIME, &cur_time);
     
-    char* from_parent_dir = (char*) malloc(strlen(from)+4);
-    char* to_parent_dir = (char*) malloc(strlen(to)+4);
-    relative_to_absolute(from, "../", 0, from_parent_dir);
-    relative_to_absolute(to, "../", 0, to_parent_dir);
+    std::string tmp = relative_to_absolute(from, "../", 0);
+    char* from_parent_dir = (char*) malloc((tmp.length() + 1) * SC);
+    strcpy(from_parent_dir, tmp.c_str());
 
-    char* from_name = (char*) malloc(strlen(from));
-    char* to_name = (char*) malloc(strlen(to));
-    current_fname(from, from_name);
-    current_fname(to, to_name);
+    tmp = relative_to_absolute(to, "../", 0);
+    char* to_parent_dir = (char*) malloc((tmp.length() + 1) * SC);
+    strcpy(to_parent_dir, tmp.c_str());
+
+    tmp = current_fname(from);
+    char* from_name = (char*) malloc((tmp.length() + 1) * SC);
+    strcpy(from_name, tmp.c_str());
+
+    tmp = current_fname(to);
+    char* to_name = (char*) malloc((tmp.length() + 1) * SC);
+    strcpy(to_name, tmp.c_str());
 
     int from_inum, to_inum, from_par_inum, to_par_inum;
     if (strlen(to_name) >= MAX_FILENAME_LEN) {
@@ -510,7 +498,7 @@ int o_rename(const char* from, const char* to, unsigned int flags) {
         perm_flag = get_inode_from_inum(&from_inode, from_inum);
         perm_flag = 0;
         if (perm_flag != 0) {
-            if (ERROR_FILE)
+            if (ERROR_PERM)
                 logger(ERROR, "[ERROR] Permission denied: not allowed to read source file inode.\n");
             free(from_parent_dir); free(to_parent_dir); free(from_name); free(to_name);
             return perm_flag;
@@ -522,7 +510,7 @@ int o_rename(const char* from, const char* to, unsigned int flags) {
         if (verify_permission(PERM_WRITE | PERM_READ, &from_par_inode, user_info, ENABLE_PERMISSION))
             perm_flag = -EACCES;
         if (perm_flag != 0) {
-            if (ERROR_FILE)
+            if (ERROR_PERM)
                 logger(ERROR, "[ERROR] Permission denied: not allowed to write source dir inode.\n");
             free(from_parent_dir); free(to_parent_dir); free(from_name); free(to_name);
             return perm_flag;
@@ -531,7 +519,7 @@ int o_rename(const char* from, const char* to, unsigned int flags) {
         perm_flag = get_inode_from_inum(&to_inode, to_inum);
         perm_flag = 0;
         if (perm_flag != 0) {
-            if (ERROR_FILE)
+            if (ERROR_PERM)
                 logger(ERROR, "[ERROR] Permission denied: not allowed to read dest file inode.\n");
             free(from_parent_dir); free(to_parent_dir); free(from_name); free(to_name);
             return perm_flag;
@@ -542,7 +530,7 @@ int o_rename(const char* from, const char* to, unsigned int flags) {
         if (verify_permission(PERM_WRITE | PERM_READ, &to_par_inode, user_info, ENABLE_PERMISSION))
             perm_flag = -EACCES;
         if (perm_flag != 0) {
-            if (ERROR_FILE)
+            if (ERROR_PERM)
                 logger(ERROR, "[ERROR] Permission denied: not allowed to write dest dir inode.\n");
             free(from_parent_dir); free(to_parent_dir); free(from_name); free(to_name);
             return perm_flag;
@@ -585,7 +573,7 @@ int o_rename(const char* from, const char* to, unsigned int flags) {
     int perm_flag = get_inode_from_inum(&from_inode, from_inum);
     perm_flag = 0;
     if (perm_flag != 0) {
-        if (ERROR_FILE)
+        if (ERROR_PERM)
             logger(ERROR, "[ERROR] Permission denied: not allowed to read source file inode.\n");
         free(from_parent_dir); free(to_parent_dir); free(from_name); free(to_name);
         return perm_flag;
@@ -594,7 +582,7 @@ int o_rename(const char* from, const char* to, unsigned int flags) {
     perm_flag = get_inode_from_inum(&from_par_inode, from_par_inum);
     perm_flag = 0;
     if (perm_flag != 0) {
-        if (ERROR_FILE)
+        if (ERROR_PERM)
             logger(ERROR, "[ERROR] Permission denied: not allowed to read source dir inode.\n");
         free(from_parent_dir); free(to_parent_dir); free(from_name); free(to_name);
         return perm_flag;
@@ -612,7 +600,7 @@ int o_rename(const char* from, const char* to, unsigned int flags) {
     inode head_inode;
     perm_flag = get_inode_from_inum(&head_inode, to_par_inum);
     if (perm_flag != 0) {
-        if (ERROR_FILE)
+        if (ERROR_PERM)
             logger(ERROR, "[ERROR] Permission denied: not allowed to read dest file inode.\n");
         return perm_flag;
     }
@@ -622,17 +610,16 @@ int o_rename(const char* from, const char* to, unsigned int flags) {
 }
 
 int o_unlink(const char* path) {
-    if (DEBUG_PRINT_COMMAND) {
-        char* _path = (char*) malloc(mount_dir_len+strlen(path)+4);
-        resolve_prefix(path, _path);
-        logger(DEBUG, "UNLINK, %s\n", _path);
-        free(_path);
-    }
+    if (DEBUG_PRINT_COMMAND)
+        logger(DEBUG, "UNLINK, %s\n", resolve_prefix(path).c_str());
     
-    char* parent_dir = (char*) malloc(strlen(path)+4);
-    relative_to_absolute(path, "../", 0, parent_dir);
-    char* file_name = (char*) malloc(strlen(path));
-    current_fname(path, file_name);
+    std::string tmp = relative_to_absolute(path, "../", 0);
+    char* parent_dir = (char*) malloc((tmp.length() + 1) * SC);
+    strcpy(parent_dir, tmp.c_str());
+
+    tmp = current_fname(path);
+    char* file_name = (char*) malloc((tmp.length() + 1) * SC);
+    strcpy(file_name, tmp.c_str());
 
     int par_inum, file_inum;
     locate(parent_dir, par_inum);
@@ -647,7 +634,7 @@ int o_unlink(const char* path) {
     inode head_inode;
     int perm_flag = get_inode_from_inum(&head_inode, par_inum);
     if (perm_flag != 0) {
-        if (ERROR_FILE)
+        if (ERROR_PERM)
             logger(ERROR, "[ERROR] Permission denied: not allowed to read.\n");
         free(parent_dir); free(file_name);
         return perm_flag;
@@ -658,27 +645,27 @@ int o_unlink(const char* path) {
 }
 
 int o_link(const char* src, const char* dest) {
-    if (DEBUG_PRINT_COMMAND) {
-        char* _src = (char*) malloc(strlen(src));
-        resolve_prefix(src, _src);
-        char* _dest = (char*) malloc(strlen(dest));
-        resolve_prefix(dest, _dest);
-        logger(DEBUG, "LINK, %s, %s\n", _src, _dest);
-        free(_src); free(_dest);
-    }
+    if (DEBUG_PRINT_COMMAND)
+        logger(DEBUG, "LINK, %s, %s\n", resolve_prefix(src).c_str(), resolve_prefix(dest).c_str());
     
     timespec cur_time;
     clock_gettime(CLOCK_REALTIME, &cur_time);
     
-    char* src_parent_dir = (char*) malloc(strlen(src)+4);
-    char* dest_parent_dir = (char*) malloc(strlen(dest)+4);
-    relative_to_absolute(src, "../", 0, src_parent_dir);
-    relative_to_absolute(dest, "../", 0, dest_parent_dir);
+    std::string tmp = relative_to_absolute(src, "../", 0);
+    char* src_parent_dir = (char*) malloc((tmp.length() + 1) * SC);
+    strcpy(src_parent_dir, tmp.c_str());
 
-    char* src_name = (char*) malloc(strlen(src));
-    char* dest_name = (char*) malloc(strlen(dest));
-    current_fname(src, src_name);
-    current_fname(dest, dest_name);
+    tmp = relative_to_absolute(dest, "../", 0);
+    char* dest_parent_dir = (char*) malloc((tmp.length() + 1) * SC);
+    strcpy(dest_parent_dir, tmp.c_str());
+
+    tmp = current_fname(src);
+    char* src_name = (char*) malloc((tmp.length() + 1) * SC);
+    strcpy(src_name, tmp.c_str());
+
+    tmp = current_fname(dest);
+    char* dest_name = (char*) malloc((tmp.length() + 1) * SC);
+    strcpy(dest_name, tmp.c_str());
 
     if (strlen(src_name) >= MAX_FILENAME_LEN || strlen(dest_name) >= MAX_FILENAME_LEN) {
         if (ERROR_FILE)
@@ -700,7 +687,7 @@ int o_link(const char* src, const char* dest) {
     }
     int perm_flag = get_inode_from_inum(&src_inode, src_inum);
     if (perm_flag != 0) {
-        if (ERROR_FILE)
+        if (ERROR_PERM)
             logger(ERROR, "[ERROR] Permission denied: not allowed to read source file.\n");
         free(src_parent_dir); free(dest_parent_dir); free(src_name); free(dest_name);
         return perm_flag;
@@ -734,7 +721,7 @@ int o_link(const char* src, const char* dest) {
     if (verify_permission(PERM_WRITE | PERM_READ, &dest_par_inode, user_info, ENABLE_PERMISSION))
         perm_flag = -EACCES;
     if (perm_flag != 0) {
-        if (ERROR_FILE)
+        if (ERROR_PERM)
             logger(ERROR, "[ERROR] Permission denied: not allowed to write dest directory.\n");
         free(src_parent_dir); free(dest_parent_dir); free(src_name); free(dest_name);
         return perm_flag;
@@ -749,13 +736,9 @@ int o_link(const char* src, const char* dest) {
 }
 
 int o_truncate(const char* path, off_t size, struct fuse_file_info *fi) {
-    if (DEBUG_PRINT_COMMAND) {
-        char* _path = (char*) malloc(mount_dir_len+strlen(path)+4);
-        resolve_prefix(path, _path);
+    if (DEBUG_PRINT_COMMAND)
         logger(DEBUG, "TRUNCATE, %s, %d, %p\n",
-               _path, size, fi);
-        free(_path);
-    }
+               resolve_prefix(path).c_str(), size, fi);
     
     timespec cur_time;
     clock_gettime(CLOCK_REALTIME, &cur_time);
@@ -778,7 +761,7 @@ int o_truncate(const char* path, off_t size, struct fuse_file_info *fi) {
     if (verify_permission(PERM_WRITE, &cur_inode, user_info, ENABLE_PERMISSION))
         perm_flag = -EACCES;
     if (perm_flag != 0) {
-        if (ERROR_FILE)
+        if (ERROR_PERM)
             logger(ERROR, "[ERROR] Permission denied: not allowed to write.\n");
         return perm_flag;
     }

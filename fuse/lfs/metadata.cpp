@@ -16,12 +16,8 @@
 extern struct options options;
 
 int o_getattr(const char* path, struct stat* sbuf, struct fuse_file_info* fi) {
-    if (DEBUG_PRINT_COMMAND) {
-        char* _path = (char*) malloc(mount_dir_len+strlen(path)+4);
-        resolve_prefix(path, _path);
-        logger(DEBUG, "GETATTR, %s, %p, %p\n", _path, sbuf, fi);
-        free(_path);
-    }
+    if (DEBUG_PRINT_COMMAND)
+        logger(DEBUG, "GETATTR, %s, %p, %p\n", resolve_prefix(path).c_str(), sbuf, fi);
     
 
     /* ****************************************
@@ -95,12 +91,8 @@ int o_getattr(const char* path, struct stat* sbuf, struct fuse_file_info* fi) {
 
 
 int o_access(const char* path, int mode) {
-    if (DEBUG_PRINT_COMMAND) {
-        char* _path = (char*) malloc(mount_dir_len+strlen(path)+4);
-        resolve_prefix(path, _path);
-        logger(DEBUG, "ACCESS, %s, %d\n", _path, mode);
-        free(_path);
-    }
+    if (DEBUG_PRINT_COMMAND)
+        logger(DEBUG, "ACCESS, %s, %d\n", resolve_prefix(path).c_str(), mode);
 
     /* Get information (uid, gid) of the user who calls LFS interface. */
     struct fuse_context* user_info = fuse_get_context();

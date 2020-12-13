@@ -1,12 +1,12 @@
 #ifndef path_h
 #define path_h
 
-extern int mount_dir_len;
+#include <string>
 
-void relative_to_absolute(const char*, const char*, const int, char* nret);
-void resolve_prefix(const char*, char* nret);
+std::string relative_to_absolute(const char*, const char*, const int);
+std::string resolve_prefix(const char*);
 void generate_prefix(const char*);
-void current_fname(const char*, char* ret);
+std::string current_fname(const char*);
 int locate(const char* path, int &i_number);
 
 #endif

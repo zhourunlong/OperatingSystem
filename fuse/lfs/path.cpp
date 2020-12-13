@@ -20,11 +20,10 @@
 
 char* current_working_dir = NULL;
 char* mount_root_dir = NULL;
-int mount_dir_len;
 
 const int SC = sizeof(char);
 
-void relative_to_absolute(const char* root, const char* path, const int bgi, char* nret) {
+std::string relative_to_absolute(const char* root, const char* path, const int bgi) {
     int rlen = strlen(root), plen = strlen(path);
 
     char* ret = (char*) malloc((rlen + plen + 10) * SC);
@@ -59,42 +58,48 @@ void relative_to_absolute(const char* root, const char* path, const int bgi, cha
     if (path[plen - 1] != '/')
         --rend;
     
-    memcpy(nret, ret, rend * SC);
-    nret[rend] = 0;
+    std::string nret = "";
+    for (int i = 0; i < rend; ++i)
+        nret += ret[i];
     free(ret);
+    return nret;
 }
 
-void resolve_prefix(const char* path, char* nret) {
-    relative_to_absolute(mount_root_dir, path, path[0] == '/', nret);
+std::string resolve_prefix(const char* path) {
+    if (path == 0) {
+        char tmp[] = "/";
+        return relative_to_absolute(mount_root_dir, tmp, 1);
+    }
+    return relative_to_absolute(mount_root_dir, path, path[0] == '/');
 }
 
 void generate_prefix(const char* path) {
     int cwd_len = 0;
-    char* _current_working_dir = NULL;
     do {
         cwd_len += 10;
-        if (_current_working_dir != NULL)
-            free(_current_working_dir);
-        _current_working_dir = (char*) malloc(cwd_len * SC);
+        if (current_working_dir != NULL)
+            free(current_working_dir);
+        current_working_dir = (char*) malloc(cwd_len * SC);
         errno = 0;
-        getcwd(_current_working_dir, cwd_len * SC);
+        getcwd(current_working_dir, cwd_len * SC);
     } while (errno == ERANGE);
-    
-    current_working_dir = (char*) malloc(strlen(_current_working_dir) + 2);
-    relative_to_absolute(_current_working_dir, "./", 0, current_working_dir);
+    cwd_len = strlen(current_working_dir);
+    std::string tmp = relative_to_absolute(current_working_dir, "./", 0);
+    free(current_working_dir);
+    current_working_dir = (char *) malloc((tmp.length() + 1) * SC);
+    strcpy(current_working_dir, tmp.c_str());
+
     if (DEBUG_PATH)
         logger(DEBUG, "Current working dir =\t%s.\n", current_working_dir);
     
-    mount_root_dir = (char*) malloc(strlen(_current_working_dir) + strlen(path));
-    relative_to_absolute(_current_working_dir, path, 0, mount_root_dir);
+    tmp = relative_to_absolute(current_working_dir, path, 0);
+    mount_root_dir = (char *) malloc((tmp.length() + 1) * SC);
+    strcpy(mount_root_dir, tmp.c_str());
     if (DEBUG_PATH)
         logger(DEBUG, "Mount root dir =\t%s.\n", mount_root_dir);
-    mount_dir_len = strlen(mount_root_dir);
-
-    free(_current_working_dir);
 }
 
-void current_fname(const char* path, char* ret) {
+std::string current_fname(const char* path) {
     int plen = strlen(path);
     while (plen && path[plen - 1] == '/')
         --plen;
@@ -105,9 +110,10 @@ void current_fname(const char* path, char* ret) {
     int i = plen - 1;
     while (i && path[i] != '/')
         --i;
-    
-    memcpy(ret, path + i + 1, (plen - i - 1) * SC);
-    ret[plen - i - 1] = 0;
+    std::string ret = "";
+    for (int j = i + 1; j < plen; ++j)
+        ret += path[j];
+    return ret;
 }
 
 /** Traverse an absolute path to retrieve inode number.

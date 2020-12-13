@@ -57,8 +57,8 @@ const int MODE_DIR = 2;
 const int MODE_MID_INODE = -1;
 
 
-const int MAX_FILENAME_LEN = 28;
-const int MAX_DIR_ENTRIES = 32;
+const int MAX_FILENAME_LEN = 60;
+const int MAX_DIR_ENTRIES = 16;
 struct dir_entry {
     char filename[MAX_FILENAME_LEN];    // Filename (const-length C-style string, end with '\0').
     int i_number;                  // Inode number.
@@ -184,30 +184,31 @@ const int ROOT_DIR_INUMBER = 1;
 /** **************************************
  * Debug and error-reporting flags.
  * ***************************************/
-const bool DEBUG_PRINT_COMMAND  = true;     // Print the name of each command.
-const bool DEBUG_METADATA_INODE = false;    // Print inode for each metadata query.
-const bool DEBUG_DIRECTORY      = true;     // Print debug information in directory.cpp.
-const bool DEBUG_FILE           = true;     // Print debug information in file.cpp.
-const bool DEBUG_PATH           = true;     // Print debug information in path.cpp.
-const bool DEBUG_BLOCKIO        = true;     // Print (seg, blk) for each appended block.
-const bool DEBUG_LOCATE_REPORT  = false;    // Generate report for each locate() (in path.cpp).
-const bool DEBUG_CKPT_REPORT    = true;     // Print checkpoint after each storation.
+const bool DEBUG_PRINT_COMMAND  = 1;    // Print the name of each command.
+const bool DEBUG_METADATA_INODE = 0;    // Print inode for each metadata query.
+const bool DEBUG_DIRECTORY      = 0;    // Print debug information in directory.cpp.
+const bool DEBUG_FILE           = 0;    // Print debug information in file.cpp.
+const bool DEBUG_PATH           = 0;    // Print debug information in path.cpp.
+const bool DEBUG_BLOCKIO        = 0;    // Print (seg, blk) for each appended block.
+const bool DEBUG_LOCATE_REPORT  = 0;    // Generate report for each locate() (in path.cpp).
+const bool DEBUG_CKPT_REPORT    = 0;    // Print checkpoint after each storation.
 
-const bool ERROR_METADATA       = true;     // Report errors in metadata.cpp assoc. with locate().
-const bool ERROR_DIRECTORY      = true;     // Report directory operation errors in directory.cpp.
-const bool ERROR_FILE           = true;     // Report file operation errors in file.cpp.
-const bool ERROR_PATH           = true;     // Report low-level errors in path.cpp.
-const bool ERROR_PERM           = true;     // Report permission operation errors in perm.cpp.
+const bool ERROR_METADATA       = 1;    // Report errors in metadata.cpp assoc. with locate().
+const bool ERROR_DIRECTORY      = 1;    // Report directory operation errors in directory.cpp.
+const bool ERROR_FILE           = 1;    // Report file operation errors in file.cpp.
+const bool ERROR_PATH           = 1;    // Report low-level errors in path.cpp.
+const bool ERROR_PERMCPP        = 1;    // Report errors in perm.cpp.
+const bool ERROR_PERM           = 1;    // Report permission errors in all source files.
 
-const bool ENABLE_PERMISSION    = false;    // Whether to enable permission control or not.
-const bool ENABLE_ACCESS_PERM   = false;    // Whether to enable permission control in access() or not.
+const bool ENABLE_PERMISSION    = 0;    // Whether to enable permission control or not.
+const bool ENABLE_ACCESS_PERM   = 0;    // Whether to enable permission control in access() or not.
 
 
 /** **************************************
  * Timestamp and permission utilities.
  * ***************************************/
-const bool FUNC_ATIME_DIR       = false;    // Enable atime update for directories.
-const bool FUNC_ATIME_REL       = false;    // Enable relative atime (as with -relatime).
+const bool FUNC_ATIME_DIR       = 0;        // Enable atime update for directories.
+const bool FUNC_ATIME_REL       = 0;        // Enable relative atime (as with -relatime).
 const int FUNC_ATIME_REL_THRES  = 3600;     // Threshold interval for updating (relative) atime.
 void update_atime(struct inode &cur_inode, struct timespec &new_time);
 
