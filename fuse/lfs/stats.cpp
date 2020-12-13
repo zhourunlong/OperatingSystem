@@ -41,7 +41,7 @@ std::lock_guard <std::mutex> guard(global_lock);
                resolve_prefix(path).c_str(), &ts, fi);
     
     if (is_full) {
-        logger(WARN, "[WARNING] The LFS is already full. Please run garbage collection to release space.\n");
+        logger(WARN, "[WARNING] The LFS is already full.\n* Please run garbage collection to release space.\n");
         logger(WARN, "====> Cannot proceed to update timestamps.\n");
         return -ENOSPC;
     }

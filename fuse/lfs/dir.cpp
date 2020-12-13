@@ -103,7 +103,7 @@ std::lock_guard <std::mutex> guard(global_lock);
     
     if (accessed && FUNC_ATIME_DIR) {
         if (is_full) {
-            logger(WARN, "[WARNING] The LFS is already full. Please run garbage collection to release space.\n");
+            logger(WARN, "[WARNING] The file system is already full.\n* Please run garbage collection to release space.\n");
             logger(WARN, "====> Cannot proceed to update timestamps, but the directory is still accessible.\n");
             return 0;
         }
@@ -255,7 +255,7 @@ std::lock_guard <std::mutex> guard(global_lock);
         logger(DEBUG, "MKDIR, %s, %o\n", resolve_prefix(path).c_str(), mode);
     
     if (is_full) {
-        logger(WARN, "[WARNING] The LFS is already full. Please run garbage collection to release space.\n");
+        logger(WARN, "[WARNING] The file system is already full.\n* Please run garbage collection to release space.\n");
         logger(WARN, "====> Cannot proceed to create a new directory.\n");
         return -ENOSPC;
     }
@@ -491,7 +491,7 @@ std::lock_guard <std::mutex> guard(global_lock);
         logger(DEBUG, "RMDIR, %s\n", resolve_prefix(path).c_str());
     
     if (is_full) {
-        logger(WARN, "[WARNING] The LFS is already full. Please run garbage collection to release space.\n");
+        logger(WARN, "[WARNING] The file system is already full.\n* Please run garbage collection to release space.\n");
         logger(WARN, "====> Cannot proceed to remove the directory.\n");
         return -ENOSPC;
     }

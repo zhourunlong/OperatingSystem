@@ -128,7 +128,7 @@ struct superblock {
 
 
 const int CHECKPOINT_ADDR = TOT_SEGMENTS * SEGMENT_SIZE + BLOCK_SIZE;
-const int CHECKPOINT_SIZE = 2 * (25+TOT_SEGMENTS);
+const int CHECKPOINT_SIZE = 2 * (28+TOT_SEGMENTS);
 const int CKPT_UPDATE_INTERVAL = 30;    // Minimum interval for checkpoint update (in seconds).
 /** Checkpoint Block: recording periodical checkpoints of volatile information.
  * We should assign 2 checkpoints and use them in turns (for failure restoration).
@@ -187,13 +187,13 @@ const int ROOT_DIR_INUMBER = 1;
 /** **************************************
  * Debug and error-reporting flags.
  * ***************************************/
-const bool DEBUG_PRINT_COMMAND  = 1;    // Print the name of each command.
-const bool DEBUG_METADATA_INODE = 1;    // Print inode for each metadata query.
-const bool DEBUG_DIRECTORY      = 1;    // Print debug information in directory.cpp.
-const bool DEBUG_FILE           = 1;    // Print debug information in file.cpp.
-const bool DEBUG_PATH           = 1;    // Print debug information in path.cpp.
-const bool DEBUG_BLOCKIO        = 1;    // Print (seg, blk) for each appended block.
-const bool DEBUG_LOCATE_REPORT  = 1;    // Generate report for each locate() (in path.cpp).
+const bool DEBUG_PRINT_COMMAND  = 0;    // Print the name of each command.
+const bool DEBUG_METADATA_INODE = 0;    // Print inode for each metadata query.
+const bool DEBUG_DIRECTORY      = 0;    // Print debug information in directory.cpp.
+const bool DEBUG_FILE           = 0;    // Print debug information in file.cpp.
+const bool DEBUG_PATH           = 0;    // Print debug information in path.cpp.
+const bool DEBUG_BLOCKIO        = 0;    // Print (seg, blk) for each appended block.
+const bool DEBUG_LOCATE_REPORT  = 0;    // Generate report for each locate() (in path.cpp).
 const bool DEBUG_CKPT_REPORT    = 1;    // Print checkpoint after each storation.
 
 const bool ERROR_METADATA       = 1;    // Report errors in metadata.cpp assoc. with locate().
