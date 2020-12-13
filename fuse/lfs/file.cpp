@@ -198,7 +198,7 @@ std::lock_guard <std::mutex> guard(global_lock);
     }
     fi -> fh = (uint64_t) inode_num;
 
-    /*
+    // Handle O_TRUNC flag.
     int flags = fi -> flags;
     if ((flags & O_TRUNC) && (flags & O_ACCMODE)) {
         inode cur_inode;
@@ -208,7 +208,6 @@ std::lock_guard <std::mutex> guard(global_lock);
         cur_inode.ctime = cur_time;
         new_inode_block(&cur_inode);
     }
-    */
 
     return 0;
 }

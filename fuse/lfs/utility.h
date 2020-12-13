@@ -192,7 +192,7 @@ const bool DEBUG_FILE           = 0;    // Print debug information in file.cpp.
 const bool DEBUG_PATH           = 0;    // Print debug information in path.cpp.
 const bool DEBUG_BLOCKIO        = 0;    // Print (seg, blk) for each appended block.
 const bool DEBUG_LOCATE_REPORT  = 0;    // Generate report for each locate() (in path.cpp).
-const bool DEBUG_CKPT_REPORT    = 0;    // Print checkpoint after each storation.
+const bool DEBUG_CKPT_REPORT    = 1;    // Print checkpoint after each storation.
 
 const bool ERROR_METADATA       = 1;    // Report errors in metadata.cpp assoc. with locate().
 const bool ERROR_DIRECTORY      = 1;    // Report directory operation errors in directory.cpp.

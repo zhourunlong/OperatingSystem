@@ -150,7 +150,7 @@ void* o_init(struct fuse_conn_info* conn, struct fuse_config* cfg) {
             int cur_seg_block = seg_metadata.cur_block;
 
             if (seg == cur_segment)
-                is_checkpointed = false;
+                is_checkpointed = false;  // Start to recover un-checkpointed segments.
             if ((is_checkpointed) && (segment_bitmap[seg] == 0)) {
                 logger(ERROR, "[FATAL ERROR] Corrupt file system: inconsecutive occupied segments.\n");
                 exit(-1);
@@ -184,6 +184,9 @@ void* o_init(struct fuse_conn_info* conn, struct fuse_config* cfg) {
                         break;
                     }
                 }
+
+                if (!is_checkpointed)  // Mark the segment to be occupied.
+                    segment_bitmap[seg] = 1;
             } 
             seg = (seg+1) % TOT_SEGMENTS;
         } while (seg != head_segment);
