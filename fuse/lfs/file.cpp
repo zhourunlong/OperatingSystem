@@ -36,7 +36,7 @@ int write_in_file(const char* path, const char* buf, size_t size,
     timespec cur_time;
     clock_gettime(CLOCK_REALTIME, &cur_time);
     
-    int inode_num = fi -> fh;
+    int inode_num = fi->fh;
     inode cur_inode;
     get_inode_from_inum(&cur_inode, inode_num);
     if (cur_inode.mode != MODE_FILE) {
@@ -196,7 +196,7 @@ std::lock_guard <std::mutex> guard(global_lock);
             logger(ERROR, "[ERROR] Cannot open the file (error #%d).\n", flag);
         return flag;
     }
-    fi -> fh = (uint64_t) inode_num;
+    fi->fh = (uint64_t) inode_num;
 
     // Handle O_TRUNC flag.
     int flags = fi -> flags;
@@ -246,7 +246,7 @@ std::lock_guard <std::mutex> guard(global_lock);
             return 0;
         }
     }
-    int inode_num = fi -> fh;
+    int inode_num = fi->fh;
     
     inode cur_inode;
     int perm_flag = get_inode_from_inum(&cur_inode, inode_num);
@@ -355,7 +355,7 @@ std::lock_guard <std::mutex> guard(global_lock);
             return 0;
         }
     }
-    int inode_num = fi -> fh;
+    int inode_num = fi->fh;
 
     inode cur_inode;
     int perm_flag = 0;
@@ -455,7 +455,7 @@ std::lock_guard <std::mutex> guard(global_lock);
     
     inode file_inode;
     file_initialize(&file_inode, MODE_FILE, mode);
-    fi -> fh = file_inode.i_number;
+    fi->fh = file_inode.i_number;
     
     int flag = append_parent_dir_entry(head_inode, dirname, file_inode.i_number);
     new_inode_block(&file_inode);
@@ -811,7 +811,7 @@ std::lock_guard <std::mutex> guard(global_lock);
             return first_flag;
         }
     }
-    int inode_num = fi -> fh;
+    int inode_num = fi->fh;
 
     inode cur_inode;
     int perm_flag = get_inode_from_inum(&cur_inode, inode_num);

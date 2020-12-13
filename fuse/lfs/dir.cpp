@@ -403,6 +403,7 @@ int remove_object(struct inode &head_inode, const char* del_name, int del_mode) 
                         }
                     }
 
+                    // Remove file (with only 1 hard link) / directory.
                     if (del_mode == MODE_DIR || tmp_head_inode.num_links == 1)
                         remove_inode(block_dir[j].i_number);
                     else {

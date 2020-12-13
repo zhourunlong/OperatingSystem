@@ -229,7 +229,7 @@ void o_destroy(void* private_data) {
     add_segbuf_metadata();
     write_segment(segment_buffer, cur_segment);
     segment_bitmap[cur_segment] = 1;
-    // generate_checkpoint(); 
+    generate_checkpoint(); 
     
-    // print_inode_table();
+    logger(DEBUG, "[INFO] Successfully saved current state to disk and exited.\n");
 }

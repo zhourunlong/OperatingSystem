@@ -30,9 +30,6 @@ void manually_synchronize() {
     struct timespec cur_time;
     clock_gettime(CLOCK_REALTIME, &cur_time);
     last_ckpt_update_time = cur_time;
-    
-    // For debugging: print inode table.
-    // print_inode_table();
 }
 
 int o_fsync(const char* path, int isdatasync, struct fuse_file_info* fi) {
