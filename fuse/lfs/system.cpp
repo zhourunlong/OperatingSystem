@@ -174,7 +174,7 @@ void* o_init(struct fuse_conn_info* conn, struct fuse_config* cfg) {
                 read_segment_imap(imap, seg);
                 for (int i=0; i<DATA_BLOCKS_IN_SEGMENT; i++) {
                     im_entry = imap[i];
-                    if ((im_entry.i_number > 0) && (im_entry.inode_block >= 0)) {
+                    if (im_entry.i_number > 0) {
                         // Entries on the "left" are always earlier than those on the "right" (in circular sense).
                         inode_table[im_entry.i_number] = im_entry.inode_block;
                         if (im_entry.i_number > count_inode)
