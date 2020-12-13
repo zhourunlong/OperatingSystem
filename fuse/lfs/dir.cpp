@@ -249,6 +249,42 @@ bool remove_parent_dir_entry(struct inode &block_inode, int del_inum)  {
     return find;
 }
 
+/** Remove an entry for an existing file / directory in its parent directory.
+ * @param  block_inode: first i_node of the parent directory.
+ * @param  del_inum: i_number of the file / directory.
+ * @param  del_name: name of the file / directory. 
+ * @return bool: whether the removal is successful.
+ * [CAUTION] block_inode may be modified as the search procedure advances. */
+bool remove_parent_dir_entry(struct inode &block_inode, int del_inum, const char* del_name)  {
+    bool find = false;
+    directory block_dir;
+    while (true) {
+        for (int i = 0; i < NUM_INODE_DIRECT; i++) {
+            if (block_inode.direct[i] != -1) {
+                get_block(block_dir, block_inode.direct[i]);
+                for (int j = 0; j < MAX_DIR_ENTRIES; j++)
+                    if (block_dir[j].i_number == del_inum && !strcmp(del_name, block_dir[j].filename)) {
+                        find = true;
+                        block_dir[j].i_number = 0;
+                        memset(block_dir[j].filename, 0, sizeof(block_dir[j].filename));
+                        break;
+                    }
+                if (find == true) {
+                    file_modify(&block_inode, i, block_dir);
+                    break;
+                }
+            }
+        }
+        if (find == true)
+            break;
+
+        get_inode_from_inum(&block_inode, block_inode.next_indirect);
+    }
+    if (find)
+        new_inode_block(&block_inode);
+    return find;
+}
+
 int o_mkdir(const char* path, mode_t mode) {
 std::lock_guard <std::mutex> guard(global_lock);
     if (DEBUG_PRINT_COMMAND)

@@ -112,12 +112,7 @@ std::lock_guard <std::mutex> guard(global_lock);
     
     /* Mode 1~7 (in base-8): test file permissions; may be ORed toghether. */ 
     struct inode f_inode;
-    int perm_flag = get_inode_from_inum((void*)&f_inode, i_number);
-    if (perm_flag != 0) {
-        if (ERROR_PERM)
-            logger(ERROR, "[ERROR] Permission denied: not allowed to read.\n");
-        return perm_flag;
-    }
+    get_inode_from_inum((void*)&f_inode, i_number);
     if (DEBUG_METADATA_INODE) print(&f_inode);
     
     if (f_inode.i_number != i_number) {

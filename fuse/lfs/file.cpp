@@ -581,12 +581,12 @@ std::lock_guard <std::mutex> guard(global_lock);
         new_inode_block(&from_par_inode);
         
         // Remove destination directory entry.
-        remove_parent_dir_entry(to_par_inode, to_inum);
+        remove_parent_dir_entry(to_par_inode, to_inum, to_name);
 
         // Conflict case 1: exchange files.
         if (flags == RENAME_EXCHANGE) {
             // On exchange, remove source directory entry as well.
-            remove_parent_dir_entry(from_par_inode, from_inum);
+            remove_parent_dir_entry(from_par_inode, from_inum, from_name);
 
             // Update timestamps.
             to_inode.ctime = cur_time;
@@ -631,7 +631,7 @@ std::lock_guard <std::mutex> guard(global_lock);
     new_inode_block(&from_inode);
 
     // Remove source directory entry.
-    remove_parent_dir_entry(from_par_inode, from_inum);
+    remove_parent_dir_entry(from_par_inode, from_inum, from_name);
 
     inode head_inode;
     perm_flag = get_inode_from_inum(&head_inode, to_par_inum);
