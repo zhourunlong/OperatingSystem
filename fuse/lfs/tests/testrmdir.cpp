@@ -18,7 +18,7 @@ void dfs(int u) {
     stk.pop_back();
 }
 int main(int argc, char *argv[]) {
-    int n = atoi(argv[2]);
+    int n = atoi(argv[1]);
     assert(n < N);
     srand(time(NULL));
     for (int i = 2; i <= n; ++i) {

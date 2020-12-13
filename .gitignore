@@ -12,3 +12,4 @@ fuse/lfs/test/*
 *.aux
 *.log
 *.synctex.gz
+!fuse/lfs/test.sh

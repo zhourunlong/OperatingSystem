@@ -8,14 +8,14 @@ const int N = 1000;
 int main() {
     for (int i = 0; i < N; ++i) {
         char s[999];
-        sprintf(s, "mkdir ../test/%d\n", i);
+        sprintf(s, "mkdir %d\n", i);
         system(s);
     }
     for (int i = 0; i < N; ++i) {
         char s[999];
         //sprintf(s, "touch ../test/%d/%d\n", i, i);
         //system(s);
-        sprintf(s, "../test/%d/%d", i, i);
+        sprintf(s, "%d/%d", i, i);
         int file_handle = open(s, O_CREAT | O_RDWR, 0777);
         char* buf = (char*) malloc(10000);
         memset(buf, 0, 10000);
