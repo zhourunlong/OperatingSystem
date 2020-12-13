@@ -150,7 +150,7 @@ void update_atime(struct inode &cur_inode, struct timespec &new_time) {
     if (FUNC_ATIME_REL) {
         if ((cur_inode.atime.tv_sec < cur_inode.mtime.tv_sec)
             || (cur_inode.atime.tv_sec < cur_inode.ctime.tv_sec)
-            || (cur_inode.atime.tv_sec - new_time.tv_sec > FUNC_ATIME_REL_THRES))
+            || (new_time.tv_sec - cur_inode.atime.tv_sec > FUNC_ATIME_REL_THRES))
             { cur_inode.atime = new_time;
               cur_inode.ctime = new_time; }
     } else {

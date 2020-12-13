@@ -203,15 +203,15 @@ const bool ERROR_PATH           = 1;    // Report low-level errors in path.cpp.
 const bool ERROR_PERMCPP        = 1;    // Report errors in perm.cpp.
 const bool ERROR_PERM           = 1;    // Report permission errors in all source files.
 
-const bool ENABLE_PERMISSION    = 0;    // Whether to enable permission control or not.
-const bool ENABLE_ACCESS_PERM   = 0;    // Whether to enable permission control in access() or not.
+const bool ENABLE_PERMISSION    = 1;    // Whether to enable permission control or not.
+const bool ENABLE_ACCESS_PERM   = 1;    // Whether to enable permission control in access() or not.
 
 
 /** **************************************
  * Timestamp and permission utilities.
  * ***************************************/
-const bool FUNC_ATIME_DIR       = 0;        // Enable atime update for directories.
-const bool FUNC_ATIME_REL       = 0;        // Enable relative atime (as with -relatime).
+const bool FUNC_ATIME_DIR       = 1;        // Enable atime update for directories.
+const bool FUNC_ATIME_REL       = 1;        // Enable relative atime (as with -relatime).
 const int FUNC_ATIME_REL_THRES  = 3600;     // Threshold interval for updating (relative) atime.
 void update_atime(struct inode &cur_inode, struct timespec &new_time);
 
