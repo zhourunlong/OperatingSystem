@@ -10,14 +10,15 @@
 #include <string.h>
 #include <stdlib.h>
 #include <time.h>
+#include <string>
+#include <mutex>
+
+const int SC = sizeof(char);
 
 int o_opendir(const char* path, struct fuse_file_info* fi) {
-    if (DEBUG_PRINT_COMMAND) {
-        char* _path = (char*) malloc(mount_dir_len+strlen(path)+4);
-        resolve_prefix(path, _path);
-        logger(DEBUG, "OPENDIR, %s, %p\n", _path, fi);
-        free(_path);
-    }
+std::lock_guard <std::mutex> guard(global_lock);
+    if (DEBUG_PRINT_COMMAND)
+        logger(DEBUG, "OPENDIR, %s, %p\n", resolve_prefix(path).c_str(), fi);
 
     int fh;
     int locate_err = locate(path, fh);
@@ -41,32 +42,24 @@ int o_opendir(const char* path, struct fuse_file_info* fi) {
             logger(ERROR, "[ERROR] %s is not a directory.\n", path);
         return -ENOTDIR;
     }
-
     return 0;
 }
 
 int o_releasedir(const char* path, struct fuse_file_info* fi) {
-    if (DEBUG_PRINT_COMMAND) {
-        char* _path = (char*) malloc(mount_dir_len+strlen(path)+4);
-        resolve_prefix(path, _path);
-        logger(DEBUG, "RELEASEDIR, %s, %p\n", _path, fi);
-        free(_path);
-    }
+std::lock_guard <std::mutex> guard(global_lock);
+    if (DEBUG_PRINT_COMMAND)
+        logger(DEBUG, "RELEASEDIR, %s, %p\n", resolve_prefix(path).c_str(), fi);
 
     fi->fh = 0;
-
     return 0;
 }
 
 int o_readdir(const char* path, void* buf, fuse_fill_dir_t filler, off_t offset,
     struct fuse_file_info* fi, enum fuse_readdir_flags flags) {
-    if (DEBUG_PRINT_COMMAND) {
-        char* _path = (char*) malloc(mount_dir_len+strlen(path)+4);
-        resolve_prefix(path, _path);
+std::lock_guard <std::mutex> guard(global_lock);
+    if (DEBUG_PRINT_COMMAND)
         logger(DEBUG, "READDIR, %s, %p, %p, %d, %p, %d\n",
-               _path, buf, &filler, offset, fi, flags);
-        free(_path);
-    }
+               resolve_prefix(path).c_str(), buf, &filler, offset, fi, flags);
     
     
     int opendir_err = o_opendir(path, fi);
@@ -113,7 +106,6 @@ int o_readdir(const char* path, void* buf, fuse_fill_dir_t filler, off_t offset,
         update_atime(head_inode, cur_time);
         new_inode_block(&head_inode);
     }
-
     return 0;
 }
 
@@ -241,32 +233,35 @@ bool remove_parent_dir_entry(struct inode &block_inode, int del_inum)  {
                 }
             }
         }
-        if (find == true) break;
+        if (find == true)
+            break;
 
         get_inode_from_inum(&block_inode, block_inode.next_indirect);
     }
-    if (find) new_inode_block(&block_inode);
-
+    if (find)
+        new_inode_block(&block_inode);
     return find;
 }
 
 int o_mkdir(const char* path, mode_t mode) {
-    if (DEBUG_PRINT_COMMAND) {
-        char* _path = (char*) malloc(mount_dir_len+strlen(path)+4);
-        resolve_prefix(path, _path);
-        logger(DEBUG, "MKDIR, %s, %o\n", _path, mode);
-        free(_path);
-    }
+std::lock_guard <std::mutex> guard(global_lock);
+    if (DEBUG_PRINT_COMMAND)
+        logger(DEBUG, "MKDIR, %s, %o\n", resolve_prefix(path).c_str(), mode);
 
     mode &= 0777;
-    char* parent_dir = (char*) malloc(strlen(path)+4);
-    relative_to_absolute(path, "../", 0, parent_dir);
-    char* dirname = (char*) malloc(strlen(path));
-    current_fname(path, dirname);
+
+    std::string tmp = relative_to_absolute(path, "../", 0);
+    char* parent_dir = (char*) malloc((tmp.length() + 1) * SC);
+    strcpy(parent_dir, tmp.c_str());
+
+    tmp = current_fname(path);
+    char* dirname = (char*) malloc((tmp.length() + 1) * SC);
+    strcpy(dirname, tmp.c_str());
+
     if (strlen(dirname) >= MAX_FILENAME_LEN) {
-        free(parent_dir); free(dirname);
         if (ERROR_DIRECTORY)
             logger(ERROR, "[ERROR] Directory name too long: length %d > %d.\n", strlen(dirname), MAX_FILENAME_LEN);
+        free(parent_dir); free(dirname);
         return -ENAMETOOLONG;
     }
     int par_inum;
@@ -396,6 +391,14 @@ int remove_object(struct inode &head_inode, const char* del_name, int del_mode) 
                         }
                     }
 
+                    if (del_mode == MODE_DIR || tmp_head_inode.num_links == 1)
+                        remove_inode(block_dir[j].i_number);
+                    else {
+                        tmp_head_inode.num_links--;
+                        tmp_head_inode.ctime = cur_time;
+                        new_inode_block(&tmp_head_inode);
+                    }
+
                     // Remove parent directory entry: discard empty inodes.
                     int cnt = 0;
                     for (int k = 0; k < MAX_DIR_ENTRIES; ++k)
@@ -416,6 +419,7 @@ int remove_object(struct inode &head_inode, const char* del_name, int del_mode) 
                             }
                             new_inode_block(&block_inode);
                         } else {
+                            remove_inode(tail_inode.next_indirect);
                             tail_inode.next_indirect = block_inode.next_indirect;
                             if (tail_firblk) {
                                 if (FUNC_ATIME_DIR)
@@ -446,22 +450,6 @@ int remove_object(struct inode &head_inode, const char* del_name, int del_mode) 
                         }
                         new_inode_block(&block_inode);
                     }
-
-                    // Remove i_map and i_table pointers to the object.
-                    if (del_mode == MODE_DIR) {
-                        // Directories have no user-level hard links.
-                        remove_inode(block_dir[j].i_number);
-                    } else if (del_mode == MODE_FILE) {
-                        if (tmp_head_inode.num_links == 1) {
-                            // Delete the file if nlink = 0 after deletion.
-                            remove_inode(block_dir[j].i_number);
-                        } else {
-                            // Decrement link count by 1, and update ctime.
-                            tmp_head_inode.num_links--;
-                            tmp_head_inode.ctime = cur_time;
-                            new_inode_block(&tmp_head_inode);
-                        }
-                    }
                     return 0;
                 }
         }
@@ -486,20 +474,20 @@ int remove_object(struct inode &head_inode, const char* del_name, int del_mode) 
 }
 
 int o_rmdir(const char* path) {
-    if (DEBUG_PRINT_COMMAND) {
-        char* _path = (char*) malloc(mount_dir_len+strlen(path)+4);
-        resolve_prefix(path, _path);
-        logger(DEBUG, "RMDIR, %s\n", _path);
-        free(_path);
-    }
+std::lock_guard <std::mutex> guard(global_lock);
+    if (DEBUG_PRINT_COMMAND)
+        logger(DEBUG, "RMDIR, %s\n", resolve_prefix(path).c_str());
 
     struct timespec cur_time;
     clock_gettime(CLOCK_REALTIME, &cur_time);
 
-    char* parent_dir = (char*) malloc(strlen(path)+4);
-    relative_to_absolute(path, "../", 0, parent_dir);
-    char* dirname = (char*) malloc(strlen(path));
-    current_fname(path, dirname);
+    std::string tmp = relative_to_absolute(path, "../", 0);
+    char* parent_dir = (char*) malloc((tmp.length() + 1) * SC);
+    strcpy(parent_dir, tmp.c_str());
+
+    tmp = current_fname(path);
+    char* dirname = (char*) malloc((tmp.length() + 1) * SC);
+    strcpy(dirname, tmp.c_str());
 
     int par_inum;
     int locate_err = locate(parent_dir, par_inum);

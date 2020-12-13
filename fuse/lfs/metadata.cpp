@@ -16,12 +16,9 @@
 extern struct options options;
 
 int o_getattr(const char* path, struct stat* sbuf, struct fuse_file_info* fi) {
-    if (DEBUG_PRINT_COMMAND) {
-        char* _path = (char*) malloc(mount_dir_len+strlen(path)+4);
-        resolve_prefix(path, _path);
-        logger(DEBUG, "GETATTR, %s, %p, %p\n", _path, sbuf, fi);
-        free(_path);
-    }
+std::lock_guard <std::mutex> guard(global_lock);
+    if (DEBUG_PRINT_COMMAND)
+        logger(DEBUG, "GETATTR, %s, %p, %p\n", resolve_prefix(path).c_str(), sbuf, fi);
     
 
     /* ****************************************
@@ -42,6 +39,8 @@ int o_getattr(const char* path, struct stat* sbuf, struct fuse_file_info* fi) {
     if (DEBUG_METADATA_INODE) print(&f_inode);
 
     if (f_inode.i_number != i_number) {
+        printf("inum = %d\n", i_number);
+        //print_inode_table();
         logger(ERROR, "[FATAL ERROR] Corrupt file system on disk: inode inconsistent with inumber.\n");
         exit(-1);
     }
@@ -95,12 +94,9 @@ int o_getattr(const char* path, struct stat* sbuf, struct fuse_file_info* fi) {
 
 
 int o_access(const char* path, int mode) {
-    if (DEBUG_PRINT_COMMAND) {
-        char* _path = (char*) malloc(mount_dir_len+strlen(path)+4);
-        resolve_prefix(path, _path);
-        logger(DEBUG, "ACCESS, %s, %d\n", _path, mode);
-        free(_path);
-    }
+std::lock_guard <std::mutex> guard(global_lock);
+    if (DEBUG_PRINT_COMMAND)
+        logger(DEBUG, "ACCESS, %s, %d\n", resolve_prefix(path).c_str(), mode);
 
     /* Get information (uid, gid) of the user who calls LFS interface. */
     struct fuse_context* user_info = fuse_get_context();
@@ -125,6 +121,8 @@ int o_access(const char* path, int mode) {
     if (DEBUG_METADATA_INODE) print(&f_inode);
     
     if (f_inode.i_number != i_number) {
+        printf("inum = %d\n", i_number);
+        //print_inode_table();
         logger(ERROR, "[FATAL ERROR] Corrupt file system on disk: inode inconsistent with inumber.\n");
         exit(-1);
     }

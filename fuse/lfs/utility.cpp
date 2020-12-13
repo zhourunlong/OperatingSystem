@@ -175,22 +175,33 @@ bool verify_permission(int mode, struct inode* f_inode, struct fuse_context* u_i
 /** **************************************
  * Public variable locks.
  * ***************************************/
+
+void acquire_lock() {
+    //global_lock.lock();
+    return;
+};
+
+void release_lock() {
+    //global_lock.unlock();
+    return;
+};
+
 void acquire_reader_lock() {
-    global_lock.lock();
+    //global_lock.lock();
     return;
 };
 
 void release_reader_lock() {
-    global_lock.unlock();
+    //global_lock.unlock();
     return;
 };
 
 void acquire_writer_lock() {
-    global_lock.lock();
+    //global_lock.lock();
     return;
 };
 
 void release_writer_lock() {
-    global_lock.unlock();
+    //global_lock.unlock();
     return;
 };

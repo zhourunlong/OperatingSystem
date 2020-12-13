@@ -4,13 +4,14 @@
 #include <stdlib.h>
 #include <string.h>
 using namespace std;
+const int N = 1000;
 int main() {
-    for (int i = 0; i < 999; ++i) {
+    for (int i = 0; i < N; ++i) {
         char s[999];
         sprintf(s, "mkdir ../test/%d\n", i);
         system(s);
     }
-    for (int i = 0; i < 999; ++i) {
+    for (int i = 0; i < N; ++i) {
         char s[999];
         //sprintf(s, "touch ../test/%d/%d\n", i, i);
         //system(s);

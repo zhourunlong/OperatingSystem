@@ -7,6 +7,4 @@
 
 extern struct fuse_operations ops;
 
-void show_help(const char *);
-
 #endif
