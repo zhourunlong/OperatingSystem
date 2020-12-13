@@ -182,12 +182,34 @@
 \end{homeworkProblem}
 
 \begin{homeworkProblem}[Details for Requirements 7-10]
+
+\begin{itemize}
+
+\item \emph{Requirement 7:} \texttt{chmod} and \texttt{chown} by
+modifying metadata in inodes.
+
+\item \emph{Requirement 8:} A global lock is declaired in
+\colorbox{shade}{\texttt{lfs/utility.cpp}}. For simplicity in project 3, all
+functions require this lock when start and return this lock before return.
+
+\item \emph{Requirement 9:} We implemented a segment buffer, and flush it
+whenever \texttt{sync} is called.
+
+\item \emph{Requirement 10:} \texttt{init} function in
+\colorbox{shade}{\texttt{lfs/system.cpp}} scans the permanent storage file on
+disk, and restores the file system before crash. It only takes into account
+segments which have been successfully written to disk, which can be determined by
+extra timestamps recorded in each segment. Inode maps can be restored by reading
+segment summary and imap table in each segment.
+
+\end{itemize}
+
 \end{homeworkProblem}
 
 \begin{homeworkProblem}[Tests]
 
   Open terminal in \colorbox{shade}{\texttt{proj3}} directory, then run 
-  \colorbox{shade}{\texttt{test.sh}}. This will execute all five tests.
+  \colorbox{shade}{\texttt{bash test.sh}}. This will execute all five tests.
   Refer to \colorbox{shade}{\texttt{test.sh}} for compile options if you
   want to run each test separately.
 
@@ -289,9 +311,35 @@
 
 
 \begin{homeworkProblem}[Manual]
+
+\begin{itemize}
+
+\item To compile, execute \colorbox{shade}{\texttt{scons}} in 
+\colorbox{shade}{\texttt{lfs/}} directory. If any issue happens, you may need
+to use Ubuntu 20.04 and install scons.
+
+\item To mount file system, either execute \colorbox{shade}{\texttt{bash buildfs.sh}}
+in \colorbox{shade}{\texttt{proj3/}} directory, or manually execute
+(this also applies to the ``echo file system'' in task 1)
+\colorbox{shade}{\texttt{./fuse <mount directory> <options>}}.
+
+\item Line 190-204 of \colorbox{shade}{\texttt{lfs/utility.h}} contain several
+debug options. To enable ``echo'' in log-structured file system (should add
+\colorbox{shade}{\texttt{-f}} to options), toggle on \texttt{DEBUG\_PRINT\_COMMAND}.
+
+\item Line 213 of \colorbox{shade}{\texttt{lfs/utility.h}} is a switch for 
+directory access time updates. When \texttt{FUNC\_ATIME\_DIR} is $1$, access
+timestamps of all files along the path will be updated.
+
+\end{itemize}
+
 \end{homeworkProblem}
 
-\begin{homeworkProblem}[Bugs]
+\begin{homeworkProblem}[Limitations]
+
+We have not implemented garbage collection, so when the file system is full, we
+can not even delete files.
+
 \end{homeworkProblem}
 
 % End edit to here
