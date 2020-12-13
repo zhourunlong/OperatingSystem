@@ -17,6 +17,12 @@ std::lock_guard <std::mutex> guard(global_lock);
         logger(DEBUG, "CHMOD, %s, %d, %p\n",
                resolve_prefix(path).c_str(), mode, fi);
     
+    if (is_full) {
+        logger(WARN, "[WARNING] The LFS is already full. Please run garbage collection to release space.\n");
+        logger(WARN, "====> Cannot proceed to change permission of the file / directory.\n");
+        return -ENOSPC;
+    }
+    
     int fh;
     int locate_err = locate(path, fh);
     if (locate_err != 0) {
@@ -40,6 +46,12 @@ std::lock_guard <std::mutex> guard(global_lock);
     if (DEBUG_PRINT_COMMAND)
         logger(DEBUG, "CHOWN, %s, %d, %d, %p\n",
                resolve_prefix(path).c_str(), uid, gid, fi);
+    
+    if (is_full) {
+        logger(WARN, "[WARNING] The LFS is already full. Please run garbage collection to release space.\n");
+        logger(WARN, "====> Cannot proceed to change the owner of the file / directory.\n");
+        return -ENOSPC;
+    }
 
     int fh;
     int locate_err = locate(path, fh);

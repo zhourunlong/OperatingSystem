@@ -22,11 +22,6 @@ std::lock_guard <std::mutex> guard(global_lock);
         return locate_err;
     }
 
-    /*
-    inode block_inode;
-    get_inode_from_inum(&block_inode, inum);
-    */
-
     stbuf->f_bsize = stbuf->f_frsize = BLOCK_SIZE;
     stbuf->f_blocks = cur_segment * BLOCKS_IN_SEGMENT + cur_block;
     stbuf->f_bfree = stbuf->f_bavail = BLOCKS_IN_SEGMENT * TOT_SEGMENTS - stbuf->f_blocks;
@@ -44,6 +39,12 @@ std::lock_guard <std::mutex> guard(global_lock);
     if (DEBUG_PRINT_COMMAND)
         logger(DEBUG, "UTIMENS, %s, %p, %p\n",
                resolve_prefix(path).c_str(), &ts, fi);
+    
+    if (is_full) {
+        logger(WARN, "[WARNING] The LFS is already full. Please run garbage collection to release space.\n");
+        logger(WARN, "====> Cannot proceed to update timestamps.\n");
+        return -ENOSPC;
+    }
     
     int inum;
     int locate_err = locate(path, inum);

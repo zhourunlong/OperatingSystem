@@ -50,16 +50,31 @@ int get_inode_from_inum(void* data, int i_number) {
 }
 
 /** Increment cur_block, and flush segment buffer if it is full. */
-inline void move_to_segment() {
+void move_to_segment() {
+    if (is_full) {
+        logger(WARN, "[WARNING] The file system is already full. Please run garbage collection to release space.\n");
+        // TBD: garbage collection.
+        return;
+    }
+
     if (cur_block == DATA_BLOCKS_IN_SEGMENT-1 || next_imap_index == DATA_BLOCKS_IN_SEGMENT) {    // Segment buffer is full, and should be flushed to disk file.
         add_segbuf_metadata();
         write_segment(segment_buffer, cur_segment);
         memset(segment_buffer, 0, sizeof(segment_buffer));
-
         segment_bitmap[cur_segment] = 1;
-        cur_segment++;
-        cur_block = 0;
-        next_imap_index = 0;
+
+        // Update only when whether LFS is not full yet.
+        cur_segment = (cur_segment+1) % TOT_SEGMENTS;
+        if (cur_segment == head_segment) {
+            cur_segment = (cur_segment+TOT_SEGMENTS-1) % TOT_SEGMENTS;
+            is_full = true;
+            logger(WARN, "[WARNING] The file system is already full. Please run garbage collection to release space.\n");
+            // TBD: garbage collection.
+            return;
+        } else {
+            cur_block = 0;
+            next_imap_index = 0;
+        }
     } else {    // Segment buffer is not full yet.
         cur_block++;
     }
@@ -79,14 +94,16 @@ int new_data_block(void* data, int i_number, int direct_index) {
         logger(DEBUG, "Add data block at (segment %d, block %d).\n", cur_segment, cur_block);
 
     acquire_writer_lock();
-        // Append data block.
-        memcpy(segment_buffer + buffer_offset, data, BLOCK_SIZE);
+        if (!is_full) {
+            // Append data block.
+            memcpy(segment_buffer + buffer_offset, data, BLOCK_SIZE);
 
-        // Append segment summary for this block.
-        add_segbuf_summary(cur_block, i_number, direct_index);
-        
-        // Write back segment buffer if necessary.
-        move_to_segment();
+            // Append segment summary for this block.
+            add_segbuf_summary(cur_block, i_number, direct_index);
+            
+            // Write back segment buffer if necessary.
+            move_to_segment();
+        }
     release_writer_lock();
     
     return block_addr;
@@ -106,19 +123,21 @@ int new_inode_block(struct inode* data) {
         logger(DEBUG, "Add inode block at (segment %d, block %d)..\n", cur_segment, cur_block);
 
     acquire_writer_lock();
-        // Append inode block.
-        memcpy(segment_buffer + buffer_offset, data, BLOCK_SIZE);
+        if (!is_full) {
+            // Append inode block.
+            memcpy(segment_buffer + buffer_offset, data, BLOCK_SIZE);
 
-        // Append segment summary for this block.
-        // [CAUTION] We use index -1 to represent an inode, rather than a direct[] pointer.
-        add_segbuf_summary(cur_block, i_number, -1);
+            // Append segment summary for this block.
+            // [CAUTION] We use index -1 to represent an inode, rather than a direct[] pointer.
+            add_segbuf_summary(cur_block, i_number, -1);
 
-        // Append imap entry for this inode, and update inode_table.
-        add_segbuf_imap(i_number, block_addr);
-        inode_table[i_number] = block_addr;
-        
-        // Write back segment buffer if necessary.
-        move_to_segment();
+            // Append imap entry for this inode, and update inode_table.
+            add_segbuf_imap(i_number, block_addr);
+            inode_table[i_number] = block_addr;
+            
+            // Write back segment buffer if necessary.
+            move_to_segment();
+        }
     release_writer_lock();
 
     return block_addr;
@@ -274,11 +293,12 @@ void generate_checkpoint() {
         time(&cur_time);
 
         memcpy(ckpt[next_checkpoint].segment_bitmap, segment_bitmap, sizeof(segment_bitmap));
-        ckpt[next_checkpoint].count_inode = count_inode;
-        ckpt[next_checkpoint].cur_block = cur_block;
-        ckpt[next_checkpoint].cur_segment = cur_segment;
-        ckpt[next_checkpoint].next_imap_index = next_imap_index;
-        ckpt[next_checkpoint].timestamp = (int)cur_time;
+        ckpt[next_checkpoint].is_full           = is_full;
+        ckpt[next_checkpoint].count_inode       = count_inode;
+        ckpt[next_checkpoint].cur_block         = cur_block;
+        ckpt[next_checkpoint].cur_segment       = cur_segment;
+        ckpt[next_checkpoint].next_imap_index   = next_imap_index;
+        ckpt[next_checkpoint].timestamp         = (int)cur_time;
 
         write_checkpoints(&ckpt);
         next_checkpoint = 1 - next_checkpoint;

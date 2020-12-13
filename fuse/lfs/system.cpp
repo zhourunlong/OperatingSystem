@@ -58,10 +58,11 @@ void* o_init(struct fuse_conn_info* conn, struct fuse_config* cfg) {
 
         // Initialize global state variables.
         memset(segment_bitmap, 0, sizeof(segment_bitmap));
-        count_inode = 0;
-        head_segment = 0;
-        cur_segment = 0;
-        cur_block = 0;
+        is_full         = false;
+        count_inode     = 0;
+        head_segment    = 0;
+        cur_segment     = 0;
+        cur_block       = 0;
         next_checkpoint = 0;
         next_imap_index = 0;
         memset(segment_buffer, 0, sizeof(segment_buffer));
@@ -120,10 +121,11 @@ void* o_init(struct fuse_conn_info* conn, struct fuse_config* cfg) {
         next_checkpoint = 1 - latest_index;
         
         memcpy(segment_bitmap, ckpt[latest_index].segment_bitmap, sizeof(segment_bitmap));
-        count_inode = ckpt[latest_index].count_inode;
-        head_segment = ckpt[latest_index].head_segment;
-        cur_segment = ckpt[latest_index].cur_segment;
-        cur_block = ckpt[latest_index].cur_block;
+        is_full         = ckpt[latest_index].is_full;
+        count_inode     = ckpt[latest_index].count_inode;
+        head_segment    = ckpt[latest_index].head_segment;
+        cur_segment     = ckpt[latest_index].cur_segment;
+        cur_block       = ckpt[latest_index].cur_block;
         next_imap_index = ckpt[latest_index].next_imap_index;
         if ((count_inode <= 0) || (cur_segment < 0) || (cur_segment >= TOT_SEGMENTS) \
                                || (cur_block < 0) || (cur_block >= DATA_BLOCKS_IN_SEGMENT)) {
@@ -191,14 +193,16 @@ void* o_init(struct fuse_conn_info* conn, struct fuse_config* cfg) {
             seg = (seg+1) % TOT_SEGMENTS;
         } while (seg != head_segment);
 
-        print_inode_table();
-        generate_checkpoint();
-        
-        // Determine whether the file system is already full.
-        if ((cur_segment+1) % TOT_SEGMENTS == head_segment) {
-            logger(ERROR, "[FATAL ERROR] File system is full. Please use a larger disk.\n");
-            exit(-1);
+        // Determine whether the file system is already full after recovery.
+        if ( ((cur_segment+1) % TOT_SEGMENTS == head_segment)
+             && ((cur_block == DATA_BLOCKS_IN_SEGMENT) || (next_imap_index == DATA_BLOCKS_IN_SEGMENT)))
+            is_full = true;
+        if (is_full) {
+            logger(WARN, "[WARNING] The file system is already full. Please run garbage collection to release space.\n");
+            // TBD: garbage collection.
         }
+        // print_inode_table();
+        generate_checkpoint();
         
         // Initialize segment buffer in memory.
         read_segment(segment_buffer, cur_segment);
@@ -219,5 +223,5 @@ void o_destroy(void* private_data) {
     segment_bitmap[cur_segment] = 1;
     // generate_checkpoint(); 
     
-    print_inode_table();
+    // print_inode_table();
 }

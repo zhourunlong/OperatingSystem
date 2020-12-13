@@ -102,6 +102,11 @@ std::lock_guard <std::mutex> guard(global_lock);
     }
     
     if (accessed && FUNC_ATIME_DIR) {
+        if (is_full) {
+            logger(WARN, "[WARNING] The LFS is already full. Please run garbage collection to release space.\n");
+            logger(WARN, "====> Cannot proceed to update timestamps, but the directory is still accessible.\n");
+            return 0;
+        }
         struct timespec cur_time;
         clock_gettime(CLOCK_REALTIME, &cur_time);
         update_atime(head_inode, cur_time);
@@ -248,6 +253,12 @@ int o_mkdir(const char* path, mode_t mode) {
 std::lock_guard <std::mutex> guard(global_lock);
     if (DEBUG_PRINT_COMMAND)
         logger(DEBUG, "MKDIR, %s, %o\n", resolve_prefix(path).c_str(), mode);
+    
+    if (is_full) {
+        logger(WARN, "[WARNING] The LFS is already full. Please run garbage collection to release space.\n");
+        logger(WARN, "====> Cannot proceed to create a new directory.\n");
+        return -ENOSPC;
+    }
 
     mode &= 0777;
 
@@ -478,6 +489,12 @@ int o_rmdir(const char* path) {
 std::lock_guard <std::mutex> guard(global_lock);
     if (DEBUG_PRINT_COMMAND)
         logger(DEBUG, "RMDIR, %s\n", resolve_prefix(path).c_str());
+    
+    if (is_full) {
+        logger(WARN, "[WARNING] The LFS is already full. Please run garbage collection to release space.\n");
+        logger(WARN, "====> Cannot proceed to remove the directory.\n");
+        return -ENOSPC;
+    }
 
     struct timespec cur_time;
     clock_gettime(CLOCK_REALTIME, &cur_time);

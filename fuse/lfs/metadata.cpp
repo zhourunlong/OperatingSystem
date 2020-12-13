@@ -39,8 +39,7 @@ std::lock_guard <std::mutex> guard(global_lock);
     if (DEBUG_METADATA_INODE) print(&f_inode);
 
     if (f_inode.i_number != i_number) {
-        printf("inum = %d\n", i_number);
-        //print_inode_table();
+        print(&f_inode);
         logger(ERROR, "[FATAL ERROR] Corrupt file system on disk: inode inconsistent with inumber.\n");
         exit(-1);
     }
@@ -53,8 +52,8 @@ std::lock_guard <std::mutex> guard(global_lock);
     memset(sbuf, 0, sizeof(struct stat));
 
     // Basic information.
-    sbuf->st_ino = i_number;                /* File serial number. */
-    sbuf->st_nlink = f_inode.num_links;     /* Link count. */
+    sbuf->st_ino        = i_number;                /* File serial number. */
+    sbuf->st_nlink      = f_inode.num_links;     /* Link count. */
 
     // File mode (see stat.h).
     switch (f_inode.mode) {
@@ -72,22 +71,22 @@ std::lock_guard <std::mutex> guard(global_lock);
             logger(ERROR, "[ERROR] Unknown file type in inode #%d.\n", i_number);
             flag = -EPERM;  // Unknown file type.
     }
-    sbuf->st_uid = f_inode.perm_uid;        /* User ID of the file's owner. */
-    sbuf->st_gid = f_inode.perm_gid;        /* Group ID of the file's group. */
+    sbuf->st_uid        = f_inode.perm_uid;        /* User ID of the file's owner. */
+    sbuf->st_gid        = f_inode.perm_gid;        /* Group ID of the file's group. */
 
     // File size.
-    sbuf->st_size = f_inode.fsize_byte;     /* Size of file, in bytes. */
-    sbuf->st_blocks = f_inode.fsize_block;  /* Number of blocks allocated. */
-    sbuf->st_blksize = f_inode.io_block;    /* Optimal block size for I/O. */
+    sbuf->st_size       = f_inode.fsize_byte;     /* Size of file, in bytes. */
+    sbuf->st_blocks     = f_inode.fsize_block;  /* Number of blocks allocated. */
+    sbuf->st_blksize    = f_inode.io_block;    /* Optimal block size for I/O. */
 
     // Device information.
-    sbuf->st_dev = f_inode.device;          /* Device. */
-    sbuf->st_rdev = 0;                      /* Device number, if file is a device. */
+    sbuf->st_dev        = f_inode.device;          /* Device. */
+    sbuf->st_rdev       = 0;                      /* Device number, if file is a device. */
 
     // Time stamps
-    sbuf->st_atim = f_inode.atime;          /* Time of last access. */
-    sbuf->st_mtim = f_inode.mtime;          /* Time of last modification.  */
-    sbuf->st_ctim = f_inode.ctime;          /* Time of last status change.  */
+    sbuf->st_atim       = f_inode.atime;          /* Time of last access. */
+    sbuf->st_mtim       = f_inode.mtime;          /* Time of last modification.  */
+    sbuf->st_ctim       = f_inode.ctime;          /* Time of last status change.  */
 
     return flag;
 }
@@ -121,8 +120,7 @@ std::lock_guard <std::mutex> guard(global_lock);
     if (DEBUG_METADATA_INODE) print(&f_inode);
     
     if (f_inode.i_number != i_number) {
-        printf("inum = %d\n", i_number);
-        //print_inode_table();
+        print(&f_inode);
         logger(ERROR, "[FATAL ERROR] Corrupt file system on disk: inode inconsistent with inumber.\n");
         exit(-1);
     }

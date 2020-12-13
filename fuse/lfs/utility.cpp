@@ -12,6 +12,7 @@
 char* lfs_path;
 char segment_buffer[SEGMENT_SIZE];
 char segment_bitmap[TOT_SEGMENTS];
+bool is_full;
 int inode_table[MAX_NUM_INODE];
 int count_inode, head_segment;
 int cur_segment, cur_block;

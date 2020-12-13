@@ -201,6 +201,12 @@ std::lock_guard <std::mutex> guard(global_lock);
     // Handle O_TRUNC flag.
     int flags = fi -> flags;
     if ((flags & O_TRUNC) && (flags & O_ACCMODE)) {
+        if (is_full) {
+            logger(WARN, "[WARNING] The LFS is already full. Please run garbage collection to release space.\n");
+            logger(WARN, "====> Cannot proceed to truncate the file: flag O_TRUNC is omitted.\n");
+            return 0;
+        }
+
         inode cur_inode;
         get_inode_from_inum(&cur_inode, inode_num);
         truncate_inode(cur_inode, -1);
@@ -227,9 +233,6 @@ std::lock_guard <std::mutex> guard(global_lock);
     if (DEBUG_PRINT_COMMAND)
         logger(DEBUG, "READ, %s, %p, %d, %d, %p\n",
                resolve_prefix(path).c_str(), buf, size, offset, fi);
-    
-    timespec cur_time;
-    clock_gettime(CLOCK_REALTIME, &cur_time);
 
     // In case the file is not open yet.
     size_t len;
@@ -252,10 +255,6 @@ std::lock_guard <std::mutex> guard(global_lock);
             logger(ERROR, "[ERROR] Permission denied: not allowed to read.\n");
         return 0;
     }
-
-    // Update access time.
-    update_atime(cur_inode, cur_time);
-    new_inode_block(&cur_inode);
     
     len = cur_inode.fsize_byte;
     int t_offset = offset;
@@ -316,6 +315,19 @@ std::lock_guard <std::mutex> guard(global_lock);
         }
     }
 
+    // Update access time.
+    if (is_full) {
+        logger(WARN, "[WARNING] The LFS is already full. Please run garbage collection to release space.\n");
+        logger(WARN, "====> Cannot proceed to update timestamps, but the file is still accessible.\n");
+        return 0;
+    } else {
+        timespec cur_time;
+        clock_gettime(CLOCK_REALTIME, &cur_time);
+
+        update_atime(cur_inode, cur_time);
+        new_inode_block(&cur_inode);
+    }
+
     return size;
 }
 
@@ -324,6 +336,12 @@ std::lock_guard <std::mutex> guard(global_lock);
     if (DEBUG_PRINT_COMMAND)
         logger(DEBUG, "WRITE, %s, %p, %d, %d, %p\n",
                resolve_prefix(path).c_str(), buf, size, offset, fi);
+    
+    if (is_full) {
+        logger(WARN, "[WARNING] The LFS is already full. Please run garbage collection to release space.\n");
+        logger(WARN, "====> Cannot proceed to write into the file.\n");
+        return -ENOSPC;
+    }
 
     // In case the file is not open yet.
     size_t len;
@@ -370,7 +388,12 @@ std::lock_guard <std::mutex> guard(global_lock);
     if (DEBUG_PRINT_COMMAND)
         logger(DEBUG, "CREATE, %s, %o, %p\n",
                resolve_prefix(path).c_str(), mode, fi);
-
+    
+    if (is_full) {
+        logger(WARN, "[WARNING] The LFS is already full. Please run garbage collection to release space.\n");
+        logger(WARN, "====> Cannot proceed to create a new file.\n");
+        return -ENOSPC;
+    }
     
     mode &= 0777;
     
@@ -445,6 +468,12 @@ std::lock_guard <std::mutex> guard(global_lock);
     if (DEBUG_PRINT_COMMAND)
         logger(DEBUG, "RENAME, %s, %s, %d\n",
                resolve_prefix(from).c_str(), resolve_prefix(to).c_str(), flags);
+    
+    if (is_full) {
+        logger(WARN, "[WARNING] The LFS is already full. Please run garbage collection to release space.\n");
+        logger(WARN, "====> Cannot proceed to rename the file.\n");
+        return -ENOSPC;
+    }
     
     timespec cur_time;
     clock_gettime(CLOCK_REALTIME, &cur_time);
@@ -621,6 +650,12 @@ std::lock_guard <std::mutex> guard(global_lock);
     if (DEBUG_PRINT_COMMAND)
         logger(DEBUG, "UNLINK, %s\n", resolve_prefix(path).c_str());
     
+    if (is_full) {
+        logger(WARN, "[WARNING] The LFS is already full. Please run garbage collection to release space.\n");
+        logger(WARN, "====> Cannot proceed to unlink the file.\n");
+        return -ENOSPC;
+    }
+    
     std::string tmp = relative_to_absolute(path, "../", 0);
     char* parent_dir = (char*) malloc((tmp.length() + 1) * SC);
     strcpy(parent_dir, tmp.c_str());
@@ -656,6 +691,12 @@ int o_link(const char* src, const char* dest) {
 std::lock_guard <std::mutex> guard(global_lock);
     if (DEBUG_PRINT_COMMAND)
         logger(DEBUG, "LINK, %s, %s\n", resolve_prefix(src).c_str(), resolve_prefix(dest).c_str());
+    
+    if (is_full) {
+        logger(WARN, "[WARNING] The LFS is already full. Please run garbage collection to release space.\n");
+        logger(WARN, "====> Cannot proceed to create a hard link.\n");
+        return -ENOSPC;
+    }
     
     timespec cur_time;
     clock_gettime(CLOCK_REALTIME, &cur_time);
@@ -749,6 +790,12 @@ std::lock_guard <std::mutex> guard(global_lock);
     if (DEBUG_PRINT_COMMAND)
         logger(DEBUG, "TRUNCATE, %s, %d, %p\n",
                resolve_prefix(path).c_str(), size, fi);
+    
+    if (is_full) {
+        logger(WARN, "[WARNING] The LFS is already full. Please run garbage collection to release space.\n");
+        logger(WARN, "====> Cannot proceed to truncate the file.\n");
+        return -ENOSPC;
+    }
     
     timespec cur_time;
     clock_gettime(CLOCK_REALTIME, &cur_time);
