@@ -60,18 +60,19 @@ std::lock_guard <std::mutex> guard(global_lock);
     if (DEBUG_PRINT_COMMAND)
         logger(DEBUG, "READDIR, %s, %p, %p, %d, %p, %d\n",
                resolve_prefix(path).c_str(), buf, &filler, offset, fi, flags);
-    
-    
-    int opendir_err = o_opendir(path, fi);
-    if (opendir_err != 0) {
+
+    int fh;
+    int locate_err = locate(path, fh);
+    fi->fh = fh;
+    if (locate_err != 0) {
         if (ERROR_DIRECTORY)
-            logger(ERROR, "[ERROR] Cannot read directory.\n");
-        return opendir_err;
+            logger(ERROR, "[ERROR] Cannot open the directory (error #%d).\n", locate_err);
+        return locate_err;
     }
 
     filler(buf, ".", NULL, 0, (fuse_fill_dir_flags) 0);
     filler(buf, "..", NULL, 0, (fuse_fill_dir_flags) 0);
-    
+
     inode block_inode, head_inode;
     int ginode_err = get_inode_from_inum(&head_inode, fi->fh);
     if (ginode_err != 0) {

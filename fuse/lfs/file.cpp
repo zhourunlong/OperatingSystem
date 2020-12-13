@@ -198,6 +198,7 @@ std::lock_guard <std::mutex> guard(global_lock);
     }
     fi -> fh = (uint64_t) inode_num;
 
+    /*
     int flags = fi -> flags;
     if ((flags & O_TRUNC) && (flags & O_ACCMODE)) {
         inode cur_inode;
@@ -207,6 +208,7 @@ std::lock_guard <std::mutex> guard(global_lock);
         cur_inode.ctime = cur_time;
         new_inode_block(&cur_inode);
     }
+    */
 
     return 0;
 }
@@ -233,8 +235,9 @@ std::lock_guard <std::mutex> guard(global_lock);
     // In case the file is not open yet.
     size_t len;
     if (fi->fh == 0) {
-        int first_flag = 0;
-        first_flag = o_open(path, fi);
+        int first_flag = 0, fh = 0;
+        first_flag = locate(path, fh);
+        fi->fh = fh;
         if (first_flag != 0) {
             if (ERROR_FILE)
                 logger(ERROR, "[ERROR] Cannot open the file. \n");
@@ -326,8 +329,9 @@ std::lock_guard <std::mutex> guard(global_lock);
     // In case the file is not open yet.
     size_t len;
     if (fi->fh == 0) {
-        int first_flag = 0;
-        first_flag = o_open(path, fi);
+        int first_flag = 0, fh = 0;
+        first_flag = locate(path, fh);
+        fi->fh = fh;
         if (first_flag != 0) {
             if (ERROR_FILE)
                 logger(ERROR, "[ERROR] Cannot open the file. \n");
@@ -752,8 +756,9 @@ std::lock_guard <std::mutex> guard(global_lock);
     
     // In case the file is not open yet.
     if (fi->fh == 0) {
-        int first_flag = 0;
-        first_flag = o_open(path, fi);
+        int first_flag = 0, fh = 0;
+        first_flag = locate(path, fh);
+        fi->fh = fh;
         if (first_flag != 0) {
             if (ERROR_FILE)
                 logger(ERROR, "[ERROR] Cannot open the file. \n");
