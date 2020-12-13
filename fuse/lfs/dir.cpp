@@ -11,10 +11,12 @@
 #include <stdlib.h>
 #include <time.h>
 #include <string>
+#include <mutex>
 
 const int SC = sizeof(char);
 
 int o_opendir(const char* path, struct fuse_file_info* fi) {
+std::lock_guard <std::mutex> guard(global_lock);
     if (DEBUG_PRINT_COMMAND)
         logger(DEBUG, "OPENDIR, %s, %p\n", resolve_prefix(path).c_str(), fi);
 
@@ -40,21 +42,21 @@ int o_opendir(const char* path, struct fuse_file_info* fi) {
             logger(ERROR, "[ERROR] %s is not a directory.\n", path);
         return -ENOTDIR;
     }
-
     return 0;
 }
 
 int o_releasedir(const char* path, struct fuse_file_info* fi) {
+std::lock_guard <std::mutex> guard(global_lock);
     if (DEBUG_PRINT_COMMAND)
         logger(DEBUG, "RELEASEDIR, %s, %p\n", resolve_prefix(path).c_str(), fi);
 
     fi->fh = 0;
-
     return 0;
 }
 
 int o_readdir(const char* path, void* buf, fuse_fill_dir_t filler, off_t offset,
     struct fuse_file_info* fi, enum fuse_readdir_flags flags) {
+std::lock_guard <std::mutex> guard(global_lock);
     if (DEBUG_PRINT_COMMAND)
         logger(DEBUG, "READDIR, %s, %p, %p, %d, %p, %d\n",
                resolve_prefix(path).c_str(), buf, &filler, offset, fi, flags);
@@ -104,7 +106,6 @@ int o_readdir(const char* path, void* buf, fuse_fill_dir_t filler, off_t offset,
         update_atime(head_inode, cur_time);
         new_inode_block(&head_inode);
     }
-
     return 0;
 }
 
@@ -243,6 +244,7 @@ bool remove_parent_dir_entry(struct inode &block_inode, int del_inum)  {
 }
 
 int o_mkdir(const char* path, mode_t mode) {
+std::lock_guard <std::mutex> guard(global_lock);
     if (DEBUG_PRINT_COMMAND)
         logger(DEBUG, "MKDIR, %s, %o\n", resolve_prefix(path).c_str(), mode);
 
@@ -472,6 +474,7 @@ int remove_object(struct inode &head_inode, const char* del_name, int del_mode) 
 }
 
 int o_rmdir(const char* path) {
+std::lock_guard <std::mutex> guard(global_lock);
     if (DEBUG_PRINT_COMMAND)
         logger(DEBUG, "RMDIR, %s\n", resolve_prefix(path).c_str());
 
