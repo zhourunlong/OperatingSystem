@@ -7,13 +7,17 @@
 #include "blockio.h"
 #include "errno.h"
 
-#include <cstring>
+#include <string.h>
 #include <stdlib.h>
 #include <time.h>
 
 int o_opendir(const char* path, struct fuse_file_info* fi) {
-    if (DEBUG_PRINT_COMMAND)
-        logger(DEBUG, "OPENDIR, %s, %p\n", resolve_prefix(path), fi);
+    if (DEBUG_PRINT_COMMAND) {
+        char* _path = (char*) malloc(mount_dir_len+strlen(path)+4);
+        resolve_prefix(path, _path);
+        logger(DEBUG, "OPENDIR, %s, %p\n", _path, fi);
+        free(_path);
+    }
 
     int fh;
     int locate_err = locate(path, fh);
@@ -42,8 +46,12 @@ int o_opendir(const char* path, struct fuse_file_info* fi) {
 }
 
 int o_releasedir(const char* path, struct fuse_file_info* fi) {
-    if (DEBUG_PRINT_COMMAND)
-        logger(DEBUG, "RELEASEDIR, %s, %p\n", resolve_prefix(path), fi);
+    if (DEBUG_PRINT_COMMAND) {
+        char* _path = (char*) malloc(mount_dir_len+strlen(path)+4);
+        resolve_prefix(path, _path);
+        logger(DEBUG, "RELEASEDIR, %s, %p\n", _path, fi);
+        free(_path);
+    }
 
     fi->fh = 0;
 
@@ -52,9 +60,14 @@ int o_releasedir(const char* path, struct fuse_file_info* fi) {
 
 int o_readdir(const char* path, void* buf, fuse_fill_dir_t filler, off_t offset,
     struct fuse_file_info* fi, enum fuse_readdir_flags flags) {
-    if (DEBUG_PRINT_COMMAND)
+    if (DEBUG_PRINT_COMMAND) {
+        char* _path = (char*) malloc(mount_dir_len+strlen(path)+4);
+        resolve_prefix(path, _path);
         logger(DEBUG, "READDIR, %s, %p, %p, %d, %p, %d\n",
-               resolve_prefix(path), buf, &filler, offset, fi, flags);
+               _path, buf, &filler, offset, fi, flags);
+        free(_path);
+    }
+    
     
     int opendir_err = o_opendir(path, fi);
     if (opendir_err != 0) {
@@ -238,13 +251,20 @@ bool remove_parent_dir_entry(struct inode &block_inode, int del_inum)  {
 }
 
 int o_mkdir(const char* path, mode_t mode) {
-    if (DEBUG_PRINT_COMMAND)
-        logger(DEBUG, "MKDIR, %s, %o\n", resolve_prefix(path), mode);
+    if (DEBUG_PRINT_COMMAND) {
+        char* _path = (char*) malloc(mount_dir_len+strlen(path)+4);
+        resolve_prefix(path, _path);
+        logger(DEBUG, "MKDIR, %s, %o\n", _path, mode);
+        free(_path);
+    }
 
     mode &= 0777;
-    char* parent_dir = relative_to_absolute(path, "../", 0);
-    char* dirname = current_fname(path);
+    char* parent_dir = (char*) malloc(strlen(path)+4);
+    relative_to_absolute(path, "../", 0, parent_dir);
+    char* dirname = (char*) malloc(strlen(path));
+    current_fname(path, dirname);
     if (strlen(dirname) >= MAX_FILENAME_LEN) {
+        free(parent_dir); free(dirname);
         if (ERROR_DIRECTORY)
             logger(ERROR, "[ERROR] Directory name too long: length %d > %d.\n", strlen(dirname), MAX_FILENAME_LEN);
         return -ENAMETOOLONG;
@@ -254,6 +274,7 @@ int o_mkdir(const char* path, mode_t mode) {
     if (locate_err != 0) {
         if (ERROR_DIRECTORY)
             logger(ERROR, "[ERROR] Cannot open the parent directory (error #%d).\n", locate_err);
+        free(parent_dir); free(dirname);
         return locate_err;
     }
     
@@ -262,11 +283,13 @@ int o_mkdir(const char* path, mode_t mode) {
     if (ginode_err != 0) {
         if (ERROR_PERM)
             logger(ERROR, "[ERROR] Permission denied: not allowed to read.\n");
+        free(parent_dir); free(dirname);
         return ginode_err;
     }
     if (head_inode.mode != MODE_DIR) {
         if (ERROR_DIRECTORY)
             logger(ERROR, "[ERROR] %s is not a directory.\n", parent_dir);
+        free(parent_dir); free(dirname);
         return -ENOTDIR;
     }
 
@@ -278,18 +301,22 @@ int o_mkdir(const char* path, mode_t mode) {
         if (ginode_err != 0) {
             if (ERROR_PERM)
                 logger(ERROR, "[ERROR] Permission denied: not allowed to read.\n");
+            free(parent_dir); free(dirname);
             return ginode_err;
         }
         if ((tmp_inode.mode == MODE_FILE) && ERROR_DIRECTORY)
             logger(ERROR, "[ERROR] Duplicated name: there exists a file with the same name.\n");
         if ((tmp_inode.mode == MODE_DIR) && ERROR_DIRECTORY)
             logger(ERROR, "[ERROR] Duplicated name: there exists a directory with the same name.\n");
+        free(parent_dir); free(dirname);
         return -EEXIST;
     }
 
     struct fuse_context* user_info = fuse_get_context();
     if (verify_permission(PERM_WRITE, &head_inode, user_info, ENABLE_PERMISSION)) {
-        logger(ERROR, "[ERROR] Permission denied: not allowed to write.\n");
+        if (ERROR_PERM)
+            logger(ERROR, "[ERROR] Permission denied: not allowed to write.\n");
+        free(parent_dir); free(dirname);
         return -EACCES;
     }
 
@@ -298,6 +325,7 @@ int o_mkdir(const char* path, mode_t mode) {
     new_inode_block(&dir_inode);
 
     int flag = append_parent_dir_entry(head_inode, dirname, dir_inode.i_number);
+    free(parent_dir); free(dirname);
     return flag;
 }
 
@@ -434,7 +462,6 @@ int remove_object(struct inode &head_inode, const char* del_name, int del_mode) 
                             new_inode_block(&tmp_head_inode);
                         }
                     }
-
                     return 0;
                 }
         }
@@ -459,20 +486,27 @@ int remove_object(struct inode &head_inode, const char* del_name, int del_mode) 
 }
 
 int o_rmdir(const char* path) {
-    if (DEBUG_PRINT_COMMAND)
-        logger(DEBUG, "RMDIR, %s\n", resolve_prefix(path));
+    if (DEBUG_PRINT_COMMAND) {
+        char* _path = (char*) malloc(mount_dir_len+strlen(path)+4);
+        resolve_prefix(path, _path);
+        logger(DEBUG, "RMDIR, %s\n", _path);
+        free(_path);
+    }
 
     struct timespec cur_time;
     clock_gettime(CLOCK_REALTIME, &cur_time);
 
-    char* parent_dir = relative_to_absolute(path, "../", 0);
-    char* dirname = current_fname(path);
+    char* parent_dir = (char*) malloc(strlen(path)+4);
+    relative_to_absolute(path, "../", 0, parent_dir);
+    char* dirname = (char*) malloc(strlen(path));
+    current_fname(path, dirname);
 
     int par_inum;
     int locate_err = locate(parent_dir, par_inum);
     if (locate_err != 0) {
         if (ERROR_DIRECTORY)
             logger(ERROR, "[ERROR] Cannot open the parent directory (error #%d).\n", locate_err);
+        free(parent_dir); free(dirname);
         return locate_err;
     }
 
@@ -481,20 +515,24 @@ int o_rmdir(const char* path) {
     if (ginode_err != 0) {
         if (ERROR_PERM)
             logger(ERROR, "[ERROR] Permission denied: not allowed to read.\n");
+        free(parent_dir); free(dirname);
         return ginode_err;
     }
     if (head_inode.mode != MODE_DIR) {
         if (ERROR_DIRECTORY)
             logger(ERROR, "[ERROR] %s is not a directory.\n", parent_dir);
+        free(parent_dir); free(dirname);
         return -ENOTDIR;
     }
 
     struct fuse_context* user_info = fuse_get_context();
     if (verify_permission(PERM_WRITE, &head_inode, user_info, ENABLE_PERMISSION)) {
         logger(ERROR, "[ERROR] Permission denied: not allowed to write.\n");
+        free(parent_dir); free(dirname);
         return -EACCES;
     }
 
     int flag = remove_object(head_inode, dirname, MODE_DIR);
+    free(parent_dir); free(dirname);
     return flag;
 }

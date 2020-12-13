@@ -71,13 +71,13 @@ typedef struct dir_entry directory[MAX_DIR_ENTRIES];
 /** **************************************
  * Segment logical structures.
  * ***************************************/
+const int DATA_BLOCKS_IN_SEGMENT = BLOCKS_IN_SEGMENT - 16;
 const int IMAP_SIZE = 8 * (BLOCK_SIZE-16);
 const int SUMMARY_SIZE = 8 * (BLOCK_SIZE-16);
-const int SEGMETA_SIZE = 4;
+const int SEGMETA_SIZE = 8;
 const int IMAP_OFFSET = SEGMENT_SIZE - 16*BLOCK_SIZE;
 const int SUMMARY_OFFSET = SEGMENT_SIZE - 16*BLOCK_SIZE + IMAP_SIZE;
 const int SEGMETA_OFFSET = SEGMENT_SIZE - 16*BLOCK_SIZE + IMAP_SIZE + SUMMARY_SIZE;
-const int DATA_BLOCKS_IN_SEGMENT = BLOCKS_IN_SEGMENT - 16;
 
 /** Inode-Map Data Block: tracing all inodes within the segment.
  * This is a dictionary, where i_number is "key" and inode_block is "value".
@@ -101,10 +101,11 @@ struct summary_entry {
 typedef struct summary_entry segment_summary[DATA_BLOCKS_IN_SEGMENT];
 
 /** Segment Metadata Block: storing metadata of the segment.
- * Up to 256 bytes (64 int variables can be stored as metadata, although we only use a little.
+ * Up to 256 bytes (64 int variables can be stored as metadata, although we do not use all.
  */
 struct segment_metadata {
     int update_time;       // Last update time of the segment.
+    int cur_block;         // Next available block within the segment.
 };
 
 
@@ -126,14 +127,16 @@ struct superblock {
 
 
 const int CHECKPOINT_ADDR = TOT_SEGMENTS * SEGMENT_SIZE + BLOCK_SIZE;
-const int CHECKPOINT_SIZE = 2 * (20+TOT_SEGMENTS);
+const int CHECKPOINT_SIZE = 2 * (24+TOT_SEGMENTS);
 const int CKPT_UPDATE_INTERVAL = 30;    // Minimum interval for checkpoint update (in seconds).
 /** Checkpoint Block: recording periodical checkpoints of volatile information.
  * We should assign 2 checkpoints and use them in turns (for failure restoration).
+ * [CAUTION] Checkpoints are declared in utility.cpp/h, retrieved in system.cpp, and saved in blockio.cpp.
  */
 struct checkpoint_entry {
     char segment_bitmap[TOT_SEGMENTS]; // Indicate whether each segment is alive.
     int count_inode;                   // Current number of inodes (monotone increasing).
+    int head_segment;                  // First segment in use.
     int cur_segment;                   // Next available segment.
     int cur_block;                     // Next available block (in the segment).
     int next_imap_index;               // Index of next free imap entry (within the segment).
@@ -152,10 +155,8 @@ int read_segment(void* buf, int segment_addr);
 int write_segment(void* buf, int segment_addr);
 
 int read_segment_imap(void* buf, int segment_addr);
-int write_segment_imap(void* buf, int segment_addr);
-
 int read_segment_summary(void* buf, int segment_addr);
-int write_segment_summary(void* buf, int segment_addr);
+int read_segment_metadata(void* buf, int segment_addr);
 
 int read_checkpoints(void* buf);
 int write_checkpoints(void* buf);
@@ -171,7 +172,8 @@ extern char* lfs_path;                          // File handle should be local: 
 extern char segment_buffer[SEGMENT_SIZE];
 extern char segment_bitmap[TOT_SEGMENTS];
 extern int inode_table[MAX_NUM_INODE];
-extern int count_inode, cur_segment, cur_block; // cur_block is the NEXT available block.
+extern int count_inode, head_segment;
+extern int cur_segment, cur_block;              // cur_block is the NEXT available block.
 extern int next_checkpoint, next_imap_index;
 extern struct timespec last_ckpt_update_time;   // Record the last time to update checkpoints.
 
@@ -187,6 +189,7 @@ const bool DEBUG_METADATA_INODE = false;    // Print inode for each metadata que
 const bool DEBUG_DIRECTORY      = true;     // Print debug information in directory.cpp.
 const bool DEBUG_FILE           = true;     // Print debug information in file.cpp.
 const bool DEBUG_PATH           = true;     // Print debug information in path.cpp.
+const bool DEBUG_BLOCKIO        = true;     // Print (seg, blk) for each appended block.
 const bool DEBUG_LOCATE_REPORT  = false;    // Generate report for each locate() (in path.cpp).
 const bool DEBUG_CKPT_REPORT    = true;     // Print checkpoint after each storation.
 

@@ -114,6 +114,7 @@ void print(checkpoints ckpt){
     }
     
     logger(DEBUG, "COUNT_INODE\t%d   \t\t%d\n", ckpt[0].count_inode, ckpt[1].count_inode);
+    logger(DEBUG, "1ST_SEGMENT\t%d   \t\t%d\n", ckpt[0].head_segment, ckpt[1].head_segment);
     logger(DEBUG, "CUR_SEGMENT\t%d   \t\t%d\n", ckpt[0].cur_segment, ckpt[1].cur_segment);
     logger(DEBUG, "CUR_BLOCK  \t%d   \t\t%d\n", ckpt[0].cur_block, ckpt[1].cur_block);
     logger(DEBUG, "NXT_IMAP_ID\t%d   \t\t%d\n", ckpt[0].next_imap_index, ckpt[1].next_imap_index);

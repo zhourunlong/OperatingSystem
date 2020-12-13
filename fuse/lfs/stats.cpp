@@ -6,9 +6,16 @@
 #include "path.h"
 #include "blockio.h"
 
+#include <stdlib.h>
+#include <string.h>
+
 int o_statfs(const char* path, struct statvfs* stbuf) {
-    if (DEBUG_PRINT_COMMAND)
-        logger(DEBUG, "STATFS, %s, %p\n", resolve_prefix(path), stbuf);
+    if (DEBUG_PRINT_COMMAND) {
+        char* _path = (char*) malloc(mount_dir_len+strlen(path)+4);
+        resolve_prefix(path, _path);
+        logger(DEBUG, "STATFS, %s, %p\n", _path, stbuf);
+        free(_path);
+    }
     
     int inum;
     int locate_err = locate(path, inum);
@@ -36,9 +43,13 @@ int o_statfs(const char* path, struct statvfs* stbuf) {
 }
 
 int o_utimens(const char* path, const struct timespec ts[2], struct fuse_file_info *fi) {
-    if (DEBUG_PRINT_COMMAND)
+    if (DEBUG_PRINT_COMMAND) {
+        char* _path = (char*) malloc(mount_dir_len+strlen(path)+4);
+        resolve_prefix(path, _path);
         logger(DEBUG, "UTIMENS, %s, %p, %p\n",
-               resolve_prefix(path), &ts, fi);
+               _path, &ts, fi);
+        free(_path);
+    }
     
     int inum;
     int locate_err = locate(path, inum);

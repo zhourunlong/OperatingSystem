@@ -10,7 +10,7 @@ void dfs(int u) {
     for (int i = 0; i < stk.size(); ++i)
         t += "/" + to_string(stk[i]);
     char s[999];
-    sprintf(s, "mkdir ../zrl%s", t.c_str());
+    sprintf(s, "mkdir ../test%s", t.c_str());
     system(s);
     for (set <int> :: iterator itr = g[u].begin(); itr != g[u].end(); ++itr)
         dfs(*itr);
@@ -39,7 +39,7 @@ int main() {
         for (int i = 0; i < stk.size(); ++i)
             t += "/" + to_string(stk[i]);
         char s[999];
-        sprintf(s, "rmdir ../zrl%s\n", t.c_str());
+        sprintf(s, "rmdir ../test%s\n", t.c_str());
         int ret = system(s);
         //fprintf(stderr, "%s", s);
         int correct = 1;

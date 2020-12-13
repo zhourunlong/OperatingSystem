@@ -13,7 +13,8 @@ char* lfs_path;
 char segment_buffer[SEGMENT_SIZE];
 char segment_bitmap[TOT_SEGMENTS];
 int inode_table[MAX_NUM_INODE];
-int count_inode, cur_segment, cur_block;
+int count_inode, head_segment;
+int cur_segment, cur_block;
 int next_checkpoint, next_imap_index;
 struct timespec last_ckpt_update_time;
 std::mutex global_lock;
@@ -69,9 +70,10 @@ int write_segment(void* buf, int segment_addr) {
  * @param  buf: buffer of any type, but should be of length BLOCK_SIZE;
  * @param  segment_addr: segment address (= seg).
  * @return length: actual length of reading / writing; -1 on error.
+ * [CAUTION] These regions can only be separately READ (but should be written along with segment).
  * ***************************************/
 
-/** Read inode map of the segment (covering 8 blocks, i.e. #1008 ~ #1015). */
+/** Read inode map of the segment (covering roughly 8 blocks, i.e. #1008 ~ #1015). */
 int read_segment_imap(void* buf, int segment_addr) {
     int file_handle = open(lfs_path, O_RDWR);
     int file_offset = segment_addr * SEGMENT_SIZE + IMAP_OFFSET;
@@ -80,16 +82,7 @@ int read_segment_imap(void* buf, int segment_addr) {
     return read_length;
 }
 
-/** Write inode map of the segment (covering 8 blocks, i.e. #1008 ~ #1015). */
-int write_segment_imap(void* buf, int segment_addr) {
-    int file_handle = open(lfs_path, O_RDWR);
-    int file_offset = segment_addr * SEGMENT_SIZE + IMAP_OFFSET;
-    int write_length = pwrite(file_handle, buf, IMAP_SIZE, file_offset);
-    close(file_handle);
-    return write_length;
-}
-
-/** Read segment summary of the segment (covering 8 blocks, i.e. #1016 ~ #1023). */
+/** Read segment summary of the segment (covering roughly 8 blocks, i.e. #1016 ~ #1023). */
 int read_segment_summary(void* buf, int segment_addr) {
     int file_handle = open(lfs_path, O_RDWR);
     int file_offset = segment_addr * SEGMENT_SIZE + SUMMARY_OFFSET;
@@ -98,13 +91,13 @@ int read_segment_summary(void* buf, int segment_addr) {
     return read_length;
 }
 
-/** Write segment summary of the segment (covering 8 blocks, i.e. #1016 ~ #1023). */
-int write_segment_summary(void* buf, int segment_addr) {
+/** Read segment metadata of the segment (covering last several bytes). */
+int read_segment_metadata(void* buf, int segment_addr) {
     int file_handle = open(lfs_path, O_RDWR);
-    int file_offset = segment_addr * SEGMENT_SIZE + SUMMARY_OFFSET;
-    int write_length = pwrite(file_handle, buf, SUMMARY_SIZE, file_offset);
+    int file_offset = segment_addr * SEGMENT_SIZE + SEGMETA_OFFSET;
+    int read_length = pread(file_handle, buf, SEGMETA_SIZE, file_offset);
     close(file_handle);
-    return write_length;
+    return read_length;
 }
 
 
