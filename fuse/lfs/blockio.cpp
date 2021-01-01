@@ -35,13 +35,13 @@ void get_block(void* data, int block_addr) {
 }
 
 /** Retrieve block according to the i_number of inode block.
- * @param  data: pointer of return data.
+ * @param  inode_data: pointer of returned inode.
  * @param  i_number: i_number of block.
  * @return flag: 0 on success, standard negative error codes on error.
  * Note that the block may be in inode cache, segment buffer, or disk file. */
-void get_inode_from_inum(struct inode* data, int i_number) {
-    *data = cached_inode_array[i_number];
-    if (i_number != data->i_number) {
+void get_inode_from_inum(struct inode* inode_data, int i_number) {
+    memcpy(inode_data, cached_inode_array+i_number, sizeof(struct inode));
+    if (i_number != inode_data->i_number) {
         logger(ERROR, "[FATAL ERROR] Corrupt file system: inconsistent inode number in memory.\n");
         exit(-1);
     }
@@ -194,7 +194,7 @@ int new_inode_block(struct inode* data) {
             // Append imap entry for this inode, and update inode_table.
             add_segbuf_imap(i_number, block_addr);
             inode_table[i_number] = block_addr;
-            cached_inode_array[i_number] = *data;
+            memcpy(cached_inode_array+i_number, data, sizeof(struct inode));
             
             // Write back segment buffer if necessary.
             move_to_segment();
@@ -246,7 +246,6 @@ void add_segbuf_metadata() {
         update_nsec : cur_time.tv_nsec,
         cur_block   : cur_block
     };
-
     memcpy(segment_buffer + SEGMETA_OFFSET, &seg_metadata, SEGMETA_SIZE);
 }
 

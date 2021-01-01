@@ -125,7 +125,7 @@ int gc_new_inode_block(struct inode* data) {
     gc_add_segbuf_summary(gc_cur_block, i_number, -1);              // Append segment summary (use -1 as index).
     gc_add_segbuf_imap(i_number, block_addr);                       // Append imap entry for this inode,
     inode_table[i_number] = block_addr;                             //   update inode_table,
-    cached_inode_array[i_number] = *data;                           //   and update cached inode array.
+    memcpy(cached_inode_array+i_number, data, sizeof(struct inode));                           //   and update cached inode array.
     gc_move_to_segment();                                           // Write back GC buffer if necessary.
 
     return block_addr;

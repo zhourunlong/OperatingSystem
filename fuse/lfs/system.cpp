@@ -97,8 +97,6 @@ void* o_init(struct fuse_conn_info* conn, struct fuse_config* cfg) {
         read_checkpoints(&ckpt);
         print(ckpt);
 
-        printf("!\n");
-
         logger(DEBUG, "[INFO] Successfully initialized the file system.\n");
     } else {
         // Try to open an existing file.
@@ -136,7 +134,7 @@ void load_from_file() {
     checkpoints ckpt;
     read_checkpoints(&ckpt);
     print(ckpt);
-    
+
     int latest_index = 0;
     if (ckpt[0].timestamp < ckpt[1].timestamp)
         latest_index = 1;
@@ -156,7 +154,7 @@ void load_from_file() {
     
     // Initialize inode table in memory (by simulation).
     memset(inode_table, -1, sizeof(inode_table));
-    
+
     // Traverse all segments to reconstruct in-memory inode sturcture.
     int inode_update_sec[MAX_NUM_INODE];
     int inode_update_nsec[MAX_NUM_INODE];
@@ -184,7 +182,7 @@ void load_from_file() {
             if (im_entry.i_number > 0) {
                 int inode_sec  = inode_update_sec[im_entry.i_number];
                 int inode_nsec = inode_update_nsec[im_entry.i_number];
-                if ((inode_sec < seg_sec) || ((inode_sec == seg_sec) && (inode_nsec < seg_nsec))) {
+                if ((inode_sec <= seg_sec) || ((inode_sec == seg_sec) && (inode_nsec <= seg_nsec))) {
                     inode_table[im_entry.i_number] = im_entry.inode_block;
                     inode_update_sec[im_entry.i_number]  = seg_sec;
                     inode_update_nsec[im_entry.i_number] = seg_nsec;
@@ -206,14 +204,6 @@ void load_from_file() {
         }
     }
 
-    // Now the inode table is up-to-date, so we may reconstruct inode array in memory.
-    struct inode* inode_block;
-    for (int i=1; i<=count_inode; i++) 
-        if (inode_table[i] >= 0) {
-            get_block(inode_block, inode_table[i]);
-            cached_inode_array[i] = *inode_block;
-        }
-
     // Restore block pointers (i.e., cur_segment and cur_block).
     if ((newest_block == DATA_BLOCKS_IN_SEGMENT-1) || (newest_imap_index == DATA_BLOCKS_IN_SEGMENT)) {
         cur_segment = newest_seg;
@@ -223,6 +213,19 @@ void load_from_file() {
         cur_block = newest_block;
         next_imap_index = newest_imap_index;
     }
+    
+    // Initialize segment buffer in memory.
+    read_segment(segment_buffer, cur_segment);
+
+    // Now the inode table and segment buffer is up-to-date.s
+    // We may directly reconstruct inode array in memory.
+    struct inode inode_block;
+    for (int i=1; i<=count_inode; i++) {
+        if (inode_table[i] >= 0) {
+            get_block(&inode_block, inode_table[i]);
+            cached_inode_array[i] = inode_block;
+        }
+    }
 
     // Warn if the file system is already full after recovery.
     if (is_full)
@@ -231,7 +234,4 @@ void load_from_file() {
     // Generate a checkpoint for easier recovery.
     // print_inode_table();
     generate_checkpoint();
-    
-    // Initialize segment buffer in memory.
-    read_segment(segment_buffer, cur_segment);
 }
