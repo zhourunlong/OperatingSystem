@@ -191,7 +191,7 @@ int locate(const char* _path, int &i_number) {
             return -ENOTDIR;
         }
         // Do not have permission to access target.
-        if (verify_permission(PERM_READ, &block_inode, user_info, ENABLE_PERMISSION)) {
+        if (!verify_permission(PERM_READ, &block_inode, user_info, ENABLE_PERMISSION)) {
             if (DEBUG_LOCATE_REPORT) {
                 logger(DEBUG, "-x Failed to read the inode: permission denied. Procedure aborted.\n", target.c_str());
                 logger(DEBUG, "============================ PRINT LOCATE() REPORT ====================\n\n");

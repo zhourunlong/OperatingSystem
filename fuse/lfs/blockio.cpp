@@ -37,16 +37,9 @@ void get_block(void* data, int block_addr) {
  * @param  i_number: i_number of block.
  * @return flag: 0 on success, standard negative error codes on error.
  * Note that the block may be in segment buffer, or in disk file. */
-int get_inode_from_inum(void* data, int i_number) {
+void get_inode_from_inum(void* data, int i_number) {
     struct inode* block_inode = (struct inode*) data;
     get_block(block_inode, inode_table[i_number]);
-    
-    // Verify user permission before returning.
-    struct fuse_context* user_info = fuse_get_context();
-    if (verify_permission(PERM_READ, block_inode, user_info, ENABLE_PERMISSION))
-        return -EACCES;
-    
-    return 0;
 }
 
 /** Increment cur_block, and flush segment buffer if it is full. */

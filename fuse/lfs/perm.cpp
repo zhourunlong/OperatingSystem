@@ -33,7 +33,7 @@ std::lock_guard <std::mutex> guard(global_lock);
 
     inode block_inode;
     get_inode_from_inum(&block_inode, fh);
-    block_inode.permission = mode;
+    block_inode.permission = mode & 0777;
     clock_gettime(CLOCK_REALTIME, &block_inode.ctime);
     new_inode_block(&block_inode);
 

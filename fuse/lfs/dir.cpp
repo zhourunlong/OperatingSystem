@@ -30,13 +30,7 @@ std::lock_guard <std::mutex> guard(global_lock);
     }
 
     inode block_inode;
-    int ginode_err = get_inode_from_inum(&block_inode, fh);
-    if (ginode_err != 0) {
-        if (ERROR_PERM)
-            logger(ERROR, "[ERROR] Permission denied: not allowed to read.\n");
-        return ginode_err;
-    }
-
+    get_inode_from_inum(&block_inode, fh);
     if (block_inode.mode != MODE_DIR) {
         if (ERROR_DIRECTORY)
             logger(ERROR, "[ERROR] %s is not a directory.\n", path);
@@ -61,6 +55,9 @@ std::lock_guard <std::mutex> guard(global_lock);
         logger(DEBUG, "READDIR, %s, %p, %p, %d, %p, %d\n",
                resolve_prefix(path).c_str(), buf, &filler, offset, fi, flags);
 
+    /* Get information (uid, gid) of the user who calls LFS interface. */
+    struct fuse_context* user_info = fuse_get_context();
+
     int fh;
     int locate_err = locate(path, fh);
     fi->fh = fh;
@@ -74,11 +71,11 @@ std::lock_guard <std::mutex> guard(global_lock);
     filler(buf, "..", NULL, 0, (fuse_fill_dir_flags) 0);
 
     inode block_inode, head_inode;
-    int ginode_err = get_inode_from_inum(&head_inode, fi->fh);
-    if (ginode_err != 0) {
+    get_inode_from_inum(&head_inode, fi->fh);
+    if (!verify_permission(PERM_READ, &head_inode, user_info, ENABLE_PERMISSION)) {
         if (ERROR_PERM)
             logger(ERROR, "[ERROR] Permission denied: not allowed to read.\n");
-        return ginode_err;
+        return -EACCES;
     }
 
     block_inode = head_inode;
@@ -296,6 +293,9 @@ std::lock_guard <std::mutex> guard(global_lock);
         return -ENOSPC;
     }
 
+    /* Get information (uid, gid) of the user who calls LFS interface. */
+    struct fuse_context* user_info = fuse_get_context();
+
     mode &= 0777;
 
     std::string tmp = relative_to_absolute(path, "../", 0);
@@ -322,13 +322,14 @@ std::lock_guard <std::mutex> guard(global_lock);
     }
     
     inode head_inode;
-    int ginode_err = get_inode_from_inum(&head_inode, par_inum);
-    if (ginode_err != 0) {
+    get_inode_from_inum(&head_inode, par_inum);
+    if (!verify_permission(PERM_WRITE, &head_inode, user_info, ENABLE_PERMISSION)) {
         if (ERROR_PERM)
-            logger(ERROR, "[ERROR] Permission denied: not allowed to read.\n");
+            logger(ERROR, "[ERROR] Permission denied: not allowed to write.\n");
         free(parent_dir); free(dirname);
-        return ginode_err;
+        return -EACCES;
     }
+
     if (head_inode.mode != MODE_DIR) {
         if (ERROR_DIRECTORY)
             logger(ERROR, "[ERROR] %s is not a directory.\n", parent_dir);
@@ -340,13 +341,7 @@ std::lock_guard <std::mutex> guard(global_lock);
     locate_err = locate(path, tmp_inum);
     if (locate_err == 0) {
         inode tmp_inode;
-        ginode_err = get_inode_from_inum(&tmp_inode, tmp_inum);
-        if (ginode_err != 0) {
-            if (ERROR_PERM)
-                logger(ERROR, "[ERROR] Permission denied: not allowed to read.\n");
-            free(parent_dir); free(dirname);
-            return ginode_err;
-        }
+        get_inode_from_inum(&tmp_inode, tmp_inum);
         if ((tmp_inode.mode == MODE_FILE) && ERROR_DIRECTORY)
             logger(ERROR, "[ERROR] Duplicated name: there exists a file with the same name.\n");
         if ((tmp_inode.mode == MODE_DIR) && ERROR_DIRECTORY)
@@ -355,8 +350,7 @@ std::lock_guard <std::mutex> guard(global_lock);
         return -EEXIST;
     }
 
-    struct fuse_context* user_info = fuse_get_context();
-    if (verify_permission(PERM_WRITE, &head_inode, user_info, ENABLE_PERMISSION)) {
+    if (!verify_permission(PERM_WRITE, &head_inode, user_info, ENABLE_PERMISSION)) {
         if (ERROR_PERM)
             logger(ERROR, "[ERROR] Permission denied: not allowed to write.\n");
         free(parent_dir); free(dirname);
@@ -395,12 +389,7 @@ int remove_object(struct inode &head_inode, const char* del_name, int del_mode) 
             for (int j = 0; j < MAX_DIR_ENTRIES; ++j)
                 if (block_dir[j].i_number && !strcmp(block_dir[j].filename, del_name)) {
                     inode tmp_inode, tmp_head_inode;
-                    int ginode_err = get_inode_from_inum(&tmp_head_inode, block_dir[j].i_number);
-                    if (ginode_err != 0) {
-                        if (ERROR_PERM)
-                            logger(ERROR, "[ERROR] Permission denied: not allowed to read.\n");
-                        return ginode_err;
-                    }
+                    get_inode_from_inum(&tmp_head_inode, block_dir[j].i_number);
 
                     // Verify del_name refers to an expected type of object.
                     if ((del_mode == MODE_DIR) && (tmp_head_inode.mode != MODE_DIR)) {
@@ -533,6 +522,9 @@ std::lock_guard <std::mutex> guard(global_lock);
         return -ENOSPC;
     }
 
+    /* Get information (uid, gid) of the user who calls LFS interface. */
+    struct fuse_context* user_info = fuse_get_context();
+
     struct timespec cur_time;
     clock_gettime(CLOCK_REALTIME, &cur_time);
 
@@ -554,25 +546,19 @@ std::lock_guard <std::mutex> guard(global_lock);
     }
 
     inode head_inode;
-    int ginode_err = get_inode_from_inum(&head_inode, par_inum);
-    if (ginode_err != 0) {
+    get_inode_from_inum(&head_inode, par_inum);
+    if (!verify_permission(PERM_WRITE, &head_inode, user_info, ENABLE_PERMISSION)) {
         if (ERROR_PERM)
-            logger(ERROR, "[ERROR] Permission denied: not allowed to read.\n");
+            logger(ERROR, "[ERROR] Permission denied: not allowed to write.\n");
         free(parent_dir); free(dirname);
-        return ginode_err;
+        return -EACCES;
     }
+
     if (head_inode.mode != MODE_DIR) {
         if (ERROR_DIRECTORY)
             logger(ERROR, "[ERROR] %s is not a directory.\n", parent_dir);
         free(parent_dir); free(dirname);
         return -ENOTDIR;
-    }
-
-    struct fuse_context* user_info = fuse_get_context();
-    if (verify_permission(PERM_WRITE, &head_inode, user_info, ENABLE_PERMISSION)) {
-        logger(ERROR, "[ERROR] Permission denied: not allowed to write.\n");
-        free(parent_dir); free(dirname);
-        return -EACCES;
     }
 
     int flag = remove_object(head_inode, dirname, MODE_DIR);

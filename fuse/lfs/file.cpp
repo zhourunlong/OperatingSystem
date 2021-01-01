@@ -36,6 +36,9 @@ int write_in_file(const char* path, const char* buf, size_t size,
     timespec cur_time;
     clock_gettime(CLOCK_REALTIME, &cur_time);
     
+    /* Get information (uid, gid) of the user who calls LFS interface. */
+    struct fuse_context* user_info = fuse_get_context();
+    
     int inode_num = fi->fh;
     inode cur_inode;
     get_inode_from_inum(&cur_inode, inode_num);
@@ -45,13 +48,9 @@ int write_in_file(const char* path, const char* buf, size_t size,
         return 0;
     }
     
-    // Write permission control (read permission managed by get_inode_from_inum).
-    int perm_flag = 0;
-    struct fuse_context* user_info = fuse_get_context();
-    if (verify_permission(PERM_WRITE, &cur_inode, user_info, ENABLE_PERMISSION))
-        perm_flag = -EACCES;
-    if (perm_flag != 0) {
-        if (ERROR_FILE)
+    // Write permission control.
+    if (!verify_permission(PERM_WRITE, &cur_inode, user_info, ENABLE_PERMISSION)) {
+        if (ERROR_PERM)
             logger(ERROR, "[ERROR] Permission denied: not allowed to write.\n");
         return 0;
     }
@@ -196,10 +195,30 @@ std::lock_guard <std::mutex> guard(global_lock);
             logger(ERROR, "[ERROR] Cannot open the file (error #%d).\n", flag);
         return flag;
     }
+
+    // Retrieve open flags, the inode and current user info.
+    int flags = fi -> flags;
+    struct fuse_context* user_info = fuse_get_context();
+    inode cur_inode;
+    get_inode_from_inum(&cur_inode, inode_num);
+
+    // Verify file permissions.
+    int open_perm = flags & O_ACCMODE;
+    if (((open_perm == O_RDONLY) || (open_perm == O_RDWR)) && (!verify_permission(PERM_READ, &cur_inode, user_info, ENABLE_PERMISSION))) {
+        if (ERROR_PERM)
+            logger(ERROR, "[ERROR] Permission denied: not allowed to read.\n");
+        return -EACCES;
+    }
+    if (((open_perm == O_WRONLY) || (open_perm == O_RDWR)) && (!verify_permission(PERM_WRITE, &cur_inode, user_info, ENABLE_PERMISSION))) {
+        if (ERROR_PERM)
+            logger(ERROR, "[ERROR] Permission denied: not allowed to write.\n");
+        return -EACCES;
+    }
+    
+    // Return file handle if the user has due permission.
     fi->fh = (uint64_t) inode_num;
 
     // Handle O_TRUNC flag.
-    int flags = fi -> flags;
     if ((flags & O_TRUNC) && (flags & O_ACCMODE)) {
         if (is_full) {
             logger(WARN, "[WARNING] The file system is already full.\n* Please run garbage collection to release space.\n");
@@ -207,8 +226,6 @@ std::lock_guard <std::mutex> guard(global_lock);
             return 0;
         }
 
-        inode cur_inode;
-        get_inode_from_inum(&cur_inode, inode_num);
         truncate_inode(cur_inode, -1);
         cur_inode.fsize_block = cur_inode.fsize_byte = 0;
         cur_inode.ctime = cur_time;
@@ -234,6 +251,9 @@ std::lock_guard <std::mutex> guard(global_lock);
         logger(DEBUG, "READ, %s, %p, %d, %d, %p\n",
                resolve_prefix(path).c_str(), buf, size, offset, fi);
 
+    /* Get information (uid, gid) of the user who calls LFS interface. */
+    struct fuse_context* user_info = fuse_get_context();
+
     // In case the file is not open yet.
     size_t len;
     if (fi->fh == 0) {
@@ -249,9 +269,9 @@ std::lock_guard <std::mutex> guard(global_lock);
     int inode_num = fi->fh;
     
     inode cur_inode;
-    int perm_flag = get_inode_from_inum(&cur_inode, inode_num);
-    if (perm_flag != 0) {
-        if (ERROR_FILE)
+    get_inode_from_inum(&cur_inode, inode_num);
+    if (!verify_permission(PERM_READ, &cur_inode,user_info ,ENABLE_PERMISSION)) {
+        if (ERROR_PERM)
             logger(ERROR, "[ERROR] Permission denied: not allowed to read.\n");
         return 0;
     }
@@ -343,6 +363,9 @@ std::lock_guard <std::mutex> guard(global_lock);
         return -ENOSPC;
     }
 
+    /* Get information (uid, gid) of the user who calls LFS interface. */
+    struct fuse_context* user_info = fuse_get_context();
+
     // In case the file is not open yet.
     size_t len;
     if (fi->fh == 0) {
@@ -360,13 +383,8 @@ std::lock_guard <std::mutex> guard(global_lock);
     inode cur_inode;
     int perm_flag = 0;
     get_inode_from_inum(&cur_inode, inode_num);
-    
-    // Write permission control (read permission managed by get_inode_from_inum).
-    struct fuse_context* user_info = fuse_get_context();
-    if (verify_permission(PERM_WRITE, &cur_inode, user_info, ENABLE_PERMISSION))
-        perm_flag = -EACCES;
-    if (perm_flag != 0) {
-        if (ERROR_FILE)
+    if (!verify_permission(PERM_WRITE, &cur_inode, user_info, ENABLE_PERMISSION)) {
+        if (ERROR_PERM)
             logger(ERROR, "[ERROR] Permission denied: not allowed to write.\n");
         return 0;
     }
@@ -395,6 +413,9 @@ std::lock_guard <std::mutex> guard(global_lock);
         return -ENOSPC;
     }
     
+    /* Get information (uid, gid) of the user who calls LFS interface. */
+    struct fuse_context* user_info = fuse_get_context();
+
     mode &= 0777;
     
     std::string tmp = relative_to_absolute(path, "../", 0);
@@ -421,14 +442,14 @@ std::lock_guard <std::mutex> guard(global_lock);
     }
 
     inode head_inode;
-    int perm_flag;
-    perm_flag = get_inode_from_inum(&head_inode, par_inum);
-    if (perm_flag != 0) {
+    get_inode_from_inum(&head_inode, par_inum);
+    if (!verify_permission(PERM_WRITE, &head_inode, user_info, ENABLE_PERMISSION)) {
         if (ERROR_PERM)
             logger(ERROR, "[ERROR] Permission denied: not allowed to read.\n");
         free(parent_dir); free(dirname);
-        return perm_flag;
+        return -EACCES;
     }
+
     if (head_inode.mode != MODE_DIR) {
         if (ERROR_FILE)
             logger(ERROR, "[ERROR] %s is not a directory.\n", parent_dir);
@@ -440,11 +461,7 @@ std::lock_guard <std::mutex> guard(global_lock);
     locate_err = locate(path, tmp_inum);
     if (locate_err == 0) {
         inode tmp_inode;
-        perm_flag = get_inode_from_inum(&tmp_inode, tmp_inum);
-        if (perm_flag != 0) {
-            free(parent_dir); free(dirname);
-            return perm_flag;
-        }
+        get_inode_from_inum(&tmp_inode, tmp_inum);
         if ((tmp_inode.mode == MODE_FILE) && ERROR_FILE)
             logger(ERROR, "[ERROR] Duplicated name: there is a file with the same name.\n");
         if ((tmp_inode.mode == MODE_DIR) && ERROR_FILE)
@@ -474,6 +491,9 @@ std::lock_guard <std::mutex> guard(global_lock);
         logger(WARN, "====> Cannot proceed to rename the file.\n");
         return -ENOSPC;
     }
+
+    /* Get information (uid, gid) of the user who calls LFS interface. */
+    struct fuse_context* user_info = fuse_get_context();
     
     timespec cur_time;
     clock_gettime(CLOCK_REALTIME, &cur_time);
@@ -529,47 +549,28 @@ std::lock_guard <std::mutex> guard(global_lock);
             return -EEXIST;
         }
 
-        int perm_flag;
         inode from_inode;
-        perm_flag = get_inode_from_inum(&from_inode, from_inum);
-        perm_flag = 0;
-        if (perm_flag != 0) {
-            if (ERROR_PERM)
-                logger(ERROR, "[ERROR] Permission denied: not allowed to read source file inode.\n");
-            free(from_parent_dir); free(to_parent_dir); free(from_name); free(to_name);
-            return perm_flag;
-        }
+        get_inode_from_inum(&from_inode, from_inum);
+
         inode from_par_inode;
-        perm_flag = get_inode_from_inum(&from_par_inode, from_par_inum);
-        perm_flag = 0;
-        struct fuse_context* user_info = fuse_get_context();
-        if (verify_permission(PERM_WRITE | PERM_READ, &from_par_inode, user_info, ENABLE_PERMISSION))
-            perm_flag = -EACCES;
-        if (perm_flag != 0) {
+        get_inode_from_inum(&from_par_inode, from_par_inum);
+        if (!verify_permission(PERM_WRITE | PERM_READ, &from_par_inode, user_info, ENABLE_PERMISSION)) {
             if (ERROR_PERM)
                 logger(ERROR, "[ERROR] Permission denied: not allowed to write source dir inode.\n");
             free(from_parent_dir); free(to_parent_dir); free(from_name); free(to_name);
-            return perm_flag;
+            return -EACCES;
         }
+
         inode to_inode;
-        perm_flag = get_inode_from_inum(&to_inode, to_inum);
-        perm_flag = 0;
-        if (perm_flag != 0) {
-            if (ERROR_PERM)
-                logger(ERROR, "[ERROR] Permission denied: not allowed to read dest file inode.\n");
-            free(from_parent_dir); free(to_parent_dir); free(from_name); free(to_name);
-            return perm_flag;
-        }
+        get_inode_from_inum(&to_inode, to_inum);
+
         inode to_par_inode;
-        perm_flag = get_inode_from_inum(&to_par_inode, to_par_inum);
-        perm_flag = 0;
-        if (verify_permission(PERM_WRITE | PERM_READ, &to_par_inode, user_info, ENABLE_PERMISSION))
-            perm_flag = -EACCES;
-        if (perm_flag != 0) {
+        get_inode_from_inum(&to_par_inode, to_par_inum);
+        if (!verify_permission(PERM_WRITE | PERM_READ, &to_par_inode, user_info, ENABLE_PERMISSION)) {
             if (ERROR_PERM)
                 logger(ERROR, "[ERROR] Permission denied: not allowed to write dest dir inode.\n");
             free(from_parent_dir); free(to_parent_dir); free(from_name); free(to_name);
-            return perm_flag;
+            return -EACCES;
         }
         
         // Update timestamps.
@@ -606,22 +607,14 @@ std::lock_guard <std::mutex> guard(global_lock);
     // Conflict case 2: overwrite destination file.
     // Base case: destination file does not exist.
     inode from_inode;
-    int perm_flag = get_inode_from_inum(&from_inode, from_inum);
-    perm_flag = 0;
-    if (perm_flag != 0) {
-        if (ERROR_PERM)
-            logger(ERROR, "[ERROR] Permission denied: not allowed to read source file inode.\n");
-        free(from_parent_dir); free(to_parent_dir); free(from_name); free(to_name);
-        return perm_flag;
-    }
+    get_inode_from_inum(&from_inode, from_inum);
     inode from_par_inode;
-    perm_flag = get_inode_from_inum(&from_par_inode, from_par_inum);
-    perm_flag = 0;
-    if (perm_flag != 0) {
+    get_inode_from_inum(&from_par_inode, from_par_inum);
+    if (!verify_permission(PERM_WRITE | PERM_READ, &from_par_inode, user_info, ENABLE_PERMISSION)) {
         if (ERROR_PERM)
-            logger(ERROR, "[ERROR] Permission denied: not allowed to read source dir inode.\n");
+            logger(ERROR, "[ERROR] Permission denied: not allowed to write source dir inode.\n");
         free(from_parent_dir); free(to_parent_dir); free(from_name); free(to_name);
-        return perm_flag;
+        return -EACCES;
     }
     
     // Update timestamps.
@@ -634,11 +627,12 @@ std::lock_guard <std::mutex> guard(global_lock);
     remove_parent_dir_entry(from_par_inode, from_inum, from_name);
 
     inode head_inode;
-    perm_flag = get_inode_from_inum(&head_inode, to_par_inum);
-    if (perm_flag != 0) {
+    get_inode_from_inum(&head_inode, to_par_inum);
+    if (!verify_permission(PERM_WRITE | PERM_READ, &head_inode, user_info, ENABLE_PERMISSION)) {
         if (ERROR_PERM)
-            logger(ERROR, "[ERROR] Permission denied: not allowed to read dest file inode.\n");
-        return perm_flag;
+            logger(ERROR, "[ERROR] Permission denied: not allowed to dest dir inode.\n");
+        free(from_parent_dir); free(to_parent_dir); free(from_name); free(to_name);
+        return -EACCES;
     }
     int flag = append_parent_dir_entry(head_inode, to_name, from_inum);
     free(from_parent_dir); free(to_parent_dir); free(from_name); free(to_name);
@@ -655,6 +649,9 @@ std::lock_guard <std::mutex> guard(global_lock);
         logger(WARN, "====> Cannot proceed to unlink the file.\n");
         return -ENOSPC;
     }
+
+    /* Get information (uid, gid) of the user who calls LFS interface. */
+    struct fuse_context* user_info = fuse_get_context();
     
     std::string tmp = relative_to_absolute(path, "../", 0);
     char* parent_dir = (char*) malloc((tmp.length() + 1) * SC);
@@ -675,13 +672,14 @@ std::lock_guard <std::mutex> guard(global_lock);
     }
 
     inode head_inode;
-    int perm_flag = get_inode_from_inum(&head_inode, par_inum);
-    if (perm_flag != 0) {
+    get_inode_from_inum(&head_inode, par_inum);
+    if (!verify_permission(PERM_WRITE | PERM_READ, &head_inode, user_info, ENABLE_PERMISSION)) {
         if (ERROR_PERM)
-            logger(ERROR, "[ERROR] Permission denied: not allowed to read.\n");
+            logger(ERROR, "[ERROR] Permission denied: not allowed to access parent directory.\n");
         free(parent_dir); free(file_name);
-        return perm_flag;
+        return -EACCES;
     }
+
     int flag = remove_object(head_inode, file_name, MODE_FILE);
     free(parent_dir); free(file_name);
     return flag;
@@ -697,6 +695,9 @@ std::lock_guard <std::mutex> guard(global_lock);
         logger(WARN, "====> Cannot proceed to create a hard link.\n");
         return -ENOSPC;
     }
+
+    /* Get information (uid, gid) of the user who calls LFS interface. */
+    struct fuse_context* user_info = fuse_get_context();
     
     timespec cur_time;
     clock_gettime(CLOCK_REALTIME, &cur_time);
@@ -735,13 +736,7 @@ std::lock_guard <std::mutex> guard(global_lock);
         free(src_parent_dir); free(dest_parent_dir); free(src_name); free(dest_name);
         return locate_err;
     }
-    int perm_flag = get_inode_from_inum(&src_inode, src_inum);
-    if (perm_flag != 0) {
-        if (ERROR_PERM)
-            logger(ERROR, "[ERROR] Permission denied: not allowed to read source file.\n");
-        free(src_parent_dir); free(dest_parent_dir); free(src_name); free(dest_name);
-        return perm_flag;
-    }
+    get_inode_from_inum(&src_inode, src_inum);
     if (src_inode.mode != MODE_FILE) {
         if (ERROR_FILE)
             logger(ERROR, "[ERROR] %s is not a file.\n", src_name);
@@ -765,16 +760,12 @@ std::lock_guard <std::mutex> guard(global_lock);
     }
 
     inode dest_par_inode;
-    perm_flag = get_inode_from_inum(&dest_par_inode, dest_par_inum);
-    perm_flag = 0;
-    struct fuse_context* user_info = fuse_get_context();
-    if (verify_permission(PERM_WRITE | PERM_READ, &dest_par_inode, user_info, ENABLE_PERMISSION))
-        perm_flag = -EACCES;
-    if (perm_flag != 0) {
+    get_inode_from_inum(&dest_par_inode, dest_par_inum);
+    if (!verify_permission(PERM_WRITE | PERM_READ, &dest_par_inode, user_info, ENABLE_PERMISSION)) {
         if (ERROR_PERM)
             logger(ERROR, "[ERROR] Permission denied: not allowed to write dest directory.\n");
         free(src_parent_dir); free(dest_parent_dir); free(src_name); free(dest_name);
-        return perm_flag;
+        return -EACCES;
     }
     int flag = append_parent_dir_entry(dest_par_inode, dest_name, src_inum);
 
@@ -796,6 +787,9 @@ std::lock_guard <std::mutex> guard(global_lock);
         logger(WARN, "====> Cannot proceed to truncate the file.\n");
         return -ENOSPC;
     }
+
+    /* Get information (uid, gid) of the user who calls LFS interface. */
+    struct fuse_context* user_info = fuse_get_context();
     
     timespec cur_time;
     clock_gettime(CLOCK_REALTIME, &cur_time);
@@ -814,14 +808,11 @@ std::lock_guard <std::mutex> guard(global_lock);
     int inode_num = fi->fh;
 
     inode cur_inode;
-    int perm_flag = get_inode_from_inum(&cur_inode, inode_num);
-    struct fuse_context* user_info = fuse_get_context();
-    if (verify_permission(PERM_WRITE, &cur_inode, user_info, ENABLE_PERMISSION))
-        perm_flag = -EACCES;
-    if (perm_flag != 0) {
+    get_inode_from_inum(&cur_inode, inode_num);
+    if (!verify_permission(PERM_WRITE, &cur_inode, user_info, ENABLE_PERMISSION)) {
         if (ERROR_PERM)
             logger(ERROR, "[ERROR] Permission denied: not allowed to write.\n");
-        return perm_flag;
+        return -EACCES;
     }
     if (cur_inode.mode == MODE_DIR) {
         if (ERROR_FILE)

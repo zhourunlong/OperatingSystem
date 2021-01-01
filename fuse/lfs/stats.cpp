@@ -55,12 +55,7 @@ std::lock_guard <std::mutex> guard(global_lock);
     }
 
     inode block_inode;
-    int ginode_err = get_inode_from_inum(&block_inode, inum);
-    if (ginode_err != 0) {
-        if (ERROR_PERM)
-            logger(ERROR, "[ERROR] Permission error when loading inode.\n");
-        return ginode_err;
-    }
+    get_inode_from_inum(&block_inode, inum);
 
     block_inode.atime = ts[0];
     block_inode.mtime = ts[1];
