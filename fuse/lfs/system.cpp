@@ -33,7 +33,7 @@ void* o_init(struct fuse_conn_info* conn, struct fuse_config* cfg) {
     std::string _lfs_path = current_working_dir;
     _lfs_path += "lfs.data";
     lfs_path = (char*) malloc(_lfs_path.length() + 2);
-    strcpy(lfs_path, _lfs_path.c_str());
+    strcpy(lfs_path, _lfs_path.c_str());s
 
     if (access(lfs_path, R_OK) != 0) {    // Disk file does not exist.
         logger(DEBUG, "[INFO] Disk file (lfs.data) does not exist. Try to create and initialize to 0.\n");
@@ -144,6 +144,10 @@ void* o_init(struct fuse_conn_info* conn, struct fuse_config* cfg) {
         bool is_checkpointed = true;
         bool is_break_end = false;
         do {
+            segment_summary seg_sum;
+            read_segment_summary(&seg_sum, seg);
+            memcpy(&cached_segsum[seg], &seg_sum, sizeof(seg_sum));
+
             struct segment_metadata seg_metadata;
             read_segment_metadata(&seg_metadata, seg);
             int cur_seg_time = seg_metadata.update_time;
@@ -207,7 +211,7 @@ void* o_init(struct fuse_conn_info* conn, struct fuse_config* cfg) {
 
         // Warn if the file system is already full after recovery.
         if (is_full) {
-            logger(WARN, "[WARNING] The file system is already full.\n* Please run garbage collection to release space.\n");
+            logger(WARN, "[WARNING] The file system is already full: garbage collection does not work.\n");
             // TBD: garbage collection.
         }
         // print_inode_table();

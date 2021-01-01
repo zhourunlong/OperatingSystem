@@ -221,7 +221,7 @@ std::lock_guard <std::mutex> guard(global_lock);
     // Handle O_TRUNC flag.
     if ((flags & O_TRUNC) && (flags & O_ACCMODE)) {
         if (is_full) {
-            logger(WARN, "[WARNING] The file system is already full.\n* Please run garbage collection to release space.\n");
+            logger(WARN, "[WARNING] The file system is already full: please expand the disk size.\n* Garbage collection fails because it cannot release any blocks.\n");
             logger(WARN, "====> Cannot proceed to truncate the file: flag O_TRUNC is omitted.\n");
             return 0;
         }
@@ -337,7 +337,7 @@ std::lock_guard <std::mutex> guard(global_lock);
 
     // Update access time.
     if (is_full) {
-        logger(WARN, "[WARNING] The file system is already full.\n* Please run garbage collection to release space.\n");
+        logger(WARN, "[WARNING] The file system is already full: please expand the disk size.\n* Garbage collection fails because it cannot release any blocks.\n");
         logger(WARN, "====> Cannot proceed to update timestamps, but the file is still accessible.\n");
         return 0;
     } else {
@@ -358,7 +358,7 @@ std::lock_guard <std::mutex> guard(global_lock);
                resolve_prefix(path).c_str(), buf, size, offset, fi);
     
     if (is_full) {
-        logger(WARN, "[WARNING] The file system is already full.\n* Please run garbage collection to release space.\n");
+        logger(WARN, "[WARNING] The file system is already full: please expand the disk size.\n* Garbage collection fails because it cannot release any blocks.\n");
         logger(WARN, "====> Cannot proceed to write into the file.\n");
         return -ENOSPC;
     }
@@ -408,7 +408,7 @@ std::lock_guard <std::mutex> guard(global_lock);
                resolve_prefix(path).c_str(), mode, fi);
     
     if (is_full) {
-        logger(WARN, "[WARNING] The file system is already full.\n* Please run garbage collection to release space.\n");
+        logger(WARN, "[WARNING] The file system is already full: please expand the disk size.\n* Garbage collection fails because it cannot release any blocks.\n");
         logger(WARN, "====> Cannot proceed to create a new file.\n");
         return -ENOSPC;
     }
@@ -487,7 +487,7 @@ std::lock_guard <std::mutex> guard(global_lock);
                resolve_prefix(from).c_str(), resolve_prefix(to).c_str(), flags);
     
     if (is_full) {
-        logger(WARN, "[WARNING] The file system is already full.\n* Please run garbage collection to release space.\n");
+        logger(WARN, "[WARNING] The file system is already full: please expand the disk size.\n* Garbage collection fails because it cannot release any blocks.\n");
         logger(WARN, "====> Cannot proceed to rename the file.\n");
         return -ENOSPC;
     }
@@ -645,7 +645,7 @@ std::lock_guard <std::mutex> guard(global_lock);
         logger(DEBUG, "UNLINK, %s\n", resolve_prefix(path).c_str());
     
     if (is_full) {
-        logger(WARN, "[WARNING] The file system is already full.\n* Please run garbage collection to release space.\n");
+        logger(WARN, "[WARNING] The file system is already full: please expand the disk size.\n* Garbage collection fails because it cannot release any blocks.\n");
         logger(WARN, "====> Cannot proceed to unlink the file.\n");
         return -ENOSPC;
     }
@@ -691,7 +691,7 @@ std::lock_guard <std::mutex> guard(global_lock);
         logger(DEBUG, "LINK, %s, %s\n", resolve_prefix(src).c_str(), resolve_prefix(dest).c_str());
     
     if (is_full) {
-        logger(WARN, "[WARNING] The file system is already full.\n* Please run garbage collection to release space.\n");
+        logger(WARN, "[WARNING] The file system is already full: please expand the disk size.\n* Garbage collection fails because it cannot release any blocks.\n");
         logger(WARN, "====> Cannot proceed to create a hard link.\n");
         return -ENOSPC;
     }
@@ -783,7 +783,7 @@ std::lock_guard <std::mutex> guard(global_lock);
                resolve_prefix(path).c_str(), size, fi);
     
     if (is_full) {
-        logger(WARN, "[WARNING] The file system is already full.\n* Please run garbage collection to release space.\n");
+        logger(WARN, "[WARNING] The file system is already full: please expand the disk size.\n* Garbage collection fails because it cannot release any blocks.\n");
         logger(WARN, "====> Cannot proceed to truncate the file.\n");
         return -ENOSPC;
     }

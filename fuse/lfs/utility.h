@@ -170,15 +170,19 @@ int write_superblock(void* buf);
 /** **************************************
  * Global state variables.
  * ***************************************/
-extern char* lfs_path;                          // File handle should be local: only store the path.
+extern char* lfs_path;                              // File handle should be local: only store the path.
 extern char segment_buffer[SEGMENT_SIZE];
 extern char segment_bitmap[TOT_SEGMENTS];
 extern bool is_full;
 extern int inode_table[MAX_NUM_INODE];
 extern int count_inode, head_segment;
-extern int cur_segment, cur_block;              // cur_block is the NEXT available block.
+extern int cur_segment, cur_block;                  // cur_block is the NEXT available block.
 extern int next_checkpoint, next_imap_index;
-extern struct timespec last_ckpt_update_time;   // Record the last time to update checkpoints.
+extern struct timespec last_ckpt_update_time;       // Record the last time to update checkpoints.
+
+extern segment_summary cached_segsum[TOT_SEGMENTS]; // In-memory segment summary.
+extern inode cached_inode_array[MAX_NUM_INODE];     // In-memory inode array.
+extern bool cached_inode_valid[MAX_NUM_INODE];      // Valid bits for the in-memory inode array.
 
 const long long FILE_SIZE = 1ll * SEGMENT_SIZE * TOT_SEGMENTS + 2 * BLOCK_SIZE;
 const int ROOT_DIR_INUMBER = 1;
@@ -195,6 +199,7 @@ const bool DEBUG_PATH           = 0;    // Print debug information in path.cpp.
 const bool DEBUG_BLOCKIO        = 0;    // Print (seg, blk) for each appended block.
 const bool DEBUG_LOCATE_REPORT  = 0;    // Generate report for each locate() (in path.cpp).
 const bool DEBUG_CKPT_REPORT    = 1;    // Print checkpoint after each storation.
+const bool DEBUG_GARBAGE_COL    = 1;    // Print debug information for garbage collection utilities.
 
 const bool ERROR_METADATA       = 1;    // Report errors in metadata.cpp assoc. with locate().
 const bool ERROR_DIRECTORY      = 1;    // Report directory operation errors in directory.cpp.
@@ -237,4 +242,6 @@ void release_writer_lock();
 /** **************************************
  * Garbage collection.
  * ***************************************/
-// Please search "TBD: garbage collection" for all modifications.
+const int CLEAN_THRESHOLD = (int) (0.8*TOT_SEGMENTS);
+const int CLEAN_NUM = (int) (0.3*TOT_SEGMENTS);
+bool clean_thoroughly = false;                // This may be adjusted if the disk is highly utilized.
