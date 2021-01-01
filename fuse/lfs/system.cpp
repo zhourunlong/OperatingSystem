@@ -109,118 +109,7 @@ void* o_init(struct fuse_conn_info* conn, struct fuse_config* cfg) {
         close(file_handle);
         logger(DEBUG, "[INFO] Successfully found an existing file system.\n");
 
-
-        // Read the (newer) checkpoint.
-        checkpoints ckpt;
-        read_checkpoints(&ckpt);
-        print(ckpt);
-        
-        int latest_index = 0;
-        if (ckpt[0].timestamp < ckpt[1].timestamp)
-            latest_index = 1;
-        next_checkpoint = 1 - latest_index;
-        
-        memcpy(segment_bitmap, ckpt[latest_index].segment_bitmap, sizeof(segment_bitmap));
-        is_full         = ckpt[latest_index].is_full;
-        count_inode     = ckpt[latest_index].count_inode;
-        head_segment    = ckpt[latest_index].head_segment;
-        cur_segment     = ckpt[latest_index].cur_segment;
-        cur_block       = ckpt[latest_index].cur_block;
-        next_imap_index = ckpt[latest_index].next_imap_index;
-        if ((count_inode <= 0) || (cur_segment < 0) || (cur_segment >= TOT_SEGMENTS) \
-                               || (cur_block < 0) || (cur_block >= DATA_BLOCKS_IN_SEGMENT)) {
-            logger(ERROR, "[FATAL ERROR] Corrupt file system on disk: invalid checkpoint entry.\n");
-            exit(-1);
-        }
-        
-        // Initialize inode table in memory (by simulation).
-        memset(inode_table, -1, sizeof(inode_table));
-        inode_map imap;
-        imap_entry im_entry;
-        
-        // Traverse all segments.
-        int prev_seg_sec = 0, prev_seg_nsec = 0, prev_seg_block = 0, prev_seg_imap_idx = 0;
-        int seg = head_segment;
-        bool is_checkpointed = true;
-        bool is_break_end = false;
-        do {
-            segment_summary seg_sum;
-            read_segment_summary(&seg_sum, seg);
-            memcpy(&cached_segsum[seg], &seg_sum, sizeof(seg_sum));
-
-            struct segment_metadata seg_metadata;
-            read_segment_metadata(&seg_metadata, seg);
-            int cur_seg_sec   = seg_metadata.update_sec;
-            int cur_seg_nsec  = seg_metadata.update_nsec;
-            int cur_seg_block = seg_metadata.cur_block;
-
-            if (seg == cur_segment)
-                is_checkpointed = false;  // Start to recover un-checkpointed segments.
-            if ((is_checkpointed) && (segment_bitmap[seg] == 0)) {
-                logger(ERROR, "[FATAL ERROR] Corrupt file system: inconsecutive occupied segments.\n");
-                exit(-1);
-            }
-
-            if ((cur_seg_sec < prev_seg_sec) || ((cur_seg_sec == prev_seg_sec) && (cur_seg_nsec < prev_seg_nsec))) {
-                if (prev_seg_block == DATA_BLOCKS_IN_SEGMENT-1) {  // Previous segment is full.
-                    cur_segment = seg;
-                    cur_block = 0;
-                    next_imap_index = 0;
-                } else {  // Previous segment is still appendable.
-                    cur_segment = (seg-1+TOT_SEGMENTS) % TOT_SEGMENTS;
-                    cur_block = prev_seg_block;
-                    next_imap_index = prev_seg_imap_idx;
-                }
-
-                is_break_end = true;
-                break;
-            } else {
-                prev_seg_sec   = cur_seg_sec;
-                prev_seg_nsec  = cur_seg_nsec;
-                prev_seg_block = cur_seg_block;
-
-                read_segment_imap(imap, seg);
-                for (int i=0; i<DATA_BLOCKS_IN_SEGMENT; i++) {
-                    im_entry = imap[i];
-                    if (im_entry.i_number > 0) {
-                        // Entries on the "left" are always earlier than those on the "right" (in circular sense).
-                        inode_table[im_entry.i_number] = im_entry.inode_block;
-                        if (im_entry.i_number > count_inode)
-                            count_inode = im_entry.i_number;
-                    } else {
-                        prev_seg_imap_idx = i;
-                        break;
-                    }
-                }
-
-                if (!is_checkpointed)  // Mark the segment to be occupied.
-                    segment_bitmap[seg] = 1;
-            } 
-            seg = (seg+1) % TOT_SEGMENTS;
-        } while (seg != head_segment);
-
-        // In case the disk is full.
-        if (!is_break_end)
-            if (prev_seg_block == DATA_BLOCKS_IN_SEGMENT-1) {
-                    cur_segment = seg;
-                    cur_block = 0;
-                    next_imap_index = 0;
-                } else {
-                    cur_segment = (seg-1+TOT_SEGMENTS) % TOT_SEGMENTS;
-                    cur_block = prev_seg_block;
-                    next_imap_index = prev_seg_imap_idx;
-                }
-
-        // Warn if the file system is already full after recovery.
-        if (is_full) {
-            logger(WARN, "[WARNING] The file system is already full: garbage collection does not work.\n");
-            // TBD: garbage collection.
-        }
-        // print_inode_table();
-        generate_checkpoint();
-        
-        // Initialize segment buffer in memory.
-        read_segment(segment_buffer, cur_segment);
+        load_from_file();
     }
 
 	return NULL;
@@ -238,4 +127,119 @@ void o_destroy(void* private_data) {
     generate_checkpoint(); 
     
     logger(DEBUG, "[INFO] Successfully saved current state to disk and exited.\n");
+}
+
+
+void load_from_file() {
+    // Read the (newer) checkpoint.
+    checkpoints ckpt;
+    read_checkpoints(&ckpt);
+    print(ckpt);
+    
+    int latest_index = 0;
+    if (ckpt[0].timestamp < ckpt[1].timestamp)
+        latest_index = 1;
+    next_checkpoint = 1 - latest_index;
+    
+    memcpy(segment_bitmap, ckpt[latest_index].segment_bitmap, sizeof(segment_bitmap));
+    is_full         = ckpt[latest_index].is_full;
+    count_inode     = ckpt[latest_index].count_inode;
+    head_segment    = ckpt[latest_index].head_segment;
+    cur_segment     = ckpt[latest_index].cur_segment;
+    cur_block       = ckpt[latest_index].cur_block;
+    next_imap_index = ckpt[latest_index].next_imap_index;
+    if ((count_inode <= 0) || (cur_segment < 0) || (cur_segment >= TOT_SEGMENTS) \
+                           || (cur_block < 0) || (cur_block >= DATA_BLOCKS_IN_SEGMENT)) {
+        logger(ERROR, "[FATAL ERROR] Corrupt file system on disk: invalid checkpoint entry.\n");
+        exit(-1);
+    }
+    
+    // Initialize inode table in memory (by simulation).
+    memset(inode_table, -1, sizeof(inode_table));
+    inode_map imap;
+    imap_entry im_entry;
+    
+    // Traverse all segments.
+    int prev_seg_sec = 0, prev_seg_nsec = 0, prev_seg_block = 0, prev_seg_imap_idx = 0;
+    int seg = head_segment;
+    bool is_checkpointed = true;
+    bool is_break_end = false;
+    do {
+        segment_summary seg_sum;
+        read_segment_summary(&seg_sum, seg);
+        memcpy(&cached_segsum[seg], &seg_sum, sizeof(seg_sum));
+
+        struct segment_metadata seg_metadata;
+        read_segment_metadata(&seg_metadata, seg);
+        int cur_seg_sec   = seg_metadata.update_sec;
+        int cur_seg_nsec  = seg_metadata.update_nsec;
+        int cur_seg_block = seg_metadata.cur_block;
+
+        if (seg == cur_segment)
+            is_checkpointed = false;  // Start to recover un-checkpointed segments.
+        if ((is_checkpointed) && (segment_bitmap[seg] == 0)) {
+            logger(ERROR, "[FATAL ERROR] Corrupt file system: inconsecutive occupied segments.\n");
+            exit(-1);
+        }
+
+        if ((cur_seg_sec < prev_seg_sec) || ((cur_seg_sec == prev_seg_sec) && (cur_seg_nsec < prev_seg_nsec))) {
+            if (prev_seg_block == DATA_BLOCKS_IN_SEGMENT-1) {  // Previous segment is full.
+                cur_segment = seg;
+                cur_block = 0;
+                next_imap_index = 0;
+            } else {  // Previous segment is still appendable.
+                cur_segment = (seg-1+TOT_SEGMENTS) % TOT_SEGMENTS;
+                cur_block = prev_seg_block;
+                next_imap_index = prev_seg_imap_idx;
+            }
+
+            is_break_end = true;
+            break;
+        } else {
+            prev_seg_sec   = cur_seg_sec;
+            prev_seg_nsec  = cur_seg_nsec;
+            prev_seg_block = cur_seg_block;
+
+            read_segment_imap(imap, seg);
+            for (int i=0; i<DATA_BLOCKS_IN_SEGMENT; i++) {
+                im_entry = imap[i];
+                if (im_entry.i_number > 0) {
+                    // Entries on the "left" are always earlier than those on the "right" (in circular sense).
+                    inode_table[im_entry.i_number] = im_entry.inode_block;
+                    if (im_entry.i_number > count_inode)
+                        count_inode = im_entry.i_number;
+                } else {
+                    prev_seg_imap_idx = i;
+                    break;
+                }
+            }
+
+            if (!is_checkpointed)  // Mark the segment to be occupied.
+                segment_bitmap[seg] = 1;
+        } 
+        seg = (seg+1) % TOT_SEGMENTS;
+    } while (seg != head_segment);
+
+    // In case the disk is full.
+    if (!is_break_end)
+        if (prev_seg_block == DATA_BLOCKS_IN_SEGMENT-1) {
+                cur_segment = seg;
+                cur_block = 0;
+                next_imap_index = 0;
+            } else {
+                cur_segment = (seg-1+TOT_SEGMENTS) % TOT_SEGMENTS;
+                cur_block = prev_seg_block;
+                next_imap_index = prev_seg_imap_idx;
+            }
+
+    // Warn if the file system is already full after recovery.
+    if (is_full) {
+        logger(WARN, "[WARNING] The file system is already full: garbage collection does not work.\n");
+        // TBD: garbage collection.
+    }
+    // print_inode_table();
+    generate_checkpoint();
+    
+    // Initialize segment buffer in memory.
+    read_segment(segment_buffer, cur_segment);
 }

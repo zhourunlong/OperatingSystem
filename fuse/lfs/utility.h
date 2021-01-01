@@ -243,7 +243,6 @@ void release_writer_lock();
 /** **************************************
  * Garbage collection.
  * ***************************************/
-const int CLEAN_THRESHOLD = (int) (0.8*TOT_SEGMENTS);
-const int THOROUGH_THRESHOLD = (int) (0.96*TOT_SEGMENTS);
-const int CLEAN_NUM = (int) (0.3*TOT_SEGMENTS);
-bool clean_thoroughly = false;                // This may be adjusted if the disk is highly utilized.
+const int CLEAN_THRESHOLD   = (int) (0.8*TOT_SEGMENTS);
+const int CLEAN_THORO_THRES = (int) (0.96*TOT_SEGMENTS);
+const int CLEAN_NUM         = (int) (0.3*TOT_SEGMENTS);

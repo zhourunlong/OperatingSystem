@@ -7,6 +7,7 @@ const long USER_DEVICE = 0;
 void get_block(void* data, int block_addr);
 void get_inode_from_inum(struct inode* data, int i_number);
 
+void get_next_free_segment();
 int new_data_block(void* data, int i_number, int direct_index);
 int new_inode_block(struct inode* data);
 
