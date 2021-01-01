@@ -6,6 +6,6 @@
 void* o_init(struct fuse_conn_info*, struct fuse_config*);
 void o_destroy(void*);
 
-void initialize_system();
+void load_from_file();
 
 #endif

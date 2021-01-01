@@ -3,10 +3,12 @@
 #include "logger.h"
 #include "print.h"
 #include "utility.h"
+#include "blockio.h"
 
 #include <stdio.h>
 #include <fcntl.h>
 #include <unistd.h>
+#include <string.h>
 #include <time.h>
 #include <algorithm>
 #include <set>
@@ -61,7 +63,7 @@ void gc_add_segbuf_metadata() {
 /** Return the index of next free segment, or -1 if the disk is full. */
 int gc_get_next_free_segment() {
     int next_free_segment = -1;
-    for (int i=(gc_cur_segment+1)%TOT_SEGMENTS); i!=gc_cur_segment; i=(i+1)%TOT_SEGMENTS)
+    for (int i=(gc_cur_segment+1)%TOT_SEGMENTS; i!=gc_cur_segment; i=(i+1)%TOT_SEGMENTS)
         if (segment_bitmap[i] == 0) {
             next_free_segment = i;
             break;
@@ -95,11 +97,11 @@ void gc_move_to_segment() {
 }
 
 /** Create a new data block into GC buffer. */
-int gc_new_data_block(void* data, int _i_number, int _direct_index) {
+int gc_new_data_block(void* data, int i_number, int direct_index) {
     int buffer_offset = gc_cur_block * BLOCK_SIZE;
     int block_addr = gc_cur_segment * BLOCKS_IN_SEGMENT + gc_cur_block;
 
-    if (DEBUG_GARBCOL)
+    if (DEBUG_GARBAGE_COL)
         logger(DEBUG, "Add data block at (segment %d, block %d). Next imap: #%d.\n", gc_cur_segment, gc_cur_block, gc_next_imap_index);
     
     memcpy(gc_segment_buffer + buffer_offset, data, BLOCK_SIZE);    // Append data block.
@@ -134,7 +136,7 @@ int gc_new_inode_block(struct inode* data) {
 struct util_entry {
     int segment_number;
     int count;
-}
+};
 bool _util_compare(struct util_entry &a, struct util_entry &b) {
     return a.count < b.count;
 }
@@ -144,14 +146,15 @@ struct time_entry {
     int segment_number;
     int update_sec;
     int update_nsec;
-}
+};
 bool _time_compare(struct time_entry &a, struct time_entry &b) {
     return (a.update_sec < b.update_sec) || ((a.update_sec == b.update_sec) && (a.update_nsec < b.update_nsec));
 }
 
 
 
-void gc_compact_data_blocks(segment_summary* seg_sum, int seg, std::set<int> &modified_inum) {
+void gc_compact_data_blocks(summary_entry* seg_sum, int seg, std::set<int> &modified_inum) {
+    block data;
     for (int j=0; j<DATA_BLOCKS_IN_SEGMENT; j++) {
         int i_number = seg_sum[j].i_number;
         int dir_index = seg_sum[j].direct_index;
@@ -163,11 +166,6 @@ void gc_compact_data_blocks(segment_summary* seg_sum, int seg, std::set<int> &mo
                 modified_inum.insert(i_number);
         } else {
             modified_inum.insert(i_number);
-            if (!cached_inode_valid[i_number]) {
-                get_block(&cur_inode, inode_table[i_number]);
-                cached_inode_array[i_number] = &cur_inode;
-                cached_inode_valid[i_number] = true;
-            }
             
             get_block(&data, block_addr);
             cached_inode_array[i_number].direct[dir_index] = gc_new_data_block(&data, i_number, dir_index);
@@ -181,13 +179,13 @@ void collect_garbage(bool clean_thoroughly) {
     gc_cur_block       = 0;
     gc_next_imap_index = 0;
 
-    /* Calculate segment utilization. */
-    if (!clean_thoroughly) {
-        util_entry utilization[TOT_SEGMENTS];
-        memset(utilization, 0, sizeof(utilization));
+    segment_summary seg_sum;
+    struct inode cur_inode;
 
-        segment_summary seg_sum;
-        struct inode cur_inode;
+    /* Calculate segment utilization. */
+    util_entry utilization[TOT_SEGMENTS];
+    memset(utilization, 0, sizeof(utilization));
+    if (!clean_thoroughly) {
         for (int i=0; i<TOT_SEGMENTS; i++) {
             utilization[i].segment_number = i;
             memcpy(&seg_sum, &cached_segsum[i], sizeof(seg_sum));
@@ -214,15 +212,16 @@ void collect_garbage(bool clean_thoroughly) {
     /* Select next free segment to store blocks that are still alive.
      * Here we directly access the inode array, and record all modified inodes. */
     std::set<int> modified_inum;
-    if (utilization[0].count == 0) && (!clean_thoroughly) {
+    if ((!clean_thoroughly) && (utilization[0].count == 0)) {
         // If there are still free segments, we shall only clean segments with low utilizations.
         gc_cur_segment = utilization[0].segment_number;
         gc_cur_block = 0;
         
         int i_st = 0;
-        while (utilization[i_st] == 0) i_st++;
+        while (utilization[i_st].count == 0) i_st++;
 
         // Step 1: identify all live data blocks, and record inodes to be updated.
+        int i_ed;
         if (CLEAN_NUM > TOT_SEGMENTS-i_st) {
             i_ed = TOT_SEGMENTS;
         } else {
@@ -231,7 +230,7 @@ void collect_garbage(bool clean_thoroughly) {
         for (int i=i_st; i<i_ed; i++) {
             int seg = utilization[i].segment_number;
             memcpy(&seg_sum, &cached_segsum[i], sizeof(seg_sum));
-            gc_compact_data_blocks(&seg_sum, seg, modified_inum);
+            gc_compact_data_blocks(seg_sum, seg, modified_inum);
             segment_bitmap[i] = 0;
         }
 
@@ -272,7 +271,7 @@ void collect_garbage(bool clean_thoroughly) {
         for (int i=0; i<TOT_SEGMENTS; i++) {
             int seg = utilization[i].segment_number;
             memcpy(&seg_sum, &cached_segsum[i], sizeof(seg_sum));
-            gc_compact_data_blocks(&seg_sum, seg, modified_inum);
+            gc_compact_data_blocks(seg_sum, seg, modified_inum);
             segment_bitmap[i] = 0;
         }
 

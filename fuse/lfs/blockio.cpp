@@ -3,6 +3,8 @@
 #include "logger.h"
 #include "print.h"
 #include "utility.h"
+#include "cleaner.h"
+#include "system.h"
 
 #include <unistd.h>
 #include <stdio.h>
@@ -38,16 +40,10 @@ void get_block(void* data, int block_addr) {
  * @return flag: 0 on success, standard negative error codes on error.
  * Note that the block may be in inode cache, segment buffer, or disk file. */
 void get_inode_from_inum(struct inode* data, int i_number) {
-    if (cached_inode_valid[i_number]) {
-        &data = cached_inode_array[i_number];
-        if (i_number != data->i_number) {
-            logger(ERROR, "[FATAL ERROR] Corrupt file system: inconsistent inode number in memory.\n");
-            exit(-1);
-        }
-    } else {
-        get_block(data, inode_table[i_number]);
-        cached_inode_array[i_number] = &data;
-        cached_inode_valid[i_number] = true;
+    *data = cached_inode_array[i_number];
+    if (i_number != data->i_number) {
+        logger(ERROR, "[FATAL ERROR] Corrupt file system: inconsistent inode number in memory.\n");
+        exit(-1);
     }
 }
 
@@ -92,24 +88,26 @@ void get_next_free_segment() {
 
         try {
             collect_garbage(false);     // Automatically update cur_segment and cur_block.
-        } catch (-1) {
-            logger(WARN, "[WARNING] The file system is highly utilized, so that normal garbage collection fails.\n");
-            logger(WARN, "[WARNING] We will try to perform a thorough garbage collection instead.\n");
+        } catch (int e) {
+            if (e == -1) {
+                logger(WARN, "[WARNING] The file system is highly utilized, so that normal garbage collection fails.\n");
+                logger(WARN, "[WARNING] We will try to perform a thorough garbage collection instead.\n");
 
-            // Copy the back-up memory back into disk file.
-            int file_handle = open(lfs_path, O_RDWR);
-            int read_length = pwrite(file_handle, backup_buf, FILE_SIZE, 0);
-            close(file_handle);
-            load_from_file();
+                // Copy the back-up memory back into disk file.
+                int file_handle = open(lfs_path, O_RDWR);
+                int read_length = pwrite(file_handle, backup_buf, FILE_SIZE, 0);
+                close(file_handle);
+                load_from_file();
 
-            collect_garbage(true);
+                collect_garbage(true);
+            }
         }
 
         free(backup_buf);
         generate_checkpoint();
     } else {    // Select next free segment (without garbage collection).
         int next_free_segment = -1;
-        for (int i=(cur_segment+1)%TOT_SEGMENTS); i!=cur_segment; i=(i+1)%TOT_SEGMENTS)
+        for (int i=(cur_segment+1)%TOT_SEGMENTS; i!=cur_segment; i=(i+1)%TOT_SEGMENTS)
             if (segment_bitmap[i] == 0) {
                 next_free_segment = i;
                 break;

@@ -129,7 +129,7 @@ struct superblock {
 
 
 const int CHECKPOINT_ADDR = TOT_SEGMENTS * SEGMENT_SIZE + BLOCK_SIZE;
-const int CHECKPOINT_SIZE = 2 * (28+TOT_SEGMENTS);
+const int CHECKPOINT_SIZE = 2 * (24+TOT_SEGMENTS);
 const int CKPT_UPDATE_INTERVAL = 30;    // Minimum interval for checkpoint update (in seconds).
 /** Checkpoint Block: recording periodical checkpoints of volatile information.
  * We should assign 2 checkpoints and use them in turns (for failure restoration).
@@ -139,7 +139,6 @@ struct checkpoint_entry {
     char segment_bitmap[TOT_SEGMENTS];  // Indicate whether each segment is alive.
     bool is_full;                       // Indicate whether LFS is already full.
     int count_inode;                    // Current number of inodes (monotone increasing).
-    int head_segment;                   // First segment in use.
     int cur_segment;                    // Next available segment.
     int cur_block;                      // Next available block (in the segment).
     int next_imap_index;                // Index of next free imap entry (within the segment).
@@ -176,14 +175,13 @@ extern char segment_buffer[SEGMENT_SIZE];
 extern char segment_bitmap[TOT_SEGMENTS];
 extern bool is_full;
 extern int inode_table[MAX_NUM_INODE];
-extern int count_inode, head_segment;
+extern int count_inode;
 extern int cur_segment, cur_block;                  // cur_block is the NEXT available block.
 extern int next_checkpoint, next_imap_index;
 extern struct timespec last_ckpt_update_time;       // Record the last time to update checkpoints.
 
 extern segment_summary cached_segsum[TOT_SEGMENTS]; // In-memory segment summary.
 extern inode cached_inode_array[MAX_NUM_INODE];     // In-memory inode array.
-extern bool cached_inode_valid[MAX_NUM_INODE];      // Valid bits for the in-memory inode array.
 
 const long long FILE_SIZE = 1ll * SEGMENT_SIZE * TOT_SEGMENTS + 2 * BLOCK_SIZE;
 const int ROOT_DIR_INUMBER = 1;

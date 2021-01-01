@@ -33,7 +33,7 @@ void* o_init(struct fuse_conn_info* conn, struct fuse_config* cfg) {
     std::string _lfs_path = current_working_dir;
     _lfs_path += "lfs.data";
     lfs_path = (char*) malloc(_lfs_path.length() + 2);
-    strcpy(lfs_path, _lfs_path.c_str());s
+    strcpy(lfs_path, _lfs_path.c_str());
 
     if (access(lfs_path, R_OK) != 0) {    // Disk file does not exist.
         logger(DEBUG, "[INFO] Disk file (lfs.data) does not exist. Try to create and initialize to 0.\n");
@@ -60,7 +60,6 @@ void* o_init(struct fuse_conn_info* conn, struct fuse_config* cfg) {
         memset(segment_bitmap, 0, sizeof(segment_bitmap));
         is_full         = false;
         count_inode     = 0;
-        head_segment    = 0;
         cur_segment     = 0;
         cur_block       = 0;
         next_checkpoint = 0;
@@ -97,6 +96,8 @@ void* o_init(struct fuse_conn_info* conn, struct fuse_config* cfg) {
         checkpoints ckpt;
         read_checkpoints(&ckpt);
         print(ckpt);
+
+        printf("!\n");
 
         logger(DEBUG, "[INFO] Successfully initialized the file system.\n");
     } else {
@@ -144,7 +145,6 @@ void load_from_file() {
     memcpy(segment_bitmap, ckpt[latest_index].segment_bitmap, sizeof(segment_bitmap));
     is_full         = ckpt[latest_index].is_full;
     count_inode     = ckpt[latest_index].count_inode;
-    head_segment    = ckpt[latest_index].head_segment;
     cur_segment     = ckpt[latest_index].cur_segment;
     cur_block       = ckpt[latest_index].cur_block;
     next_imap_index = ckpt[latest_index].next_imap_index;
@@ -156,87 +156,79 @@ void load_from_file() {
     
     // Initialize inode table in memory (by simulation).
     memset(inode_table, -1, sizeof(inode_table));
+    
+    // Traverse all segments to reconstruct in-memory inode sturcture.
+    int inode_update_sec[MAX_NUM_INODE];
+    int inode_update_nsec[MAX_NUM_INODE];
+    memset(inode_update_sec, 0, sizeof(inode_update_sec));
+    memset(inode_update_nsec, 0, sizeof(inode_update_nsec));
+
     inode_map imap;
     imap_entry im_entry;
-    
-    // Traverse all segments.
-    int prev_seg_sec = 0, prev_seg_nsec = 0, prev_seg_block = 0, prev_seg_imap_idx = 0;
-    int seg = head_segment;
-    bool is_checkpointed = true;
-    bool is_break_end = false;
-    do {
+    int newest_seg = -1, newest_sec = 0, newest_nsec = 0, newest_block = 0, newest_imap_index = 0;
+    for (int seg=0; seg<TOT_SEGMENTS; seg++) {
         segment_summary seg_sum;
         read_segment_summary(&seg_sum, seg);
         memcpy(&cached_segsum[seg], &seg_sum, sizeof(seg_sum));
 
         struct segment_metadata seg_metadata;
         read_segment_metadata(&seg_metadata, seg);
-        int cur_seg_sec   = seg_metadata.update_sec;
-        int cur_seg_nsec  = seg_metadata.update_nsec;
-        int cur_seg_block = seg_metadata.cur_block;
+        int seg_sec   = seg_metadata.update_sec;
+        int seg_nsec  = seg_metadata.update_nsec;
+        int seg_block = seg_metadata.cur_block;
+        int seg_imap_index;
 
-        if (seg == cur_segment)
-            is_checkpointed = false;  // Start to recover un-checkpointed segments.
-        if ((is_checkpointed) && (segment_bitmap[seg] == 0)) {
-            logger(ERROR, "[FATAL ERROR] Corrupt file system: inconsecutive occupied segments.\n");
-            exit(-1);
-        }
-
-        if ((cur_seg_sec < prev_seg_sec) || ((cur_seg_sec == prev_seg_sec) && (cur_seg_nsec < prev_seg_nsec))) {
-            if (prev_seg_block == DATA_BLOCKS_IN_SEGMENT-1) {  // Previous segment is full.
-                cur_segment = seg;
-                cur_block = 0;
-                next_imap_index = 0;
-            } else {  // Previous segment is still appendable.
-                cur_segment = (seg-1+TOT_SEGMENTS) % TOT_SEGMENTS;
-                cur_block = prev_seg_block;
-                next_imap_index = prev_seg_imap_idx;
-            }
-
-            is_break_end = true;
-            break;
-        } else {
-            prev_seg_sec   = cur_seg_sec;
-            prev_seg_nsec  = cur_seg_nsec;
-            prev_seg_block = cur_seg_block;
-
-            read_segment_imap(imap, seg);
-            for (int i=0; i<DATA_BLOCKS_IN_SEGMENT; i++) {
-                im_entry = imap[i];
-                if (im_entry.i_number > 0) {
-                    // Entries on the "left" are always earlier than those on the "right" (in circular sense).
+        read_segment_imap(imap, seg);
+        for (int i=0; i<DATA_BLOCKS_IN_SEGMENT; i++) {
+            im_entry = imap[i];
+            if (im_entry.i_number > 0) {
+                int inode_sec  = inode_update_sec[im_entry.i_number];
+                int inode_nsec = inode_update_nsec[im_entry.i_number];
+                if ((inode_sec < seg_sec) || ((inode_sec == seg_sec) && (inode_nsec < seg_nsec))) {
                     inode_table[im_entry.i_number] = im_entry.inode_block;
+                    inode_update_sec[im_entry.i_number]  = seg_sec;
+                    inode_update_nsec[im_entry.i_number] = seg_nsec;
                     if (im_entry.i_number > count_inode)
                         count_inode = im_entry.i_number;
-                } else {
-                    prev_seg_imap_idx = i;
-                    break;
                 }
-            }
-
-            if (!is_checkpointed)  // Mark the segment to be occupied.
-                segment_bitmap[seg] = 1;
-        } 
-        seg = (seg+1) % TOT_SEGMENTS;
-    } while (seg != head_segment);
-
-    // In case the disk is full.
-    if (!is_break_end)
-        if (prev_seg_block == DATA_BLOCKS_IN_SEGMENT-1) {
-                cur_segment = seg;
-                cur_block = 0;
-                next_imap_index = 0;
             } else {
-                cur_segment = (seg-1+TOT_SEGMENTS) % TOT_SEGMENTS;
-                cur_block = prev_seg_block;
-                next_imap_index = prev_seg_imap_idx;
+                seg_imap_index = i;
+                break;
             }
+        }
+
+        if ((newest_sec < seg_sec) || ((newest_sec == seg_sec) && (newest_nsec < seg_nsec))) {
+            newest_seg = seg;
+            newest_sec = seg_sec;
+            newest_nsec = seg_nsec;
+            newest_block = seg_block;
+            newest_imap_index = seg_imap_index;
+        }
+    }
+
+    // Now the inode table is up-to-date, so we may reconstruct inode array in memory.
+    struct inode* inode_block;
+    for (int i=1; i<=count_inode; i++) 
+        if (inode_table[i] >= 0) {
+            get_block(inode_block, inode_table[i]);
+            cached_inode_array[i] = *inode_block;
+        }
+
+    // Restore block pointers (i.e., cur_segment and cur_block).
+    if ((newest_block == DATA_BLOCKS_IN_SEGMENT-1) || (newest_imap_index == DATA_BLOCKS_IN_SEGMENT)) {
+        cur_segment = newest_seg;
+        get_next_free_segment();
+    } else {
+        cur_segment = newest_seg;
+        cur_block = newest_block;
+        next_imap_index = newest_imap_index;
+    }
 
     // Warn if the file system is already full after recovery.
-    if (is_full) {
-        logger(WARN, "[WARNING] The file system is already full: garbage collection does not work.\n");
-        // TBD: garbage collection.
-    }
+    if (is_full)
+        logger(WARN, "[WARNING] The file system is already full: please assign a larger disk size.\n");
+    
+    // Generate a checkpoint for easier recovery.
     // print_inode_table();
     generate_checkpoint();
     

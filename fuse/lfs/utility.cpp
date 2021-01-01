@@ -16,7 +16,7 @@ char segment_buffer[SEGMENT_SIZE];
 char segment_bitmap[TOT_SEGMENTS];
 bool is_full;
 int inode_table[MAX_NUM_INODE];
-int count_inode, head_segment;
+int count_inode;
 int cur_segment, cur_block;
 int next_checkpoint, next_imap_index;
 struct timespec last_ckpt_update_time;
@@ -24,7 +24,6 @@ std::mutex global_lock;
 
 segment_summary cached_segsum[TOT_SEGMENTS];
 inode cached_inode_array[MAX_NUM_INODE];
-bool cached_inode_valid[MAX_NUM_INODE];
 
 
 /** **************************************
