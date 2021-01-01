@@ -4,7 +4,7 @@
 #include <stdlib.h>
 #include <string.h>
 using namespace std;
-const int N = 1000;
+const int N = 5000;
 int main() {
     for (int i = 0; i < N; ++i) {
         char s[999];

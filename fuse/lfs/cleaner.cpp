@@ -187,6 +187,7 @@ void collect_garbage(bool clean_thoroughly) {
     memset(utilization, 0, sizeof(utilization));
     if (!clean_thoroughly) {
         for (int i=0; i<TOT_SEGMENTS; i++) {
+            printf("!%d\n", i);
             utilization[i].segment_number = i;
             memcpy(&seg_sum, &cached_segsum[i], sizeof(seg_sum));
             for (int j=0; j<DATA_BLOCKS_IN_SEGMENT; j++) {
@@ -195,6 +196,7 @@ void collect_garbage(bool clean_thoroughly) {
                 int block_addr = i*BLOCKS_IN_SEGMENT + j;
 
                 if (i_number == 0) continue;
+                printf("seg_sum[%d] = %d.\n", j, i_number);
                 if (dir_index == -1) {
                     if (inode_table[i_number] == block_addr)
                         utilization[i].count++;
@@ -207,6 +209,11 @@ void collect_garbage(bool clean_thoroughly) {
         }
 
         std::sort(utilization, utilization+TOT_SEGMENTS, _util_compare);
+
+        for (int i=0; i<TOT_SEGMENTS; i++) {
+            printf("%d ", utilization[i]);
+        }
+        printf("\n");
     }
 
     /* Select next free segment to store blocks that are still alive.
@@ -261,7 +268,6 @@ void collect_garbage(bool clean_thoroughly) {
         }
 
         std::sort(timestamp, timestamp+TOT_SEGMENTS, _time_compare);
-
         
         /* Perform a thorough garbage collection. */
         gc_cur_segment = timestamp[0].segment_number;
@@ -292,4 +298,8 @@ void collect_garbage(bool clean_thoroughly) {
     cur_segment     = gc_cur_segment;
     cur_block       = gc_cur_block;
     next_imap_index = gc_next_imap_index;
+
+    printf("seg = %d, blk = %d, idx = %d.\n", cur_segment, cur_block, next_imap_index);
+    generate_checkpoint();
+    getchar();
 }

@@ -42,6 +42,7 @@ void get_block(void* data, int block_addr) {
 void get_inode_from_inum(struct inode* inode_data, int i_number) {
     memcpy(inode_data, cached_inode_array+i_number, sizeof(struct inode));
     if (i_number != inode_data->i_number) {
+        printf("ERROR: i_number = %d, inode = %d.\n", i_number, inode_data->i_number);
         logger(ERROR, "[FATAL ERROR] Corrupt file system: inconsistent inode number in memory.\n");
         exit(-1);
     }
@@ -304,8 +305,6 @@ void file_add_data(struct inode* cur_inode, void* data) {
 
         cur_inode->next_indirect = next_inode->i_number;
         new_inode_block(cur_inode);
-
-        get_inode_from_inum(cur_inode, cur_inode->i_number);
 
         // Release current inode by replacing the content with next inode.
         *cur_inode = *next_inode;
