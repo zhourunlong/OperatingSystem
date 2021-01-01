@@ -71,14 +71,14 @@ bool get_next_free_segment() {
     // Select next free segment (probably after garbage collection).
     int next_free_segment = -1;
     for (int i=(cur_segment+1)%TOT_SEGMENTS); i!=cur_segment; i=(i+1)%TOT_SEGMENTS)
-        if (segment_buffer[i] == 0) {
+        if (segment_bitmap[i] == 0) {
             next_free_segment = i;
             break;
         }
     
     if (next_free_segment == -1) {
         if (!clean_thoroughly) {
-            logger(WARN, "[WARNING] The file system is highly utilized, so that limited garbage collection fails.\n");
+            logger(WARN, "[WARNING] The file system is highly utilized, so that normal garbage collection fails.\n");
             logger(WARN, "[WARNING] We will try to perform a thorough garbage collection.\n");
             clean_thoroughly = true;
             collect_garbage();
@@ -196,7 +196,7 @@ void add_segbuf_summary(int block_index, int _i_number, int _direct_index) {
         direct_index : _direct_index
     };
     memcpy(segment_buffer + buffer_offset, &blk_summary, entry_size);
-    cached_segsum[cur_segment][cur_block] = blk_summary;
+    cached_segsum[cur_segment][block_index] = blk_summary;
 }
 
 
@@ -220,7 +220,8 @@ void add_segbuf_metadata() {
     struct timespec cur_time;
     clock_gettime(CLOCK_REALTIME, &cur_time);
     segment_metadata seg_metadata = {
-        update_time : cur_time.tv_sec,
+        update_sec  : cur_time.tv_sec,
+        update_nsec : cur_time.tv_nsec,
         cur_block   : cur_block
     };
 

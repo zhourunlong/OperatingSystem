@@ -139,7 +139,7 @@ void* o_init(struct fuse_conn_info* conn, struct fuse_config* cfg) {
         imap_entry im_entry;
         
         // Traverse all segments.
-        int prev_seg_time = 0, prev_seg_block = 0, prev_seg_imap_idx = 0;
+        int prev_seg_sec = 0, prev_seg_nsec = 0, prev_seg_block = 0, prev_seg_imap_idx = 0;
         int seg = head_segment;
         bool is_checkpointed = true;
         bool is_break_end = false;
@@ -150,7 +150,8 @@ void* o_init(struct fuse_conn_info* conn, struct fuse_config* cfg) {
 
             struct segment_metadata seg_metadata;
             read_segment_metadata(&seg_metadata, seg);
-            int cur_seg_time = seg_metadata.update_time;
+            int cur_seg_sec   = seg_metadata.update_sec;
+            int cur_seg_nsec  = seg_metadata.update_nsec;
             int cur_seg_block = seg_metadata.cur_block;
 
             if (seg == cur_segment)
@@ -160,7 +161,7 @@ void* o_init(struct fuse_conn_info* conn, struct fuse_config* cfg) {
                 exit(-1);
             }
 
-            if (cur_seg_time < prev_seg_time) {
+            if ((cur_seg_sec < prev_seg_sec) || ((cur_seg_sec == prev_seg_sec) && (cur_seg_nsec < prev_seg_nsec))) {
                 if (prev_seg_block == DATA_BLOCKS_IN_SEGMENT-1) {  // Previous segment is full.
                     cur_segment = seg;
                     cur_block = 0;
@@ -174,7 +175,8 @@ void* o_init(struct fuse_conn_info* conn, struct fuse_config* cfg) {
                 is_break_end = true;
                 break;
             } else {
-                prev_seg_time = cur_seg_time;
+                prev_seg_sec   = cur_seg_sec;
+                prev_seg_nsec  = cur_seg_nsec;
                 prev_seg_block = cur_seg_block;
 
                 read_segment_imap(imap, seg);

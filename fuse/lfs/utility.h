@@ -105,7 +105,8 @@ typedef struct summary_entry segment_summary[DATA_BLOCKS_IN_SEGMENT];
  * Up to 256 bytes (64 int variables can be stored as metadata, although we do not use all.
  */
 struct segment_metadata {
-    int update_time;        // Last update time of the segment.
+    int update_sec;         // The second part of last update time of the segment.
+    int update_nsec;        // The nano-second part of last update time of the segment.
     int cur_block;          // Next available block within the segment.
 };
 
@@ -243,5 +244,6 @@ void release_writer_lock();
  * Garbage collection.
  * ***************************************/
 const int CLEAN_THRESHOLD = (int) (0.8*TOT_SEGMENTS);
+const int THOROUGH_THRESHOLD = (int) (0.96*TOT_SEGMENTS);
 const int CLEAN_NUM = (int) (0.3*TOT_SEGMENTS);
 bool clean_thoroughly = false;                // This may be adjusted if the disk is highly utilized.
