@@ -65,6 +65,19 @@ void gc_add_segbuf_metadata() {
     memcpy(gc_segment_buffer + SEGMETA_OFFSET, &seg_metadata, SEGMETA_SIZE);
 }
 
+/** Clean metadata for a segment (in file buffer). */
+void gc_clean_segbuf_metadata(int seg) {
+    struct timespec cur_time;
+    clock_gettime(CLOCK_REALTIME, &cur_time);
+    segment_metadata seg_metadata = {
+        update_sec  : 0,
+        update_nsec : 0,
+        cur_block   : 0
+    };
+
+    int offset = seg*SEGMETA_SIZE + SEGMETA_OFFSET;
+    memcpy(gc_file_buffer+offset, &seg_metadata, SEGMETA_SIZE);
+}
 
 /** Return the index of next free segment, or -1 if the disk is full. */
 int gc_get_next_free_segment() {
@@ -162,7 +175,8 @@ bool _util_compare(struct util_entry &a, struct util_entry &b) {
     return (a.count < b.count) || ((a.count == b.count) && (a.segment_number < b.segment_number));
 }
 bool _time_compare(struct time_entry &a, struct time_entry &b) {
-    return (a.update_sec < b.update_sec) || ((a.update_sec == b.update_sec) && (a.update_nsec < b.update_nsec));
+    return (   (a.update_sec < b.update_sec) || ((a.update_sec == b.update_sec) && (a.update_nsec < b.update_nsec))
+            || ((a.update_sec == b.update_sec) && (a.update_nsec == b.update_nsec) && (a.segment_number < b.segment_number)) );
 }
 
 
@@ -353,6 +367,12 @@ void collect_garbage(bool clean_thoroughly, bool sequential_write) {
         }
 
         logger(WARN, "[WARNING] Successfully finished thorough garbage collection.\n");
+    }
+
+    /* Clean segment metadata for empty segments. */
+    for (int i=0; i<TOT_SEGMENTS; i++) {
+        if (segment_bitmap[i] == 0)
+            gc_clean_segbuf_metadata(i);
     }
 
     /* Write back to disk file */

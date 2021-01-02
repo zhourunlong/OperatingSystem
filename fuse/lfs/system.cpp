@@ -93,9 +93,6 @@ void* o_init(struct fuse_conn_info* conn, struct fuse_config* cfg) {
 
         // Generate first checkpoint.
         generate_checkpoint();
-        checkpoints ckpt;
-        read_checkpoints(&ckpt);
-        print(ckpt);
 
         logger(DEBUG, "[INFO] Successfully initialized the file system.\n");
     } else {
