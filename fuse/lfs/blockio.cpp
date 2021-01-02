@@ -341,6 +341,7 @@ void remove_inode(int i_number) {
         if (DEBUG_BLOCKIO)
             logger(DEBUG, "Remove inode block. Written to imap: #%d.\n", next_imap_index);
         inode_table[i_number] = -1;
+        // memset(cached_inode_array+i_number, 0, sizeof(struct inode));
         add_segbuf_imap(i_number, -1);
         
         // Imap modification may also trigger segment writeback.

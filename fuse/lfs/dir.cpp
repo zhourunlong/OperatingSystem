@@ -429,9 +429,16 @@ int remove_object(struct inode* head_inode, const char* del_name, int del_mode) 
                     }
 
                     // Remove file (with only 1 hard link) / directory.
-                    if (del_mode == MODE_DIR || tmp_head_inode->num_links == 1)
-                        remove_inode(block_dir[j].i_number);
-                    else {
+                    if (del_mode == MODE_DIR || tmp_head_inode->num_links == 1) {
+                        struct inode* cur_inode;
+                        int cur_inum = block_dir[j].i_number;
+                        do {
+                            get_inode_from_inum(cur_inode, cur_inum);
+                            int next_inum = cur_inode->next_indirect;
+                            remove_inode(cur_inum);
+                            cur_inum = next_inum;
+                        } while (cur_inum != 0);
+                    } else {
                         tmp_head_inode->num_links--;
                         tmp_head_inode->ctime = cur_time;
                         new_inode_block(tmp_head_inode);

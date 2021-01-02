@@ -161,7 +161,7 @@ void gc_compact_data_blocks(summary_entry* seg_sum, int seg, std::set<int> &modi
         int dir_index = seg_sum[j].direct_index;
         int block_addr = seg*BLOCKS_IN_SEGMENT + j;
 
-        if (i_number == 0) continue;
+        if ((i_number == 0) || (inode_table[i_number] == -1)) continue;
         if (dir_index == -1) {
             if (inode_table[i_number] == block_addr)
                 modified_inum.insert(i_number);
@@ -195,7 +195,7 @@ void collect_garbage(bool clean_thoroughly) {
                 int dir_index = seg_sum[j].direct_index;
                 int block_addr = i*BLOCKS_IN_SEGMENT + j;
 
-                if (i_number == 0) continue;
+                if ((i_number == 0) || (inode_table[i_number] == -1)) continue;
                 if (dir_index == -1) {
                     if (inode_table[i_number] == block_addr)
                         utilization[i].count++;
@@ -205,6 +205,9 @@ void collect_garbage(bool clean_thoroughly) {
                         utilization[i].count++;
                 }
             }
+
+            if ((utilization[i].count == 0) && (segment_bitmap[i] == 1))
+                utilization[i].count = 1;
         }
 
         std::sort(utilization, utilization+TOT_SEGMENTS, _util_compare);
