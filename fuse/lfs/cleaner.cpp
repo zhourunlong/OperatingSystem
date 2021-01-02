@@ -156,6 +156,7 @@ bool _time_compare(struct time_entry &a, struct time_entry &b) {
 
 void gc_compact_data_blocks(summary_entry* seg_sum, int seg, std::set<int> &modified_inum) {
     block data;
+    struct inode* cur_inode;
     for (int j=0; j<DATA_BLOCKS_IN_SEGMENT; j++) {
         int i_number = seg_sum[j].i_number;
         int dir_index = seg_sum[j].direct_index;
@@ -166,10 +167,13 @@ void gc_compact_data_blocks(summary_entry* seg_sum, int seg, std::set<int> &modi
             if (inode_table[i_number] == block_addr)
                 modified_inum.insert(i_number);
         } else {
-            modified_inum.insert(i_number);
-            
-            get_block(&data, block_addr);
-            cached_inode_array[i_number].direct[dir_index] = gc_new_data_block(&data, i_number, dir_index);
+            get_inode_from_inum(cur_inode, i_number);
+            if (cur_inode->direct[dir_index] == block_addr) {
+                modified_inum.insert(i_number);
+                
+                get_block(&data, block_addr);
+                cached_inode_array[i_number].direct[dir_index] = gc_new_data_block(&data, i_number, dir_index);
+            }
         }
     }
 }
@@ -228,20 +232,24 @@ void collect_garbage(bool clean_thoroughly) {
         gc_cur_segment = utilization[0].segment_number;
         gc_cur_block = 0;
         
+        // Step 0: determine the start point and end point for cleaning.
         int i_st = 0;
         while (utilization[i_st].count == 0) i_st++;
+        int i_ed = i_st;
+        while ((utilization[i_ed].count <= CLEAN_BELOW_UTIL) && (i_ed < TOT_SEGMENTS)) i_ed++;
+        if (i_ed-i_st < CLEAN_NUM) {
+            if (CLEAN_NUM > TOT_SEGMENTS-i_st) {
+                i_ed = TOT_SEGMENTS;
+            } else {
+                i_ed = i_st + CLEAN_NUM;
+            }
+        }
 
         // Step 1: identify all live data blocks, and record inodes to be updated.
-        int i_ed;
-        if (CLEAN_NUM > TOT_SEGMENTS-i_st) {
-            i_ed = TOT_SEGMENTS;
-        } else {
-            i_ed = i_st + CLEAN_NUM;
-        }
         for (int i=i_st; i<i_ed; i++) {
             int seg = utilization[i].segment_number;
             memcpy(&seg_sum, &cached_segsum[i], sizeof(seg_sum));
-            segment_bitmap[i] = 0;
+            segment_bitmap[seg] = 0;
             printf("Cleaning segment %d.\n", i);
             gc_compact_data_blocks(seg_sum, seg, modified_inum);
         }

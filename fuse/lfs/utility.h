@@ -244,3 +244,4 @@ void release_writer_lock();
 const int CLEAN_THRESHOLD   = (int) (0.8*TOT_SEGMENTS);
 const int CLEAN_THORO_THRES = (int) (0.96*TOT_SEGMENTS);
 const int CLEAN_NUM         = (int) (0.3*TOT_SEGMENTS);
+const int CLEAN_BELOW_UTIL  = (int) (0.01*BLOCKS_IN_SEGMENT);
