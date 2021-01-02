@@ -66,17 +66,21 @@ void gc_add_segbuf_metadata() {
 }
 
 /** Clean metadata for a segment (in file buffer). */
-void gc_clean_segbuf_metadata(int seg) {
+void gc_clean_segment(int seg) {
     struct timespec cur_time;
-    clock_gettime(CLOCK_REALTIME, &cur_time);
-    segment_metadata seg_metadata = {
-        update_sec  : 0,
-        update_nsec : 0,
-        cur_block   : 0
-    };
+    int offset;
 
-    int offset = seg*SEGMETA_SIZE + SEGMETA_OFFSET;
-    memcpy(gc_file_buffer+offset, &seg_metadata, SEGMETA_SIZE);
+    // Clean segment summary.
+    offset = seg*SEGMENT_SIZE + SUMMARY_OFFSET;
+    memset(gc_segment_buffer + offset, 0, SUMMARY_SIZE);
+
+    // Clean segment imap.
+    offset = seg*SEGMENT_SIZE + IMAP_OFFSET;
+    memset(gc_segment_buffer + offset, 0, IMAP_SIZE);
+    
+    // Clean segment metadata.
+    offset = seg*SEGMENT_SIZE + SEGMETA_OFFSET;
+    memset(gc_segment_buffer + offset, 0, SEGMETA_SIZE);
 }
 
 /** Return the index of next free segment, or -1 if the disk is full. */
@@ -88,7 +92,7 @@ int gc_get_next_free_segment() {
             while (timestamp[ts_pointer].segment_number != gc_cur_segment)
                 ts_pointer++;
             ts_pointer++;
-            gc_cur_segment = timestamp[ts_pointer].segment_number;
+            return timestamp[ts_pointer].segment_number;
         } else {
             int next_free_segment = -1;
             for (int i=(gc_cur_segment+1)%TOT_SEGMENTS; i!=gc_cur_segment; i=(i+1)%TOT_SEGMENTS)
@@ -120,7 +124,7 @@ void gc_move_to_segment() {
             logger(WARN, "[WARNING] The file system is highly utilized, so that normal garbage collection fails.\n");
             logger(WARN, "[WARNING] We will try to perform a thorough garbage collection.\n");
             /* Throw an exception: copy the back-up memory into disk file, and perform thorough gc. */
-            throw (-1);
+            throw ((int) -1);
         } else {
             memset(gc_segment_buffer, 0, sizeof(gc_segment_buffer));
             gc_cur_segment = next_segment;
@@ -130,6 +134,7 @@ void gc_move_to_segment() {
 
         if (DEBUG_GARBAGE_COL)
             logger(DEBUG, "* Start dumping GC buffer to segment %d.\n", next_segment);
+        segment_bitmap[gc_cur_segment] = 1;
     } else {    // Segment buffer is not full yet.
         gc_cur_block++;
     }
@@ -167,6 +172,49 @@ int gc_new_inode_block(struct inode* data) {
     gc_move_to_segment();                                           // Write back GC buffer if necessary.
 
     return block_addr;
+}
+
+
+/** Remove an existing inode (whose block has not been recycled). */
+void gc_remove_inode(int i_number) {
+    int block_addr = inode_table[i_number];
+    int segment = block_addr / BLOCKS_IN_SEGMENT;
+    int block = block_addr % BLOCKS_IN_SEGMENT;
+    struct summary_entry summary = cached_segsum[segment][block];
+    
+    // Remove again only if the inode block has not been recycled, but the deletion mark is.
+    if ((summary.i_number == i_number) && (summary.direct_index == -1)) {
+        if (DEBUG_GC_BLOCKIO)
+            logger(DEBUG, "Remove inode block again (for GC). Written to imap: #%d.\n", next_imap_index);
+        
+        inode_table[i_number] = -1;
+        gc_add_segbuf_imap(i_number, -1);
+        
+        // Imap modification may also trigger segment writeback.
+        // If GC segment buffer is full, it should be flushed to disk file.
+        if (cur_block == DATA_BLOCKS_IN_SEGMENT-1 || next_imap_index == DATA_BLOCKS_IN_SEGMENT) {
+            gc_add_segbuf_metadata();
+            gc_write_segment(segment_buffer, gc_cur_segment);
+            segment_bitmap[gc_cur_segment] = 1;
+
+            int next_segment = gc_get_next_free_segment();
+            if (next_segment == -1) {
+                logger(WARN, "[WARNING] The file system is highly utilized, so that normal garbage collection fails.\n");
+                logger(WARN, "[WARNING] We will try to perform a thorough garbage collection.\n");
+                /* Throw an exception: copy the back-up memory into disk file, and perform thorough gc. */
+                throw ((int) -1);
+            } else {
+                memset(gc_segment_buffer, 0, sizeof(gc_segment_buffer));
+                gc_cur_segment = next_segment;
+                gc_cur_block = 0;
+                gc_next_imap_index = 0;
+            }
+
+            if (DEBUG_GARBAGE_COL)
+                logger(DEBUG, "* Start dumping GC buffer to segment %d.\n", next_segment);
+            segment_bitmap[gc_cur_segment] = 1;
+        }
+    }
 }
 
 
@@ -222,6 +270,10 @@ void collect_garbage(bool clean_thoroughly, bool sequential_write) {
             segment_size : SEGMENT_SIZE
         };
         memcpy(gc_file_buffer+SUPERBLOCK_ADDR, &init_sblock, SUPERBLOCK_SIZE);
+
+        checkpoints ckpt;
+        read_checkpoints(&ckpt);
+        memcpy(gc_file_buffer+CHECKPOINT_ADDR, &ckpt, CHECKPOINT_SIZE);
     } else {
         /* Load data from disk file. */
         int file_handle = open(lfs_path, O_RDWR);
@@ -307,7 +359,19 @@ void collect_garbage(bool clean_thoroughly, bool sequential_write) {
             gc_compact_data_blocks(seg_sum, seg, modified_inum);
         }
 
-        // Step 2: write back cached inodes after updating all data blocks.
+        // Step 2: examine all deletion marks for inodes.
+        for (int i=i_st; i<i_ed; i++) {
+            int seg = utilization[i].segment_number;
+            inode_map seg_imap;
+            read_segment_imap(&seg_imap, seg);
+            
+            for (int j=0; j<DATA_BLOCKS_IN_SEGMENT; j++) {
+                if (seg_imap[j].inode_block == -1)
+                    gc_remove_inode(seg_imap[j].i_number);
+            }
+        }
+
+        // Step 3: write back cached inodes after updating all data blocks.
         std::set<int>::iterator iter = modified_inum.begin();
         while (iter != modified_inum.end()) {
             cur_inode = &cached_inode_array[*iter];
@@ -358,7 +422,19 @@ void collect_garbage(bool clean_thoroughly, bool sequential_write) {
             gc_compact_data_blocks(seg_sum, seg, modified_inum);
         }
 
-        // Step 2: write back cached inodes after updating all data blocks.
+        // Step 2: examine all deletion marks for inodes.
+        for (int i=0; i<TOT_SEGMENTS; i++) {
+            int seg = utilization[i].segment_number;
+            inode_map seg_imap;
+            read_segment_imap(&seg_imap, seg);
+            
+            for (int j=0; j<DATA_BLOCKS_IN_SEGMENT; j++) {
+                if (seg_imap[j].inode_block == -1)
+                    gc_remove_inode(seg_imap[j].i_number);
+            }
+        }
+
+        // Step 3: write back cached inodes after updating all data blocks.
         std::set<int>::iterator iter = modified_inum.begin();
         while (iter != modified_inum.end()) {
             cur_inode = &cached_inode_array[*iter];
@@ -372,10 +448,14 @@ void collect_garbage(bool clean_thoroughly, bool sequential_write) {
     /* Clean segment metadata for empty segments. */
     for (int i=0; i<TOT_SEGMENTS; i++) {
         if (segment_bitmap[i] == 0)
-            gc_clean_segbuf_metadata(i);
+            gc_clean_segment(i);
     }
 
     /* Write back to disk file */
+    gc_add_segbuf_metadata();    // Force last segment into file buffer.
+    gc_write_segment(gc_segment_buffer, gc_cur_segment);
+    segment_bitmap[gc_cur_segment] = 1;
+
     int file_handle = open(lfs_path, O_RDWR);
     int write_length = pwrite(file_handle, gc_file_buffer, FILE_SIZE, 0);
     close(file_handle);

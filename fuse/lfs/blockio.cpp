@@ -122,6 +122,7 @@ void move_to_segment() {
         segment_bitmap[cur_segment] = 1;
 
         get_next_free_segment();
+        segment_bitmap[cur_segment] = 1;
     } else {    // Segment buffer is not full yet.
         cur_block++;
     }
@@ -338,6 +339,7 @@ void remove_inode(int i_number) {
             segment_bitmap[cur_segment] = 1;
 
             get_next_free_segment();
+            segment_bitmap[cur_segment] = 1;
         }
     release_writer_lock();
 }

@@ -69,16 +69,36 @@ void print(inode_map imap) {
     logger(DEBUG, "============================ PRINT INODE MAP ====================\n\n");
 }
 
-void print(segment_summary segsum) {
+void print(segment_summary seg_sum) {
     logger(DEBUG, "\n[DEBUG] ******************** PRINT SEGMENT SUMMARY ********************\n");
-    logger(DEBUG, "IDX\tI_NUM \tDIRECT[?]   \n");
-    logger(DEBUG, "===\t======\t============\n");
-    int count = 0;
-    for (int i=0; i<DATA_BLOCKS_IN_SEGMENT; i++)
-        if (segsum[i].i_number > 0) {
-            logger(DEBUG, "%d\t%d\t%s\n", i, segsum[i].i_number, segsum[i].direct_index);
-            count++;
+    
+    for (int i=0; i<10; i++)
+        logger(DEBUG, "       %2d         ", i+1);
+    logger(DEBUG, "\n");
+
+    for (int i=0; i<10; i++)
+        logger(DEBUG, " IDX  INUM   BLK  ");
+    logger(DEBUG, "\n");
+
+    for (int i=0; i<10; i++)
+        logger(DEBUG, "==== ====== ====  ");
+    logger(DEBUG, "\n");
+
+    int b = 0, count = 0;
+    while (b < DATA_BLOCKS_IN_SEGMENT) {
+        for (int i=0; i<10; i++) {
+            if (true || seg_sum[b].i_number > 0) {
+                logger(DEBUG, "%4d %6d %4d  ", b, seg_sum[b].i_number, seg_sum[b].direct_index);
+                count++;
+            }
+
+            b++;
+            if (b == DATA_BLOCKS_IN_SEGMENT)
+                break;
         }
+        logger(DEBUG, "\n");
+    }
+
     logger(DEBUG, "\nThere are %d non-empty blocks in this segment.\n", count);
     logger(DEBUG, "============================ PRINT SEGMENT SUMMARY ====================\n\n");
 }
@@ -208,6 +228,10 @@ void print(block blk, int disp) {
 
             count++;
         }
+    } else if (disp == DISP_BYTE_CHAR) {    // Display byte-by-byte in characters.
+        for (int b=0; b<BLOCK_SIZE; b++)
+            logger(DEBUG, "%c", (unsigned char)blk[b]);
+        logger(DEBUG, "\n");
     } else if (disp == DISP_WORD_DEC) {    // Display word-by-word in base-10, 16 words in a row.
         logger(DEBUG, "    ");
         for (int i=0; i<16; i++)
