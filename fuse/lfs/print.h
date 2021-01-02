@@ -2,6 +2,7 @@
 #define print_h
 
 #include "utility.h"
+#include "cleaner.h"
 
 /** **************************************
  * Pretty-print functions.
@@ -21,5 +22,6 @@ const int DISP_WORD_HEX = 5;
 void print(block blk, int disp);
 
 void print_inode_table();
+void print_util_stat(struct util_entry* util);
 
 #endif

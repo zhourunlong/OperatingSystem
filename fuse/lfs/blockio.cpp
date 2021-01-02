@@ -42,8 +42,8 @@ void get_block(void* data, int block_addr) {
 void get_inode_from_inum(struct inode* &inode_data, int i_number) {
     inode_data = cached_inode_array+i_number;
     if (i_number != inode_data->i_number) {
-        printf("ERROR: i_number = %d, inode = %d.\n", i_number, inode_data->i_number);
         logger(ERROR, "[FATAL ERROR] Corrupt file system: inconsistent inode number in memory.\n");
+        logger(ERROR, "* Should retrieve i_number %d, but get #%d from inode array.\n", i_number, inode_data->i_number);
         exit(-1);
     }
 }
@@ -58,7 +58,7 @@ void get_next_free_segment() {
         count_full_segment += segment_bitmap[i];
     
     if (count_full_segment == TOT_SEGMENTS) {
-        logger(WARN, "[WARNING] The file system is completely full (100%% occpuied).\n");
+        logger(WARN, "\n\n[WARNING] The file system is completely full (100%% occpuied).\n");
         logger(WARN, "[WARNING] We will run thorough garbage collection now for more disk space.\n");
         collect_garbage(true);          // Automatically update cur_segment and cur_block.
         generate_checkpoint();
@@ -68,17 +68,17 @@ void get_next_free_segment() {
             recount_full_segment += segment_bitmap[i];
         if ((recount_full_segment == TOT_SEGMENTS-1) && (cur_block >= BLOCKS_IN_SEGMENT / 2)) {
             is_full = true;
-            logger(WARN, "[WARNING] The file system is full, and cannot make any further space.\n");
+            logger(WARN, "\n[WARNING] The file system is full, and cannot make any further space.\n");
             logger(WARN, "====> You may format the disk by deleting the disk file (lfs.data).\n");
         }
         generate_checkpoint();
     } else if (count_full_segment >= CLEAN_THORO_THRES) {
-        logger(WARN, "[WARNING] The file system is almost full (exceeding the 96%% threshold).\n");
+        logger(WARN, "\n\n[WARNING] The file system is almost full (exceeding the 96%% threshold).\n");
         logger(WARN, "[WARNING] We will run thorough garbage collection now for more disk space.\n");
         collect_garbage(true);          // Automatically update cur_segment and cur_block.
         generate_checkpoint();
     } else if (count_full_segment >= CLEAN_THRESHOLD) {
-        logger(WARN, "[WARNING] The file system is largely full (exceeding the 80%% threshold).\n");
+        logger(WARN, "\n\n[WARNING] The file system is largely full (exceeding the 80%% threshold).\n");
         logger(WARN, "[WARNING] We will run normal garbage collection now for better performance.\n");
         
         // Maintain a back-up before garbage collection in memory.
@@ -91,7 +91,7 @@ void get_next_free_segment() {
             collect_garbage(false);     // Automatically update cur_segment and cur_block.
         } catch (int e) {
             if (e == -1) {
-                logger(WARN, "[WARNING] The file system is highly utilized, so that normal garbage collection fails.\n");
+                logger(WARN, "\n[WARNING] The file system is highly utilized, so that normal garbage collection fails.\n");
                 logger(WARN, "[WARNING] We will try to perform a thorough garbage collection instead.\n");
 
                 // Copy the back-up memory back into disk file.

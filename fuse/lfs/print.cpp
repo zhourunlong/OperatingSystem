@@ -104,11 +104,15 @@ void print(checkpoints ckpt){
     int i = 0;
     while (i < TOT_SEGMENTS) {
         if (i>0) logger(DEBUG, "           \t");
-        for (int j=0; j<10; j++)
+        for (int j=0; j<10; j++) {
             logger(DEBUG, "%d", ckpt[0].segment_bitmap[i+j]);
+            if (i+j+1 == TOT_SEGMENTS) break;
+        }
         logger(DEBUG, "  \t");
-        for (int j=0; j<10; j++)
+        for (int j=0; j<10; j++) {
             logger(DEBUG, "%d", ckpt[1].segment_bitmap[i+j]);
+            if (i+j+1 == TOT_SEGMENTS) break;
+        }
         logger(DEBUG, "\n");
         i += 10;
     }
@@ -272,4 +276,31 @@ void print_inode_table() {
 
     logger(DEBUG, "\nThere are %d active inodes in LFS now.\n", count);
     logger(DEBUG, "============================ PRINT INODE TABLE ====================\n\n");
+}
+
+void print_util_stat(struct util_entry* util) {
+    logger(DEBUG, "\n[DEBUG] ******************** UTILIZATION STAT ********************\n");
+
+    logger(DEBUG, "    ");
+    for (int j=0; j<10; j++)
+        logger(DEBUG, "        %2d  ", j);
+    logger(DEBUG, "\n");
+    logger(DEBUG, "    ");
+    for (int j=0; j<10; j++)
+        logger(DEBUG, "==========  ");
+    logger(DEBUG, "\n");
+
+    int i = 0, row = 0;
+    while (i < TOT_SEGMENTS) {
+        logger(DEBUG, "%2d  ", row);
+        row++;
+
+        for (int j=0; j<10; j++) {
+            logger(DEBUG, "%4d(%4d)  ", util[i].segment_number, util[i].count);
+            i++;
+            if (i == TOT_SEGMENTS) break;
+        }
+        logger(DEBUG, "\n");
+    }
+    logger(DEBUG, "============================ UTILIZATION STAT ====================\n\n");
 }

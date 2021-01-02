@@ -190,7 +190,7 @@ const int ROOT_DIR_INUMBER = 1;
 /** **************************************
  * Debug and error-reporting flags.
  * ***************************************/
-const bool DEBUG_PRINT_COMMAND  = 1;    // Print the name of each command.
+const bool DEBUG_PRINT_COMMAND  = 0;    // Print the name of each command.
 const bool DEBUG_METADATA_INODE = 0;    // Print inode for each metadata query.
 const bool DEBUG_DIRECTORY      = 0;    // Print debug information in directory.cpp.
 const bool DEBUG_FILE           = 0;    // Print debug information in file.cpp.
@@ -198,7 +198,8 @@ const bool DEBUG_PATH           = 0;    // Print debug information in path.cpp.
 const bool DEBUG_BLOCKIO        = 0;    // Print (seg, blk) for each appended block.
 const bool DEBUG_LOCATE_REPORT  = 0;    // Generate report for each locate() (in path.cpp).
 const bool DEBUG_CKPT_REPORT    = 1;    // Print checkpoint after each storation.
-const bool DEBUG_GARBAGE_COL    = 0;    // Print debug information for garbage collection utilities.
+const bool DEBUG_GARBAGE_COL    = 1;    // Print debug information for garbage collection utilities.
+const bool DEBUG_GC_BLOCKIO     = 0;    // Print GC buffer block I/O information.
 
 const bool ERROR_METADATA       = 1;    // Report errors in metadata.cpp assoc. with locate().
 const bool ERROR_DIRECTORY      = 1;    // Report directory operation errors in directory.cpp.

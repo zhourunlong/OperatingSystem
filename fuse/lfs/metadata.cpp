@@ -105,7 +105,7 @@ std::lock_guard <std::mutex> guard(global_lock);
     int locate_error = locate(path, i_number);
     if (locate_error != 0) {
         if (ERROR_METADATA)
-            logger(ERROR, "[Error] Cannot access the path (error #%d).\n", locate_error);
+            logger(ERROR, "[ERROR] Cannot access the path (error #%d).\n", locate_error);
         return locate_error;
     }
     
