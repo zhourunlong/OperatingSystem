@@ -23,5 +23,6 @@ void print(block blk, int disp);
 
 void print_inode_table();
 void print_util_stat(struct util_entry* util);
+void print_time_stat(struct time_entry* ts);
 
 #endif

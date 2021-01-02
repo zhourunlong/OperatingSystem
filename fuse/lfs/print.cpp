@@ -304,3 +304,30 @@ void print_util_stat(struct util_entry* util) {
     }
     logger(DEBUG, "============================ UTILIZATION STAT ====================\n\n");
 }
+
+void print_time_stat(struct time_entry* ts) {
+    logger(DEBUG, "\n[DEBUG] ******************** TIMESTAMP STAT ********************\n");
+
+    logger(DEBUG, "    ");
+    for (int j=0; j<10; j++)
+        logger(DEBUG, "  %2d  ", j);
+    logger(DEBUG, "\n");
+    logger(DEBUG, "    ");
+    for (int j=0; j<10; j++)
+        logger(DEBUG, "====  ");
+    logger(DEBUG, "\n");
+
+    int i = 0, row = 0;
+    while (i < TOT_SEGMENTS) {
+        logger(DEBUG, "%2d  ", row);
+        row++;
+
+        for (int j=0; j<10; j++) {
+            logger(DEBUG, "%4d  ", ts[i].segment_number);
+            i++;
+            if (i == TOT_SEGMENTS) break;
+        }
+        logger(DEBUG, "\n");
+    }
+    logger(DEBUG, "============================ TIMESTAMP STAT ====================\n\n");
+}

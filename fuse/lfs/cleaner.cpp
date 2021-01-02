@@ -21,6 +21,12 @@
 /* Segment buffer specialized for garbage collection. */
 int gc_cur_segment, gc_cur_block, gc_next_imap_index;
 char gc_segment_buffer[SEGMENT_SIZE];
+char gc_file_buffer[FILE_SIZE];
+
+/* Auxiliary global variables. */
+bool _clean_thoroughly, _seq_write;
+time_entry timestamp[TOT_SEGMENTS];
+int ts_pointer;
 
 /** Append a segment summary entry for a given block (in GC buffer). */
 void gc_add_segbuf_summary(int block_index, int _i_number, int _direct_index) {
@@ -62,13 +68,30 @@ void gc_add_segbuf_metadata() {
 
 /** Return the index of next free segment, or -1 if the disk is full. */
 int gc_get_next_free_segment() {
-    int next_free_segment = -1;
-    for (int i=(gc_cur_segment+1)%TOT_SEGMENTS; i!=gc_cur_segment; i=(i+1)%TOT_SEGMENTS)
-        if (segment_bitmap[i] == 0) {
-            next_free_segment = i;
-            break;
+    if (_seq_write) {
+        return gc_cur_segment+1;
+    } else {
+        if (_clean_thoroughly) {
+            while (timestamp[ts_pointer].segment_number != gc_cur_segment)
+                ts_pointer++;
+            ts_pointer++;
+            gc_cur_segment = timestamp[ts_pointer].segment_number;
+        } else {
+            int next_free_segment = -1;
+            for (int i=(gc_cur_segment+1)%TOT_SEGMENTS; i!=gc_cur_segment; i=(i+1)%TOT_SEGMENTS)
+                if (segment_bitmap[i] == 0) {
+                    next_free_segment = i;
+                    break;
+                }
+            return next_free_segment;
         }
-    return next_free_segment;
+    }
+}
+
+/** Write to segment buffer (in cache). */
+void gc_write_segment(void* buf, int segment_addr) {
+    int file_offset = segment_addr * SEGMENT_SIZE;
+    memcpy(gc_file_buffer+file_offset, buf, SEGMENT_SIZE);
 }
 
 /** Increment cur_block, and flush GC buffer if it is full. */
@@ -76,7 +99,7 @@ void gc_move_to_segment() {
     if (gc_cur_block == DATA_BLOCKS_IN_SEGMENT-1 || gc_next_imap_index == DATA_BLOCKS_IN_SEGMENT) {
         // Segment buffer is full, and should be flushed to disk file.
         gc_add_segbuf_metadata();
-        write_segment(gc_segment_buffer, gc_cur_segment);
+        gc_write_segment(gc_segment_buffer, gc_cur_segment);
         segment_bitmap[gc_cur_segment] = 1;
 
         int next_segment = gc_get_next_free_segment();
@@ -167,7 +190,32 @@ void gc_compact_data_blocks(summary_entry* seg_sum, int seg, std::set<int> &modi
     }
 }
 
-void collect_garbage(bool clean_thoroughly) {
+void collect_garbage(bool clean_thoroughly, bool sequential_write) {
+    // We will do all garbage collection completely in memory.
+    // This may also prevent writing inconsistent data into disk file.
+    
+    _clean_thoroughly = clean_thoroughly;
+    _seq_write = clean_thoroughly && sequential_write;
+    if (_seq_write) {
+        /* Initialize file buffer to 0. */
+        memset(gc_file_buffer, 0, sizeof(gc_file_buffer));
+
+        struct superblock init_sblock = {
+            tot_inodes   : TOT_INODES,
+            tot_blocks   : BLOCKS_IN_SEGMENT * TOT_SEGMENTS,
+            tot_segments : TOT_SEGMENTS,
+            block_size   : BLOCK_SIZE,
+            segment_size : SEGMENT_SIZE
+        };
+        memcpy(gc_file_buffer+SUPERBLOCK_ADDR, &init_sblock, SUPERBLOCK_SIZE);
+    } else {
+        /* Load data from disk file. */
+        int file_handle = open(lfs_path, O_RDWR);
+        int read_length = pread(file_handle, gc_file_buffer, FILE_SIZE, 0);
+        close(file_handle);
+    }
+    
+
     memset(gc_segment_buffer, 0, sizeof(gc_segment_buffer));
     gc_cur_segment     = 0;
     gc_cur_block       = 0;
@@ -198,13 +246,15 @@ void collect_garbage(bool clean_thoroughly) {
                         utilization[i].count++;
                 }
             }
-
-            if ((utilization[i].count == 0) && (segment_bitmap[i] == 1))
-                utilization[i].count = 1;
         }
 
         std::sort(utilization, utilization+TOT_SEGMENTS, _util_compare);
 
+        // Mark segments with 0 utilization as empty.
+        for (int i=0; utilization[i].count == 0; i++)
+            segment_bitmap[utilization[i].segment_number] = 0;
+        
+        // Print debug information.
         if (DEBUG_GARBAGE_COL)
             print_util_stat(utilization);
     }
@@ -235,7 +285,7 @@ void collect_garbage(bool clean_thoroughly) {
         // Step 1: identify all live data blocks, and record inodes to be updated.
         for (int i=i_st; i<i_ed; i++) {
             int seg = utilization[i].segment_number;
-            memcpy(&seg_sum, &cached_segsum[i], sizeof(seg_sum));
+            memcpy(&seg_sum, &cached_segsum[seg], sizeof(seg_sum));
             segment_bitmap[seg] = 0;
 
             if (DEBUG_GARBAGE_COL)
@@ -254,12 +304,11 @@ void collect_garbage(bool clean_thoroughly) {
         logger(WARN, "[WARNING] Successfully finished normal garbage collection.\n");
     } else {
         // If there are no free segments left, we should perform a thorough clean-up.
-        // Now it is better to rewrite in timestamp order.
-        clean_thoroughly = true;
+        // Now it is better to rewrite from timestamp order into sequential order.
         
         /* Retrieve segment timestamps. */
-        time_entry timestamp[TOT_SEGMENTS];
         memset(timestamp, 0, sizeof(timestamp));
+        ts_pointer = 0;
 
         segment_metadata seg_metadata;
         for (int i=0; i<TOT_SEGMENTS; i++) {
@@ -270,18 +319,25 @@ void collect_garbage(bool clean_thoroughly) {
         }
 
         std::sort(timestamp, timestamp+TOT_SEGMENTS, _time_compare);
+        // Print debug information.
+        if (DEBUG_GARBAGE_COL)
+            print_time_stat(timestamp);
         
         /* Perform a thorough garbage collection. */
-        gc_cur_segment = timestamp[0].segment_number;
-        gc_cur_block   = 0;
+        if (_seq_write) {
+            gc_cur_segment = 0;
+        } else {
+            gc_cur_segment = timestamp[0].segment_number;
+        }
         if (DEBUG_GARBAGE_COL)
             logger(DEBUG, "* Start dumping GC buffer to segment %d.\n", gc_cur_segment);
+        gc_cur_block = 0;
 
         // Step 1: identify all live data blocks, and record inodes to be updated.
         for (int i=0; i<TOT_SEGMENTS; i++) {
-            int seg = utilization[i].segment_number;
-            memcpy(&seg_sum, &cached_segsum[i], sizeof(seg_sum));
-            segment_bitmap[i] = 0;
+            int seg = timestamp[i].segment_number;
+            memcpy(&seg_sum, &cached_segsum[seg], sizeof(seg_sum));
+            segment_bitmap[seg] = 0;
 
             if (DEBUG_GARBAGE_COL)
                 logger(DEBUG, ">>> Cleaning segment %d.\n", seg);
@@ -299,7 +355,12 @@ void collect_garbage(bool clean_thoroughly) {
         logger(WARN, "[WARNING] Successfully finished thorough garbage collection.\n");
     }
 
-    /* After garbage collection, we should copy GC buffer (still data remaining) to the main buffer. */
+    /* Write back to disk file */
+    int file_handle = open(lfs_path, O_RDWR);
+    int write_length = pwrite(file_handle, gc_file_buffer, FILE_SIZE, 0);
+    close(file_handle);
+
+    /* We should copy GC buffer (still data remaining) to the main buffer. */
     memset(segment_buffer, 0, sizeof(segment_buffer));
     memcpy(segment_buffer, gc_segment_buffer, sizeof(gc_segment_buffer));
     cur_segment     = gc_cur_segment;

@@ -60,9 +60,9 @@ void get_next_free_segment() {
     if (count_full_segment == TOT_SEGMENTS) {
         logger(WARN, "\n\n[WARNING] The file system is completely full (100%% occpuied).\n");
         logger(WARN, "[WARNING] We will run thorough garbage collection now for more disk space.\n");
-        collect_garbage(true);          // Automatically update cur_segment and cur_block.
-        generate_checkpoint();
+        collect_garbage(true, false);
 
+        /* Recount the number of full segments to determine whether it is full. */
         int recount_full_segment = 0;
         for (int i=0; i<TOT_SEGMENTS; i++)
             recount_full_segment += segment_bitmap[i];
@@ -75,36 +75,22 @@ void get_next_free_segment() {
     } else if (count_full_segment >= CLEAN_THORO_THRES) {
         logger(WARN, "\n\n[WARNING] The file system is almost full (exceeding the 96%% threshold).\n");
         logger(WARN, "[WARNING] We will run thorough garbage collection now for more disk space.\n");
-        collect_garbage(true);          // Automatically update cur_segment and cur_block.
+        collect_garbage(true, false);
         generate_checkpoint();
     } else if (count_full_segment >= CLEAN_THRESHOLD) {
         logger(WARN, "\n\n[WARNING] The file system is largely full (exceeding the 80%% threshold).\n");
         logger(WARN, "[WARNING] We will run normal garbage collection now for better performance.\n");
-        
-        // Maintain a back-up before garbage collection in memory.
-        char* backup_buf = (char*) malloc(FILE_SIZE);
-        int file_handle = open(lfs_path, O_RDWR);
-        int read_length = pread(file_handle, backup_buf, FILE_SIZE, 0);
-        close(file_handle);
 
         try {
-            collect_garbage(false);     // Automatically update cur_segment and cur_block.
+            collect_garbage(false, false);
         } catch (int e) {
             if (e == -1) {
                 logger(WARN, "\n[WARNING] The file system is highly utilized, so that normal garbage collection fails.\n");
                 logger(WARN, "[WARNING] We will try to perform a thorough garbage collection instead.\n");
 
-                // Copy the back-up memory back into disk file.
-                int file_handle = open(lfs_path, O_RDWR);
-                int read_length = pwrite(file_handle, backup_buf, FILE_SIZE, 0);
-                close(file_handle);
-                load_from_file();
-
-                collect_garbage(true);
+                collect_garbage(true, false);
             }
         }
-
-        free(backup_buf);
         generate_checkpoint();
     } else {    // Select next free segment (without garbage collection).
         int next_free_segment = -1;

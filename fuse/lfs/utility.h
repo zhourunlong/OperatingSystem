@@ -216,7 +216,7 @@ const bool ENABLE_ACCESS_PERM   = 1;    // Whether to enable permission control 
  * Timestamp and permission utilities.
  * ***************************************/
 const bool FUNC_ATIME_DIR       = 0;        // Enable atime update for directories.
-const bool FUNC_ATIME_REL       = 0;        // Enable relative atime (as with -relatime).
+const bool FUNC_ATIME_REL       = 1;        // Enable relative atime (as with -relatime).
 const int FUNC_ATIME_REL_THRES  = 3600;     // Threshold interval for updating (relative) atime.
 void update_atime(struct inode* cur_inode, struct timespec &new_time);
 

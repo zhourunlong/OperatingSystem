@@ -217,8 +217,8 @@ void load_from_file() {
     // Initialize segment buffer in memory.
     read_segment(segment_buffer, cur_segment);
 
-    // Now the inode table and segment buffer is up-to-date.s
-    // We may directly reconstruct inode array in memory.
+    // Now the inode table and segment buffer is up-to-date.
+    // So we may directly reconstruct inode array in memory.
     struct inode inode_block;
     for (int i=1; i<=count_inode; i++) {
         if (inode_table[i] >= 0) {
@@ -227,11 +227,18 @@ void load_from_file() {
         }
     }
 
-    // Warn if the file system is already full after recovery.
+    // Do a sequential-write thorough garbage collection for better performance.
+    collect_garbage(true, true);
+    int recount_full_segment = 0;
+    for (int i=0; i<TOT_SEGMENTS; i++)
+        recount_full_segment += segment_bitmap[i];
+    if ((recount_full_segment == TOT_SEGMENTS-1) && (cur_block >= BLOCKS_IN_SEGMENT / 2))
+        is_full = true;
+
+    // Warn if the file system is already full after recovery and GC.
     if (is_full)
         logger(WARN, "[WARNING] The file system is already full: please assign a larger disk size.\n");
     
     // Generate a checkpoint for easier recovery.
-    // print_inode_table();
     generate_checkpoint();
 }
