@@ -152,16 +152,16 @@ int write_superblock(void* buf) {
  * Timestamp and permission utilities.
  * ***************************************/
 /** Update atime according to FUNC_ATIME_ flags */
-void update_atime(struct inode &cur_inode, struct timespec &new_time) {
+void update_atime(struct inode* cur_inode, struct timespec &new_time) {
     if (FUNC_ATIME_REL) {
-        if ((cur_inode.atime.tv_sec < cur_inode.mtime.tv_sec)
-            || (cur_inode.atime.tv_sec < cur_inode.ctime.tv_sec)
-            || (new_time.tv_sec - cur_inode.atime.tv_sec > FUNC_ATIME_REL_THRES))
-            { cur_inode.atime = new_time;
-              cur_inode.ctime = new_time; }
+        if ((cur_inode->atime.tv_sec < cur_inode->mtime.tv_sec)
+            || (cur_inode->atime.tv_sec < cur_inode->ctime.tv_sec)
+            || (new_time.tv_sec - cur_inode->atime.tv_sec > FUNC_ATIME_REL_THRES))
+            { cur_inode->atime = new_time;
+              cur_inode->ctime = new_time; }
     } else {
-        cur_inode.atime = new_time;
-        cur_inode.ctime = new_time;
+        cur_inode->atime = new_time;
+        cur_inode->ctime = new_time;
     }
 
     // Trace checkpoint updates (every CKPT_UPDATE_INTERVAL seconds).

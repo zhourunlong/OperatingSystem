@@ -5,14 +5,14 @@ const long USER_DEVICE = 0;
 
 /* High-level functions should ONLY call these interfaces for data transfer. */
 void get_block(void* data, int block_addr);
-void get_inode_from_inum(struct inode* data, int i_number);
+void get_inode_from_inum(struct inode* &data, int i_number);
 
 void get_next_free_segment();
 int new_data_block(void* data, int i_number, int direct_index);
 int new_inode_block(struct inode* data);
 
-void file_initialize(struct inode* cur_inode, int _mode, int _permission);
-void file_add_data(struct inode* cur_inode, void* data);
+void file_initialize(struct inode* &cur_inode, int _mode, int _permission);
+void file_add_data(struct inode* &cur_inode, void* data);
 void file_modify(struct inode* cur_inode, int direct_index, void* data);
 
 void remove_inode(int i_number);

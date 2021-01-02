@@ -29,9 +29,9 @@ std::lock_guard <std::mutex> guard(global_lock);
         return locate_err;
     }
 
-    inode block_inode;
-    get_inode_from_inum(&block_inode, fh);
-    if (block_inode.mode != MODE_DIR) {
+    inode* block_inode;
+    get_inode_from_inum(block_inode, fh);
+    if (block_inode->mode != MODE_DIR) {
         if (ERROR_DIRECTORY)
             logger(ERROR, "[ERROR] %s is not a directory.\n", path);
         return -ENOTDIR;
@@ -70,9 +70,9 @@ std::lock_guard <std::mutex> guard(global_lock);
     filler(buf, ".", NULL, 0, (fuse_fill_dir_flags) 0);
     filler(buf, "..", NULL, 0, (fuse_fill_dir_flags) 0);
 
-    inode block_inode, head_inode;
-    get_inode_from_inum(&head_inode, fi->fh);
-    if (!verify_permission(PERM_READ, &head_inode, user_info, ENABLE_PERMISSION)) {
+    inode* block_inode; inode* head_inode;
+    get_inode_from_inum(head_inode, fi->fh);
+    if (!verify_permission(PERM_READ, head_inode, user_info, ENABLE_PERMISSION)) {
         if (ERROR_PERM)
             logger(ERROR, "[ERROR] Permission denied: not allowed to read.\n");
         return -EACCES;
@@ -82,10 +82,10 @@ std::lock_guard <std::mutex> guard(global_lock);
     bool accessed = false;
     while (1) {
         for (int i = 0; i < NUM_INODE_DIRECT; ++i) {
-            if (block_inode.direct[i] == -1)
+            if (block_inode->direct[i] == -1)
                 continue;
             directory block_dir;
-            get_block(&block_dir, block_inode.direct[i]);
+            get_block(&block_dir, block_inode->direct[i]);
             accessed = true;
             for (int j = 0; j < MAX_DIR_ENTRIES; ++j) {
                 if (block_dir[j].i_number == 0)
@@ -93,9 +93,9 @@ std::lock_guard <std::mutex> guard(global_lock);
                 filler(buf, block_dir[j].filename, NULL, 0, (fuse_fill_dir_flags) 0);
             }
         }
-        if (block_inode.next_indirect == 0)
+        if (block_inode->next_indirect == 0)
             break;
-        get_inode_from_inum(&block_inode, block_inode.next_indirect);
+        get_inode_from_inum(block_inode, block_inode->next_indirect);
     }
     
     if (accessed && FUNC_ATIME_DIR) {
@@ -107,7 +107,7 @@ std::lock_guard <std::mutex> guard(global_lock);
         struct timespec cur_time;
         clock_gettime(CLOCK_REALTIME, &cur_time);
         update_atime(head_inode, cur_time);
-        new_inode_block(&head_inode);
+        new_inode_block(head_inode);
     }
     return 0;
 }
@@ -117,17 +117,17 @@ std::lock_guard <std::mutex> guard(global_lock);
  * @param  new_name: name of the new file / directory.
  * @param  new_inum: i_number of the new file / directory.
  * @return flag: 0 on success, standard negative error codes on error. */
-int append_parent_dir_entry(struct inode &head_inode, const char* new_name, int new_inum) {
-    inode block_inode = head_inode;
+int append_parent_dir_entry(struct inode* head_inode, const char* new_name, int new_inum) {
+    inode* block_inode = head_inode;
     
     struct timespec cur_time;
     clock_gettime(CLOCK_REALTIME, &cur_time);
 
     bool rec_avail_for_ins = false, accessed = false, firblk = true, afi_firblk, tail_firblk;
-    inode avail_for_ins, tail_inode;
+    inode* avail_for_ins; inode* tail_inode;
     while (1) {
         for (int i = 0; i < NUM_INODE_DIRECT; ++i) {
-            if (block_inode.direct[i] == -1) {
+            if (block_inode->direct[i] == -1) {
                 if (!rec_avail_for_ins) {
                     rec_avail_for_ins = true;
                     avail_for_ins = block_inode;
@@ -136,35 +136,35 @@ int append_parent_dir_entry(struct inode &head_inode, const char* new_name, int 
                 continue;
             }
             directory block_dir;
-            get_block(&block_dir, block_inode.direct[i]);
+            get_block(&block_dir, block_inode->direct[i]);
             accessed = true;
             for (int j = 0; j < MAX_DIR_ENTRIES; ++j)
                 if (block_dir[j].i_number == 0) {
                     block_dir[j].i_number = new_inum;
                     memcpy(block_dir[j].filename, new_name, strlen(new_name) * sizeof(char));
-                    int new_block_addr = new_data_block(&block_dir, block_inode.i_number, i);
-                    block_inode.direct[i] = new_block_addr;
+                    int new_block_addr = new_data_block(&block_dir, block_inode->i_number, i);
+                    block_inode->direct[i] = new_block_addr;
                     
                     if (firblk) {
                         if (FUNC_ATIME_DIR)
                             update_atime(block_inode, cur_time);
-                        block_inode.mtime = block_inode.ctime = cur_time;
+                        block_inode->mtime = block_inode->ctime = cur_time;
                     } else {
                         if (FUNC_ATIME_DIR)
                             update_atime(head_inode, cur_time);
-                        head_inode.mtime = head_inode.ctime = cur_time;
-                        new_inode_block(&head_inode);
+                        head_inode->mtime = head_inode->ctime = cur_time;
+                        new_inode_block(head_inode);
                     }
-                    new_inode_block(&block_inode);
+                    new_inode_block(block_inode);
                     return 0;
                 }
         }
         tail_inode = block_inode;
         tail_firblk = firblk;
         firblk = false;
-        if (block_inode.next_indirect == 0)
+        if (block_inode->next_indirect == 0)
             break;
-        get_inode_from_inum(&block_inode, block_inode.next_indirect);
+        get_inode_from_inum(block_inode, block_inode->next_indirect);
     }
 
     directory block_dir;
@@ -174,40 +174,40 @@ int append_parent_dir_entry(struct inode &head_inode, const char* new_name, int 
 
     if (rec_avail_for_ins) {
         for (int i = 0; i < NUM_INODE_DIRECT; ++i)
-            if (avail_for_ins.direct[i] == -1) {
-                int new_block_addr = new_data_block(&block_dir, avail_for_ins.i_number, i);
-                avail_for_ins.direct[i] = new_block_addr;
-                ++avail_for_ins.num_direct;
+            if (avail_for_ins->direct[i] == -1) {
+                int new_block_addr = new_data_block(&block_dir, avail_for_ins->i_number, i);
+                avail_for_ins->direct[i] = new_block_addr;
+                ++avail_for_ins->num_direct;
                 
                 if (afi_firblk) {
                     if (FUNC_ATIME_DIR)
                         update_atime(avail_for_ins, cur_time);
-                    avail_for_ins.mtime = avail_for_ins.ctime = cur_time;
+                    avail_for_ins->mtime = avail_for_ins->ctime = cur_time;
                 } else {
                     if (FUNC_ATIME_DIR)
                         update_atime(head_inode, cur_time);
-                    head_inode.mtime = head_inode.ctime = cur_time;
-                    new_inode_block(&head_inode);
+                    head_inode->mtime = head_inode->ctime = cur_time;
+                    new_inode_block(head_inode);
                 }
-                new_inode_block(&avail_for_ins);
+                new_inode_block(avail_for_ins);
                 return 0;
             }
     }
 
-    inode append_inode;
-    file_initialize(&append_inode, MODE_MID_INODE, 0);
-    int new_block_addr = new_data_block(&block_dir, append_inode.i_number, 0);
-    append_inode.direct[0] = new_block_addr;
-    append_inode.num_direct = 1;
-    new_inode_block(&append_inode);
-    tail_inode.next_indirect = append_inode.i_number;
+    inode* append_inode;
+    file_initialize(append_inode, MODE_MID_INODE, 0);
+    int new_block_addr = new_data_block(&block_dir, append_inode->i_number, 0);
+    append_inode->direct[0] = new_block_addr;
+    append_inode->num_direct = 1;
+    new_inode_block(append_inode);
+    tail_inode->next_indirect = append_inode->i_number;
     if (tail_firblk)
-        tail_inode.ctime = cur_time;
+        tail_inode->ctime = cur_time;
     else {
-        head_inode.ctime = cur_time;
-        new_inode_block(&head_inode);
+        head_inode->ctime = cur_time;
+        new_inode_block(head_inode);
     }
-    new_inode_block(&tail_inode);
+    new_inode_block(tail_inode);
     return 0;
 }
 
@@ -216,13 +216,13 @@ int append_parent_dir_entry(struct inode &head_inode, const char* new_name, int 
  * @param  del_inum: i_number of the file / directory.
  * @return bool: whether the removal is successful.
  * [CAUTION] block_inode may be modified as the search procedure advances. */
-bool remove_parent_dir_entry(struct inode &block_inode, int del_inum)  {
+bool remove_parent_dir_entry(struct inode* block_inode, int del_inum)  {
     bool find = false;
     directory block_dir;
     while (true) {
         for (int i = 0; i < NUM_INODE_DIRECT; i++) {
-            if (block_inode.direct[i] != -1) {
-                get_block(block_dir, block_inode.direct[i]);
+            if (block_inode->direct[i] != -1) {
+                get_block(block_dir, block_inode->direct[i]);
                 for (int j = 0; j < MAX_DIR_ENTRIES; j++)
                     if (block_dir[j].i_number == del_inum) {
                         find = true;
@@ -231,7 +231,7 @@ bool remove_parent_dir_entry(struct inode &block_inode, int del_inum)  {
                         break;
                     }
                 if (find == true) {
-                    file_modify(&block_inode, i, block_dir);
+                    file_modify(block_inode, i, block_dir);
                     break;
                 }
             }
@@ -239,10 +239,10 @@ bool remove_parent_dir_entry(struct inode &block_inode, int del_inum)  {
         if (find == true)
             break;
 
-        get_inode_from_inum(&block_inode, block_inode.next_indirect);
+        get_inode_from_inum(block_inode, block_inode->next_indirect);
     }
     if (find)
-        new_inode_block(&block_inode);
+        new_inode_block(block_inode);
     return find;
 }
 
@@ -252,13 +252,13 @@ bool remove_parent_dir_entry(struct inode &block_inode, int del_inum)  {
  * @param  del_name: name of the file / directory. 
  * @return bool: whether the removal is successful.
  * [CAUTION] block_inode may be modified as the search procedure advances. */
-bool remove_parent_dir_entry(struct inode &block_inode, int del_inum, const char* del_name)  {
+bool remove_parent_dir_entry(struct inode* block_inode, int del_inum, const char* del_name)  {
     bool find = false;
     directory block_dir;
     while (true) {
         for (int i = 0; i < NUM_INODE_DIRECT; i++) {
-            if (block_inode.direct[i] != -1) {
-                get_block(block_dir, block_inode.direct[i]);
+            if (block_inode->direct[i] != -1) {
+                get_block(block_dir, block_inode->direct[i]);
                 for (int j = 0; j < MAX_DIR_ENTRIES; j++)
                     if (block_dir[j].i_number == del_inum && !strcmp(del_name, block_dir[j].filename)) {
                         find = true;
@@ -267,7 +267,7 @@ bool remove_parent_dir_entry(struct inode &block_inode, int del_inum, const char
                         break;
                     }
                 if (find == true) {
-                    file_modify(&block_inode, i, block_dir);
+                    file_modify(block_inode, i, block_dir);
                     break;
                 }
             }
@@ -275,10 +275,10 @@ bool remove_parent_dir_entry(struct inode &block_inode, int del_inum, const char
         if (find == true)
             break;
 
-        get_inode_from_inum(&block_inode, block_inode.next_indirect);
+        get_inode_from_inum(block_inode, block_inode->next_indirect);
     }
     if (find)
-        new_inode_block(&block_inode);
+        new_inode_block(block_inode);
     return find;
 }
 
@@ -321,16 +321,16 @@ std::lock_guard <std::mutex> guard(global_lock);
         return locate_err;
     }
     
-    inode head_inode;
-    get_inode_from_inum(&head_inode, par_inum);
-    if (!verify_permission(PERM_WRITE, &head_inode, user_info, ENABLE_PERMISSION)) {
+    inode* head_inode;
+    get_inode_from_inum(head_inode, par_inum);
+    if (!verify_permission(PERM_WRITE, head_inode, user_info, ENABLE_PERMISSION)) {
         if (ERROR_PERM)
             logger(ERROR, "[ERROR] Permission denied: not allowed to write.\n");
         free(parent_dir); free(dirname);
         return -EACCES;
     }
 
-    if (head_inode.mode != MODE_DIR) {
+    if (head_inode->mode != MODE_DIR) {
         if (ERROR_DIRECTORY)
             logger(ERROR, "[ERROR] %s is not a directory.\n", parent_dir);
         free(parent_dir); free(dirname);
@@ -340,28 +340,28 @@ std::lock_guard <std::mutex> guard(global_lock);
     int tmp_inum;
     locate_err = locate(path, tmp_inum);
     if (locate_err == 0) {
-        inode tmp_inode;
-        get_inode_from_inum(&tmp_inode, tmp_inum);
-        if ((tmp_inode.mode == MODE_FILE) && ERROR_DIRECTORY)
+        inode* tmp_inode;
+        get_inode_from_inum(tmp_inode, tmp_inum);
+        if ((tmp_inode->mode == MODE_FILE) && ERROR_DIRECTORY)
             logger(ERROR, "[ERROR] Duplicated name: there exists a file with the same name.\n");
-        if ((tmp_inode.mode == MODE_DIR) && ERROR_DIRECTORY)
+        if ((tmp_inode->mode == MODE_DIR) && ERROR_DIRECTORY)
             logger(ERROR, "[ERROR] Duplicated name: there exists a directory with the same name.\n");
         free(parent_dir); free(dirname);
         return -EEXIST;
     }
 
-    if (!verify_permission(PERM_WRITE, &head_inode, user_info, ENABLE_PERMISSION)) {
+    if (!verify_permission(PERM_WRITE, head_inode, user_info, ENABLE_PERMISSION)) {
         if (ERROR_PERM)
             logger(ERROR, "[ERROR] Permission denied: not allowed to write.\n");
         free(parent_dir); free(dirname);
         return -EACCES;
     }
 
-    inode dir_inode;
-    file_initialize(&dir_inode, MODE_DIR, mode);
-    new_inode_block(&dir_inode);
+    inode* dir_inode;
+    file_initialize(dir_inode, MODE_DIR, mode);
+    new_inode_block(dir_inode);
 
-    int flag = append_parent_dir_entry(head_inode, dirname, dir_inode.i_number);
+    int flag = append_parent_dir_entry(head_inode, dirname, dir_inode->i_number);
     free(parent_dir); free(dirname);
     return flag;
 }
@@ -371,32 +371,32 @@ std::lock_guard <std::mutex> guard(global_lock);
  * @param  del_name: name of the new file / directory.
  * @param  del_mode: whether to delete a file-link (MODE_FILE) or a directory (MODE_DIR).
  * @return flag: 0 on success, standard negative error codes on error. */
-int remove_object(struct inode &head_inode, const char* del_name, int del_mode) {
-    inode block_inode = head_inode;
+int remove_object(struct inode* head_inode, const char* del_name, int del_mode) {
+    inode* block_inode = head_inode;
 
     struct timespec cur_time;
     clock_gettime(CLOCK_REALTIME, &cur_time);
 
     bool accessed = false, firblk = true, tail_firblk;
-    inode tail_inode;
+    inode* tail_inode;
     while (1) {
         for (int i = 0; i < NUM_INODE_DIRECT; ++i) {
-            if (block_inode.direct[i] == -1)
+            if (block_inode->direct[i] == -1)
                 continue;
             directory block_dir;
-            get_block(&block_dir, block_inode.direct[i]);
+            get_block(&block_dir, block_inode->direct[i]);
             accessed = true;
             for (int j = 0; j < MAX_DIR_ENTRIES; ++j)
                 if (block_dir[j].i_number && !strcmp(block_dir[j].filename, del_name)) {
-                    inode tmp_inode, tmp_head_inode;
-                    get_inode_from_inum(&tmp_head_inode, block_dir[j].i_number);
+                    inode* tmp_inode; inode* tmp_head_inode;
+                    get_inode_from_inum(tmp_head_inode, block_dir[j].i_number);
 
                     // Verify del_name refers to an expected type of object.
-                    if ((del_mode == MODE_DIR) && (tmp_head_inode.mode != MODE_DIR)) {
+                    if ((del_mode == MODE_DIR) && (tmp_head_inode->mode != MODE_DIR)) {
                         if (ERROR_DIRECTORY)
                             logger(ERROR, "[ERROR] %s is not a directory.\n", del_name);
                         return -ENOTDIR;
-                    } else if ((del_mode == MODE_FILE) && (tmp_head_inode.mode != MODE_FILE)) {
+                    } else if ((del_mode == MODE_FILE) && (tmp_head_inode->mode != MODE_FILE)) {
                         if (ERROR_FILE)
                             logger(ERROR, "[ERROR] %s is not a file.\n", del_name);
                         return -EISDIR;
@@ -407,34 +407,34 @@ int remove_object(struct inode &head_inode, const char* del_name, int del_mode) 
                         tmp_inode = tmp_head_inode;
                         while (1) {
                             for (int l = 0; l < NUM_INODE_DIRECT; ++l) {
-                                if (tmp_inode.direct[l] == -1)
+                                if (tmp_inode->direct[l] == -1)
                                     continue;
                                 directory tmp_dir;
-                                get_block(&tmp_dir, tmp_inode.direct[l]);
+                                get_block(&tmp_dir, tmp_inode->direct[l]);
                                 for (int s = 0; s < MAX_DIR_ENTRIES; ++s)
                                     if (tmp_dir[s].i_number != 0) {
                                         if (ERROR_DIRECTORY)
                                             logger(ERROR, "[ERROR] Directory %s is not empty.\n", del_name);
                                         if (FUNC_ATIME_DIR) {
                                             update_atime(tmp_head_inode, cur_time);
-                                            new_inode_block(&tmp_head_inode);
+                                            new_inode_block(tmp_head_inode);
                                         }
                                         return -ENOTEMPTY;
                                     }
                             }
-                            if (tmp_inode.next_indirect == 0)
+                            if (tmp_inode->next_indirect == 0)
                                 break;
-                            get_inode_from_inum(&tmp_inode, tmp_inode.next_indirect);
+                            get_inode_from_inum(tmp_inode, tmp_inode->next_indirect);
                         }
                     }
 
                     // Remove file (with only 1 hard link) / directory.
-                    if (del_mode == MODE_DIR || tmp_head_inode.num_links == 1)
+                    if (del_mode == MODE_DIR || tmp_head_inode->num_links == 1)
                         remove_inode(block_dir[j].i_number);
                     else {
-                        tmp_head_inode.num_links--;
-                        tmp_head_inode.ctime = cur_time;
-                        new_inode_block(&tmp_head_inode);
+                        tmp_head_inode->num_links--;
+                        tmp_head_inode->ctime = cur_time;
+                        new_inode_block(tmp_head_inode);
                     }
 
                     // Remove parent directory entry: discard empty inodes.
@@ -442,51 +442,51 @@ int remove_object(struct inode &head_inode, const char* del_name, int del_mode) 
                     for (int k = 0; k < MAX_DIR_ENTRIES; ++k)
                         cnt += (block_dir[k].i_number != 0);
                     if (cnt == 1) {
-                        if (block_inode.num_direct != 1 || block_inode.mode == MODE_DIR) {
-                            --block_inode.num_direct;
-                            block_inode.direct[i] = -1;
+                        if (block_inode->num_direct != 1 || block_inode->mode == MODE_DIR) {
+                            --block_inode->num_direct;
+                            block_inode->direct[i] = -1;
                             if (firblk) {
                                 if (FUNC_ATIME_DIR)
                                     update_atime(block_inode, cur_time);
-                                block_inode.mtime = block_inode.ctime = cur_time;
+                                block_inode->mtime = block_inode->ctime = cur_time;
                             } else {
                                 if (FUNC_ATIME_DIR)
                                     update_atime(head_inode, cur_time);
-                                head_inode.mtime = head_inode.ctime = cur_time;
-                                new_inode_block(&head_inode);
+                                head_inode->mtime = head_inode->ctime = cur_time;
+                                new_inode_block(head_inode);
                             }
-                            new_inode_block(&block_inode);
+                            new_inode_block(block_inode);
                         } else {
-                            remove_inode(tail_inode.next_indirect);
-                            tail_inode.next_indirect = block_inode.next_indirect;
+                            remove_inode(tail_inode->next_indirect);
+                            tail_inode->next_indirect = block_inode->next_indirect;
                             if (tail_firblk) {
                                 if (FUNC_ATIME_DIR)
                                     update_atime(tail_inode, cur_time);
-                                tail_inode.mtime = tail_inode.ctime = cur_time;
+                                tail_inode->mtime = tail_inode->ctime = cur_time;
                             } else {
                                 if (FUNC_ATIME_DIR)
                                     update_atime(head_inode, cur_time);
-                                head_inode.mtime = head_inode.ctime = cur_time;
-                                new_inode_block(&head_inode);
+                                head_inode->mtime = head_inode->ctime = cur_time;
+                                new_inode_block(head_inode);
                             }
-                            new_inode_block(&tail_inode);
+                            new_inode_block(tail_inode);
                         }
                     } else {
                         block_dir[j].i_number = 0;
                         memset(block_dir[j].filename, 0, sizeof(block_dir[j].filename));
-                        int new_block_addr = new_data_block(&block_dir, block_inode.i_number, i);
-                        block_inode.direct[i] = new_block_addr;
+                        int new_block_addr = new_data_block(&block_dir, block_inode->i_number, i);
+                        block_inode->direct[i] = new_block_addr;
                         if (firblk) {
                             if (FUNC_ATIME_DIR)
                                 update_atime(block_inode, cur_time);
-                            block_inode.mtime = block_inode.ctime = cur_time;
+                            block_inode->mtime = block_inode->ctime = cur_time;
                         } else {
                             if (FUNC_ATIME_DIR)
                                 update_atime(head_inode, cur_time);
-                            head_inode.mtime = head_inode.ctime = cur_time;
-                            new_inode_block(&head_inode);
+                            head_inode->mtime = head_inode->ctime = cur_time;
+                            new_inode_block(head_inode);
                         }
-                        new_inode_block(&block_inode);
+                        new_inode_block(block_inode);
                     }
                     return 0;
                 }
@@ -494,9 +494,9 @@ int remove_object(struct inode &head_inode, const char* del_name, int del_mode) 
         tail_inode = block_inode;
         tail_firblk = firblk;
         firblk = false;
-        if (block_inode.next_indirect == 0)
+        if (block_inode->next_indirect == 0)
             break;
-        get_inode_from_inum(&block_inode, block_inode.next_indirect);
+        get_inode_from_inum(block_inode, block_inode->next_indirect);
     }
 
     if ((del_mode == MODE_DIR) && (ERROR_DIRECTORY)) {
@@ -506,7 +506,7 @@ int remove_object(struct inode &head_inode, const char* del_name, int del_mode) 
     }
     if (accessed && FUNC_ATIME_DIR) {
         update_atime(head_inode, cur_time);
-        new_inode_block(&head_inode);
+        new_inode_block(head_inode);
     }
     return -ENOENT;
 }
@@ -545,16 +545,16 @@ std::lock_guard <std::mutex> guard(global_lock);
         return locate_err;
     }
 
-    inode head_inode;
-    get_inode_from_inum(&head_inode, par_inum);
-    if (!verify_permission(PERM_WRITE, &head_inode, user_info, ENABLE_PERMISSION)) {
+    inode* head_inode;
+    get_inode_from_inum(head_inode, par_inum);
+    if (!verify_permission(PERM_WRITE, head_inode, user_info, ENABLE_PERMISSION)) {
         if (ERROR_PERM)
             logger(ERROR, "[ERROR] Permission denied: not allowed to write.\n");
         free(parent_dir); free(dirname);
         return -EACCES;
     }
 
-    if (head_inode.mode != MODE_DIR) {
+    if (head_inode->mode != MODE_DIR) {
         if (ERROR_DIRECTORY)
             logger(ERROR, "[ERROR] %s is not a directory.\n", parent_dir);
         free(parent_dir); free(dirname);

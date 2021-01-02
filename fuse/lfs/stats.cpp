@@ -54,13 +54,13 @@ std::lock_guard <std::mutex> guard(global_lock);
         return locate_err;
     }
 
-    inode block_inode;
-    get_inode_from_inum(&block_inode, inum);
+    inode* block_inode;
+    get_inode_from_inum(block_inode, inum);
 
-    block_inode.atime = ts[0];
-    block_inode.mtime = ts[1];
+    block_inode->atime = ts[0];
+    block_inode->mtime = ts[1];
 
-    new_inode_block(&block_inode);
+    new_inode_block(block_inode);
 
     return 0;
 }

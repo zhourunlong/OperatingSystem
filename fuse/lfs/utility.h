@@ -195,10 +195,10 @@ const bool DEBUG_METADATA_INODE = 0;    // Print inode for each metadata query.
 const bool DEBUG_DIRECTORY      = 0;    // Print debug information in directory.cpp.
 const bool DEBUG_FILE           = 0;    // Print debug information in file.cpp.
 const bool DEBUG_PATH           = 0;    // Print debug information in path.cpp.
-const bool DEBUG_BLOCKIO        = 1;    // Print (seg, blk) for each appended block.
+const bool DEBUG_BLOCKIO        = 0;    // Print (seg, blk) for each appended block.
 const bool DEBUG_LOCATE_REPORT  = 0;    // Generate report for each locate() (in path.cpp).
 const bool DEBUG_CKPT_REPORT    = 1;    // Print checkpoint after each storation.
-const bool DEBUG_GARBAGE_COL    = 1;    // Print debug information for garbage collection utilities.
+const bool DEBUG_GARBAGE_COL    = 0;    // Print debug information for garbage collection utilities.
 
 const bool ERROR_METADATA       = 1;    // Report errors in metadata.cpp assoc. with locate().
 const bool ERROR_DIRECTORY      = 1;    // Report directory operation errors in directory.cpp.
@@ -217,7 +217,7 @@ const bool ENABLE_ACCESS_PERM   = 1;    // Whether to enable permission control 
 const bool FUNC_ATIME_DIR       = 0;        // Enable atime update for directories.
 const bool FUNC_ATIME_REL       = 0;        // Enable relative atime (as with -relatime).
 const int FUNC_ATIME_REL_THRES  = 3600;     // Threshold interval for updating (relative) atime.
-void update_atime(struct inode &cur_inode, struct timespec &new_time);
+void update_atime(struct inode* cur_inode, struct timespec &new_time);
 
 const int PERM_READ             = 4;        // Read permission (R_OK).
 const int PERM_WRITE            = 2;        // Write permission (W_OK).

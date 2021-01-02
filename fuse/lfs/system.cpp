@@ -79,14 +79,14 @@ void* o_init(struct fuse_conn_info* conn, struct fuse_config* cfg) {
         print(&init_sblock);
 
         // Initialize root directory (i_number = 1).
-        struct inode* root_inode = (struct inode*) malloc(sizeof(struct inode));
+        struct inode* root_inode;
         file_initialize(root_inode, MODE_DIR, 0777);
 
         buf = (char*) malloc(BLOCK_SIZE);
         memset(buf, 0, BLOCK_SIZE);
         file_add_data(root_inode, buf);
         free(buf);
-        
+
         new_inode_block(root_inode);
         write_segment(segment_buffer, 0);
         segment_bitmap[0] = 1;

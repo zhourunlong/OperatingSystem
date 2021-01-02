@@ -20,11 +20,11 @@ const int SC = sizeof(char);
  * @param  cur_inode: the inode to be operated on.
  * @param  block_ind: the start position of truncation.
  * [CAUTION] Since num_direct = block_ind + 1, we allow block_ind to be -1. */
-void truncate_inode(inode &cur_inode, int block_ind) {
-    cur_inode.num_direct = block_ind + 1;
-    cur_inode.next_indirect = 0;
-    for (int i = cur_inode.num_direct; i < NUM_INODE_DIRECT; i++) {
-        cur_inode.direct[i] = -1;
+void truncate_inode(inode* cur_inode, int block_ind) {
+    cur_inode->num_direct = block_ind + 1;
+    cur_inode->next_indirect = 0;
+    for (int i = cur_inode->num_direct; i < NUM_INODE_DIRECT; i++) {
+        cur_inode->direct[i] = -1;
     }
 }
 
@@ -40,36 +40,36 @@ int write_in_file(const char* path, const char* buf, size_t size,
     struct fuse_context* user_info = fuse_get_context();
     
     int inode_num = fi->fh;
-    inode cur_inode;
-    get_inode_from_inum(&cur_inode, inode_num);
-    if (cur_inode.mode != MODE_FILE) {
+    inode* cur_inode;
+    get_inode_from_inum(cur_inode, inode_num);
+    if (cur_inode->mode != MODE_FILE) {
         if (ERROR_FILE)
             logger(ERROR, "[ERROR] %s is not a file.\n", path);
         return 0;
     }
     
     // Write permission control.
-    if (!verify_permission(PERM_WRITE, &cur_inode, user_info, ENABLE_PERMISSION)) {
+    if (!verify_permission(PERM_WRITE, cur_inode, user_info, ENABLE_PERMISSION)) {
         if (ERROR_PERM)
             logger(ERROR, "[ERROR] Permission denied: not allowed to write.\n");
         return 0;
     }
 
-    size_t len = cur_inode.fsize_byte;
+    size_t len = cur_inode->fsize_byte;
     int t_offset = offset;
 
     // Locate the first inode.
     bool is_end = false;
     while (true) {
-        if (t_offset < cur_inode.num_direct * BLOCK_SIZE) {
+        if (t_offset < cur_inode->num_direct * BLOCK_SIZE) {
             break;
         }
-        t_offset -= cur_inode.num_direct * BLOCK_SIZE;
-        if (t_offset == 0 && cur_inode.next_indirect == 0) {
+        t_offset -= cur_inode->num_direct * BLOCK_SIZE;
+        if (t_offset == 0 && cur_inode->next_indirect == 0) {
             is_end = true;
             break;
         }
-        get_inode_from_inum(&cur_inode, cur_inode.next_indirect);
+        get_inode_from_inum(cur_inode, cur_inode->next_indirect);
     }
 
     // Locate the first block.
@@ -81,19 +81,19 @@ int write_in_file(const char* path, const char* buf, size_t size,
     int cur_buf_pos = 0;
     int copy_size = BLOCK_SIZE;
     char loader[BLOCK_SIZE + 10];
-    inode head_inode;
+    inode* head_inode;
     if (is_end == false) {
         int cur_file_blksize = ((int) (len+BLOCK_SIZE-1) / BLOCK_SIZE) * BLOCK_SIZE;
         while (cur_buf_pos < size && cur_buf_pos + offset < cur_file_blksize) {
-            get_block(loader, cur_inode.direct[cur_block_ind]);
+            get_block(loader, cur_inode->direct[cur_block_ind]);
 
             // Copy a block: copy_size = min(BLOCK_SIZE-cur_block_offset, size-cur_buf_pos).
             copy_size = BLOCK_SIZE - cur_block_offset;
             if (size - cur_buf_pos < copy_size)
                 copy_size = size - cur_buf_pos;
             memcpy(loader + cur_block_offset, buf + cur_buf_pos, copy_size);
-            file_modify(&cur_inode, cur_block_ind, loader);
-            get_block(loader, cur_inode.direct[cur_block_ind]);
+            file_modify(cur_inode, cur_block_ind, loader);
+            get_block(loader, cur_inode->direct[cur_block_ind]);
 
             // Update buffer pointer and block pointer.
             cur_buf_pos += copy_size;
@@ -101,13 +101,13 @@ int write_in_file(const char* path, const char* buf, size_t size,
             if (cur_buf_pos == size)
                 break;
             if (cur_block_offset == BLOCK_SIZE && cur_buf_pos + offset != cur_file_blksize) {
-                if (cur_block_ind + 1 == cur_inode.num_direct) {  // Reach the end of an inode.
-                    if (cur_inode.num_direct != NUM_INODE_DIRECT) {
+                if (cur_block_ind + 1 == cur_inode->num_direct) {  // Reach the end of an inode.
+                    if (cur_inode->num_direct != NUM_INODE_DIRECT) {
                         logger(ERROR, "[FATAL ERROR] Corrupt file system: inode leak.\n");
                         exit(-1);
                     }
-                    new_inode_block(&cur_inode);
-                    get_inode_from_inum(&cur_inode, cur_inode.next_indirect);
+                    new_inode_block(cur_inode);
+                    get_inode_from_inum(cur_inode, cur_inode->next_indirect);
                     cur_block_ind = cur_block_offset = 0;
                 } else {
                     cur_block_ind += 1;
@@ -119,37 +119,37 @@ int write_in_file(const char* path, const char* buf, size_t size,
         // Finish because reaching the end of writing: update timestamps.
         if (cur_buf_pos == size) {
             if (cur_buf_pos + offset > len) {
-                if (cur_inode.i_number == inode_num) {
-                    cur_inode.fsize_byte = cur_buf_pos + offset;
-                    cur_inode.fsize_block = (cur_buf_pos + offset + BLOCK_SIZE - 1) / BLOCK_SIZE;
+                if (cur_inode->i_number == inode_num) {
+                    cur_inode->fsize_byte = cur_buf_pos + offset;
+                    cur_inode->fsize_block = (cur_buf_pos + offset + BLOCK_SIZE - 1) / BLOCK_SIZE;
                     update_atime(cur_inode, cur_time);
-                    cur_inode.mtime = cur_time;
-                    new_inode_block(&cur_inode);
+                    cur_inode->mtime = cur_time;
+                    new_inode_block(cur_inode);
                 } else {
-                    new_inode_block(&cur_inode);
-                    get_inode_from_inum(&head_inode, inode_num);
-                    head_inode.fsize_byte = cur_buf_pos + offset;
-                    head_inode.fsize_block = (cur_buf_pos + offset + BLOCK_SIZE - 1) / BLOCK_SIZE;
+                    new_inode_block(cur_inode);
+                    get_inode_from_inum(head_inode, inode_num);
+                    head_inode->fsize_byte = cur_buf_pos + offset;
+                    head_inode->fsize_block = (cur_buf_pos + offset + BLOCK_SIZE - 1) / BLOCK_SIZE;
                     update_atime(head_inode, cur_time);
-                    head_inode.mtime = cur_time;
-                    new_inode_block(&head_inode);
+                    head_inode->mtime = cur_time;
+                    new_inode_block(head_inode);
                 }
             } else {
-                if (cur_inode.i_number == inode_num) {
+                if (cur_inode->i_number == inode_num) {
                     update_atime(cur_inode, cur_time);
-                    cur_inode.mtime = cur_time;
-                    new_inode_block(&cur_inode);
+                    cur_inode->mtime = cur_time;
+                    new_inode_block(cur_inode);
                 } else {
-                    new_inode_block(&cur_inode);
-                    get_inode_from_inum(&head_inode, inode_num);
+                    new_inode_block(cur_inode);
+                    get_inode_from_inum(head_inode, inode_num);
                     update_atime(head_inode, cur_time);
-                    head_inode.mtime = cur_time;
-                    new_inode_block(&head_inode);
+                    head_inode->mtime = cur_time;
+                    new_inode_block(head_inode);
                 }
             }
             return size;
         }
-        new_inode_block(&cur_inode);
+        new_inode_block(cur_inode);
     }
     
     // Start creating non-existing blocks.
@@ -162,20 +162,20 @@ int write_in_file(const char* path, const char* buf, size_t size,
         
         memset(loader, 0, sizeof(loader));
         memcpy(loader, buf + cur_buf_pos, copy_size);
-        file_add_data(&cur_inode, loader);
+        file_add_data(cur_inode, loader);
 
         cur_buf_pos += copy_size;
         len += copy_size;
     }
 
     // Update timestamps.
-    new_inode_block(&cur_inode);
-    get_inode_from_inum(&head_inode, inode_num);
-    head_inode.fsize_byte = len;
-    head_inode.fsize_block = (len + BLOCK_SIZE - 1) / BLOCK_SIZE;
+    new_inode_block(cur_inode);
+    get_inode_from_inum(head_inode, inode_num);
+    head_inode->fsize_byte = len;
+    head_inode->fsize_block = (len + BLOCK_SIZE - 1) / BLOCK_SIZE;
     update_atime(head_inode, cur_time);
-    head_inode.mtime = cur_time;
-    new_inode_block(&head_inode);
+    head_inode->mtime = cur_time;
+    new_inode_block(head_inode);
 
     return cur_buf_pos;
 }
@@ -199,17 +199,17 @@ std::lock_guard <std::mutex> guard(global_lock);
     // Retrieve open flags, the inode and current user info.
     int flags = fi -> flags;
     struct fuse_context* user_info = fuse_get_context();
-    inode cur_inode;
-    get_inode_from_inum(&cur_inode, inode_num);
+    inode* cur_inode;
+    get_inode_from_inum(cur_inode, inode_num);
 
     // Verify file permissions.
     int open_perm = flags & O_ACCMODE;
-    if (((open_perm == O_RDONLY) || (open_perm == O_RDWR)) && (!verify_permission(PERM_READ, &cur_inode, user_info, ENABLE_PERMISSION))) {
+    if (((open_perm == O_RDONLY) || (open_perm == O_RDWR)) && (!verify_permission(PERM_READ, cur_inode, user_info, ENABLE_PERMISSION))) {
         if (ERROR_PERM)
             logger(ERROR, "[ERROR] Permission denied: not allowed to read.\n");
         return -EACCES;
     }
-    if (((open_perm == O_WRONLY) || (open_perm == O_RDWR)) && (!verify_permission(PERM_WRITE, &cur_inode, user_info, ENABLE_PERMISSION))) {
+    if (((open_perm == O_WRONLY) || (open_perm == O_RDWR)) && (!verify_permission(PERM_WRITE, cur_inode, user_info, ENABLE_PERMISSION))) {
         if (ERROR_PERM)
             logger(ERROR, "[ERROR] Permission denied: not allowed to write.\n");
         return -EACCES;
@@ -227,9 +227,9 @@ std::lock_guard <std::mutex> guard(global_lock);
         }
 
         truncate_inode(cur_inode, -1);
-        cur_inode.fsize_block = cur_inode.fsize_byte = 0;
-        cur_inode.ctime = cur_time;
-        new_inode_block(&cur_inode);
+        cur_inode->fsize_block = cur_inode->fsize_byte = 0;
+        cur_inode->ctime = cur_time;
+        new_inode_block(cur_inode);
     }
 
     return 0;
@@ -268,17 +268,17 @@ std::lock_guard <std::mutex> guard(global_lock);
     }
     int inode_num = fi->fh;
     
-    inode cur_inode;
-    get_inode_from_inum(&cur_inode, inode_num);
-    if (!verify_permission(PERM_READ, &cur_inode,user_info ,ENABLE_PERMISSION)) {
+    inode* cur_inode;
+    get_inode_from_inum(cur_inode, inode_num);
+    if (!verify_permission(PERM_READ, cur_inode, user_info, ENABLE_PERMISSION)) {
         if (ERROR_PERM)
             logger(ERROR, "[ERROR] Permission denied: not allowed to read.\n");
         return 0;
     }
     
-    len = cur_inode.fsize_byte;
+    len = cur_inode->fsize_byte;
     int t_offset = offset;
-    if (cur_inode.mode != MODE_FILE) {
+    if (cur_inode->mode != MODE_FILE) {
         if (ERROR_FILE)
             logger(ERROR, "[ERROR] %s is not a file.\n", path);
         return 0;
@@ -294,11 +294,11 @@ std::lock_guard <std::mutex> guard(global_lock);
 
     // Locate the start inode.
     while (t_offset > 0) {
-        if (t_offset < cur_inode.num_direct * BLOCK_SIZE) {
+        if (t_offset < cur_inode->num_direct * BLOCK_SIZE) {
             break;
         }
-        t_offset -= cur_inode.num_direct * BLOCK_SIZE;
-        get_inode_from_inum(&cur_inode, cur_inode.next_indirect);
+        t_offset -= cur_inode->num_direct * BLOCK_SIZE;
+        get_inode_from_inum(cur_inode, cur_inode->next_indirect);
     }
     
     // Locate the start block.
@@ -311,7 +311,7 @@ std::lock_guard <std::mutex> guard(global_lock);
     int copy_size = BLOCK_SIZE;
     char loader[BLOCK_SIZE + 10];
     while (cur_buf_pos < size) {
-        get_block(loader, cur_inode.direct[cur_block_ind]);
+        get_block(loader, cur_inode->direct[cur_block_ind]);
 
         // Copy a block: copy_size = min(BLOCK_SIZE-cur_block_offset, size-cur_buf_pos).
         copy_size = BLOCK_SIZE - cur_block_offset;
@@ -325,8 +325,8 @@ std::lock_guard <std::mutex> guard(global_lock);
         if (cur_buf_pos == size)
             break;
         if (cur_block_offset == BLOCK_SIZE) {
-            if (cur_block_ind + 1 == cur_inode.num_direct) {
-                get_inode_from_inum(&cur_inode, cur_inode.next_indirect);
+            if (cur_block_ind + 1 == cur_inode->num_direct) {
+                get_inode_from_inum(cur_inode, cur_inode->next_indirect);
                 cur_block_ind = cur_block_offset = 0;
             } else {
                 cur_block_ind += 1;
@@ -345,7 +345,7 @@ std::lock_guard <std::mutex> guard(global_lock);
         clock_gettime(CLOCK_REALTIME, &cur_time);
 
         update_atime(cur_inode, cur_time);
-        new_inode_block(&cur_inode);
+        new_inode_block(cur_inode);
     }
 
     return size;
@@ -380,17 +380,17 @@ std::lock_guard <std::mutex> guard(global_lock);
     }
     int inode_num = fi->fh;
 
-    inode cur_inode;
+    inode* cur_inode;
     int perm_flag = 0;
-    get_inode_from_inum(&cur_inode, inode_num);
-    if (!verify_permission(PERM_WRITE, &cur_inode, user_info, ENABLE_PERMISSION)) {
+    get_inode_from_inum(cur_inode, inode_num);
+    if (!verify_permission(PERM_WRITE, cur_inode, user_info, ENABLE_PERMISSION)) {
         if (ERROR_PERM)
             logger(ERROR, "[ERROR] Permission denied: not allowed to write.\n");
         return 0;
     }
 
     // If offset exceeds current length, pad 0 in the gap.
-    len = cur_inode.fsize_byte;
+    len = cur_inode->fsize_byte;
     if (offset > len) {
         char padding_buf[offset - len + 1];
         memset(padding_buf, 0, sizeof(padding_buf));
@@ -441,16 +441,16 @@ std::lock_guard <std::mutex> guard(global_lock);
         return locate_err;
     }
 
-    inode head_inode;
-    get_inode_from_inum(&head_inode, par_inum);
-    if (!verify_permission(PERM_WRITE, &head_inode, user_info, ENABLE_PERMISSION)) {
+    inode* head_inode;
+    get_inode_from_inum(head_inode, par_inum);
+    if (!verify_permission(PERM_WRITE, head_inode, user_info, ENABLE_PERMISSION)) {
         if (ERROR_PERM)
             logger(ERROR, "[ERROR] Permission denied: not allowed to read.\n");
         free(parent_dir); free(dirname);
         return -EACCES;
     }
 
-    if (head_inode.mode != MODE_DIR) {
+    if (head_inode->mode != MODE_DIR) {
         if (ERROR_FILE)
             logger(ERROR, "[ERROR] %s is not a directory.\n", parent_dir);
         free(parent_dir); free(dirname);
@@ -460,22 +460,22 @@ std::lock_guard <std::mutex> guard(global_lock);
     int tmp_inum;
     locate_err = locate(path, tmp_inum);
     if (locate_err == 0) {
-        inode tmp_inode;
-        get_inode_from_inum(&tmp_inode, tmp_inum);
-        if ((tmp_inode.mode == MODE_FILE) && ERROR_FILE)
+        inode* tmp_inode;
+        get_inode_from_inum(tmp_inode, tmp_inum);
+        if ((tmp_inode->mode == MODE_FILE) && ERROR_FILE)
             logger(ERROR, "[ERROR] Duplicated name: there is a file with the same name.\n");
-        if ((tmp_inode.mode == MODE_DIR) && ERROR_FILE)
+        if ((tmp_inode->mode == MODE_DIR) && ERROR_FILE)
             logger(ERROR, "[ERROR] Duplicated name: directory already exists.\n");
         free(parent_dir); free(dirname);
         return -EEXIST;
     }
     
-    inode file_inode;
-    file_initialize(&file_inode, MODE_FILE, mode);
-    fi->fh = file_inode.i_number;
+    inode* file_inode;
+    file_initialize(file_inode, MODE_FILE, mode);
+    fi->fh = file_inode->i_number;
     
-    int flag = append_parent_dir_entry(head_inode, dirname, file_inode.i_number);
-    new_inode_block(&file_inode);
+    int flag = append_parent_dir_entry(head_inode, dirname, file_inode->i_number);
+    new_inode_block(file_inode);
     free(parent_dir); free(dirname);
     return flag;
 }
@@ -549,24 +549,24 @@ std::lock_guard <std::mutex> guard(global_lock);
             return -EEXIST;
         }
 
-        inode from_inode;
-        get_inode_from_inum(&from_inode, from_inum);
+        inode* from_inode;
+        get_inode_from_inum(from_inode, from_inum);
 
-        inode from_par_inode;
-        get_inode_from_inum(&from_par_inode, from_par_inum);
-        if (!verify_permission(PERM_WRITE | PERM_READ, &from_par_inode, user_info, ENABLE_PERMISSION)) {
+        inode* from_par_inode;
+        get_inode_from_inum(from_par_inode, from_par_inum);
+        if (!verify_permission(PERM_WRITE | PERM_READ, from_par_inode, user_info, ENABLE_PERMISSION)) {
             if (ERROR_PERM)
                 logger(ERROR, "[ERROR] Permission denied: not allowed to write source dir inode.\n");
             free(from_parent_dir); free(to_parent_dir); free(from_name); free(to_name);
             return -EACCES;
         }
 
-        inode to_inode;
-        get_inode_from_inum(&to_inode, to_inum);
+        inode* to_inode;
+        get_inode_from_inum(to_inode, to_inum);
 
-        inode to_par_inode;
-        get_inode_from_inum(&to_par_inode, to_par_inum);
-        if (!verify_permission(PERM_WRITE | PERM_READ, &to_par_inode, user_info, ENABLE_PERMISSION)) {
+        inode* to_par_inode;
+        get_inode_from_inum(to_par_inode, to_par_inum);
+        if (!verify_permission(PERM_WRITE | PERM_READ, to_par_inode, user_info, ENABLE_PERMISSION)) {
             if (ERROR_PERM)
                 logger(ERROR, "[ERROR] Permission denied: not allowed to write dest dir inode.\n");
             free(from_parent_dir); free(to_parent_dir); free(from_name); free(to_name);
@@ -574,12 +574,12 @@ std::lock_guard <std::mutex> guard(global_lock);
         }
         
         // Update timestamps.
-        to_par_inode.mtime = cur_time;
-        from_par_inode.mtime = cur_time;
-        to_par_inode.ctime = cur_time;
-        from_par_inode.ctime = cur_time;
-        new_inode_block(&to_par_inode);
-        new_inode_block(&from_par_inode);
+        to_par_inode->mtime = cur_time;
+        from_par_inode->mtime = cur_time;
+        to_par_inode->ctime = cur_time;
+        from_par_inode->ctime = cur_time;
+        new_inode_block(to_par_inode);
+        new_inode_block(from_par_inode);
         
         // Remove destination directory entry.
         remove_parent_dir_entry(to_par_inode, to_inum, to_name);
@@ -590,14 +590,14 @@ std::lock_guard <std::mutex> guard(global_lock);
             remove_parent_dir_entry(from_par_inode, from_inum, from_name);
 
             // Update timestamps.
-            to_inode.ctime = cur_time;
-            new_inode_block(&to_inode);
+            to_inode->ctime = cur_time;
+            new_inode_block(to_inode);
 
-            inode head_inode;
-            get_inode_from_inum(&head_inode, to_par_inum);
+            inode* head_inode;
+            get_inode_from_inum(head_inode, to_par_inum);
             append_parent_dir_entry(head_inode, from_name, from_inum);
 
-            get_inode_from_inum(&head_inode, from_par_inum);
+            get_inode_from_inum(head_inode, from_par_inum);
             int flag = append_parent_dir_entry(head_inode, to_name, to_inum);
             free(from_parent_dir); free(to_parent_dir); free(from_name); free(to_name);
             return flag;
@@ -606,11 +606,11 @@ std::lock_guard <std::mutex> guard(global_lock);
     
     // Conflict case 2: overwrite destination file.
     // Base case: destination file does not exist.
-    inode from_inode;
-    get_inode_from_inum(&from_inode, from_inum);
-    inode from_par_inode;
-    get_inode_from_inum(&from_par_inode, from_par_inum);
-    if (!verify_permission(PERM_WRITE | PERM_READ, &from_par_inode, user_info, ENABLE_PERMISSION)) {
+    inode* from_inode;
+    get_inode_from_inum(from_inode, from_inum);
+    inode* from_par_inode;
+    get_inode_from_inum(from_par_inode, from_par_inum);
+    if (!verify_permission(PERM_WRITE | PERM_READ, from_par_inode, user_info, ENABLE_PERMISSION)) {
         if (ERROR_PERM)
             logger(ERROR, "[ERROR] Permission denied: not allowed to write source dir inode.\n");
         free(from_parent_dir); free(to_parent_dir); free(from_name); free(to_name);
@@ -618,17 +618,17 @@ std::lock_guard <std::mutex> guard(global_lock);
     }
     
     // Update timestamps.
-    from_par_inode.mtime = cur_time;
-    from_inode.ctime = cur_time;
-    new_inode_block(&from_par_inode);
-    new_inode_block(&from_inode);
+    from_par_inode->mtime = cur_time;
+    from_inode->ctime = cur_time;
+    new_inode_block(from_par_inode);
+    new_inode_block(from_inode);
 
     // Remove source directory entry.
     remove_parent_dir_entry(from_par_inode, from_inum, from_name);
 
-    inode head_inode;
-    get_inode_from_inum(&head_inode, to_par_inum);
-    if (!verify_permission(PERM_WRITE | PERM_READ, &head_inode, user_info, ENABLE_PERMISSION)) {
+    inode* head_inode;
+    get_inode_from_inum(head_inode, to_par_inum);
+    if (!verify_permission(PERM_WRITE | PERM_READ, head_inode, user_info, ENABLE_PERMISSION)) {
         if (ERROR_PERM)
             logger(ERROR, "[ERROR] Permission denied: not allowed to dest dir inode.\n");
         free(from_parent_dir); free(to_parent_dir); free(from_name); free(to_name);
@@ -671,9 +671,9 @@ std::lock_guard <std::mutex> guard(global_lock);
         return locate_err;
     }
 
-    inode head_inode;
-    get_inode_from_inum(&head_inode, par_inum);
-    if (!verify_permission(PERM_WRITE | PERM_READ, &head_inode, user_info, ENABLE_PERMISSION)) {
+    inode* head_inode;
+    get_inode_from_inum(head_inode, par_inum);
+    if (!verify_permission(PERM_WRITE | PERM_READ, head_inode, user_info, ENABLE_PERMISSION)) {
         if (ERROR_PERM)
             logger(ERROR, "[ERROR] Permission denied: not allowed to access parent directory.\n");
         free(parent_dir); free(file_name);
@@ -727,7 +727,7 @@ std::lock_guard <std::mutex> guard(global_lock);
 
     int src_par_inum, dest_par_inum;
     int src_inum, dest_inum;
-    inode src_inode;
+    inode* src_inode;
 
     int locate_err = locate(src, src_inum);
     if (locate_err != 0) {
@@ -736,8 +736,8 @@ std::lock_guard <std::mutex> guard(global_lock);
         free(src_parent_dir); free(dest_parent_dir); free(src_name); free(dest_name);
         return locate_err;
     }
-    get_inode_from_inum(&src_inode, src_inum);
-    if (src_inode.mode != MODE_FILE) {
+    get_inode_from_inum(src_inode, src_inum);
+    if (src_inode->mode != MODE_FILE) {
         if (ERROR_FILE)
             logger(ERROR, "[ERROR] %s is not a file.\n", src_name);
         free(src_parent_dir); free(dest_parent_dir); free(src_name); free(dest_name);
@@ -759,9 +759,9 @@ std::lock_guard <std::mutex> guard(global_lock);
         return -EEXIST;
     }
 
-    inode dest_par_inode;
-    get_inode_from_inum(&dest_par_inode, dest_par_inum);
-    if (!verify_permission(PERM_WRITE | PERM_READ, &dest_par_inode, user_info, ENABLE_PERMISSION)) {
+    inode* dest_par_inode;
+    get_inode_from_inum(dest_par_inode, dest_par_inum);
+    if (!verify_permission(PERM_WRITE | PERM_READ, dest_par_inode, user_info, ENABLE_PERMISSION)) {
         if (ERROR_PERM)
             logger(ERROR, "[ERROR] Permission denied: not allowed to write dest directory.\n");
         free(src_parent_dir); free(dest_parent_dir); free(src_name); free(dest_name);
@@ -769,9 +769,9 @@ std::lock_guard <std::mutex> guard(global_lock);
     }
     int flag = append_parent_dir_entry(dest_par_inode, dest_name, src_inum);
 
-    src_inode.num_links += 1;
-    src_inode.ctime = cur_time;
-    new_inode_block(&src_inode);
+    src_inode->num_links += 1;
+    src_inode->ctime = cur_time;
+    new_inode_block(src_inode);
     free(src_parent_dir); free(dest_parent_dir); free(src_name); free(dest_name);
     return flag;
 }
@@ -807,40 +807,40 @@ std::lock_guard <std::mutex> guard(global_lock);
     }
     int inode_num = fi->fh;
 
-    inode cur_inode;
-    get_inode_from_inum(&cur_inode, inode_num);
-    if (!verify_permission(PERM_WRITE, &cur_inode, user_info, ENABLE_PERMISSION)) {
+    inode* cur_inode;
+    get_inode_from_inum(cur_inode, inode_num);
+    if (!verify_permission(PERM_WRITE, cur_inode, user_info, ENABLE_PERMISSION)) {
         if (ERROR_PERM)
             logger(ERROR, "[ERROR] Permission denied: not allowed to write.\n");
         return -EACCES;
     }
-    if (cur_inode.mode == MODE_DIR) {
+    if (cur_inode->mode == MODE_DIR) {
         if (ERROR_FILE)
             logger(ERROR, "[ERROR] %s is not a file.\n", path);
         return -EISDIR;
     }
     
-    int len = cur_inode.fsize_byte;
+    int len = cur_inode->fsize_byte;
     if (size >= len)    // Do not need to truncate.
         return 0;
     
-    cur_inode.fsize_byte = size;
-    cur_inode.fsize_block = (size + BLOCK_SIZE - 1) / BLOCK_SIZE;
+    cur_inode->fsize_byte = size;
+    cur_inode->fsize_block = (size + BLOCK_SIZE - 1) / BLOCK_SIZE;
     update_atime(cur_inode, cur_time);
-    cur_inode.mtime = cur_time;
-    new_inode_block(&cur_inode);
+    cur_inode->mtime = cur_time;
+    new_inode_block(cur_inode);
     off_t t_offset = size;
     while (t_offset > 0) {
-        if (t_offset < cur_inode.num_direct * BLOCK_SIZE) {
+        if (t_offset < cur_inode->num_direct * BLOCK_SIZE) {
             break;
         }
-        t_offset -= cur_inode.num_direct * BLOCK_SIZE;
-        get_inode_from_inum(&cur_inode, cur_inode.next_indirect);
+        t_offset -= cur_inode->num_direct * BLOCK_SIZE;
+        get_inode_from_inum(cur_inode, cur_inode->next_indirect);
     }
     int cur_block_offset = t_offset, cur_block_ind;
     cur_block_ind = t_offset / BLOCK_SIZE;
     cur_block_offset -= cur_block_ind * BLOCK_SIZE;
     truncate_inode(cur_inode, cur_block_ind);
-    new_inode_block(&cur_inode);
+    new_inode_block(cur_inode);
     return 0;
 }

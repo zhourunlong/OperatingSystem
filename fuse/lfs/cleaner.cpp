@@ -91,6 +91,7 @@ void gc_move_to_segment() {
             gc_cur_block = 0;
             gc_next_imap_index = 0;
         }
+        printf("Writing to segment %d.\n", next_segment);
     } else {    // Segment buffer is not full yet.
         gc_cur_block++;
     }
@@ -117,7 +118,7 @@ int gc_new_inode_block(struct inode* data) {
     int buffer_offset = gc_cur_block * BLOCK_SIZE;
     int block_addr = gc_cur_segment * BLOCKS_IN_SEGMENT + gc_cur_block;
 
-    if (DEBUG_BLOCKIO)
+    if (DEBUG_GARBAGE_COL)
         logger(DEBUG, "Add inode block at (segment %d, block %d). Write to imap: #%d.\n", gc_cur_segment, gc_cur_block, gc_next_imap_index);
 
     
@@ -138,7 +139,7 @@ struct util_entry {
     int count;
 };
 bool _util_compare(struct util_entry &a, struct util_entry &b) {
-    return a.count < b.count;
+    return (a.count < b.count) || ((a.count == b.count) && (a.segment_number < b.segment_number));
 }
 
 /* A struct to record timestamps of each segment. */
@@ -180,14 +181,13 @@ void collect_garbage(bool clean_thoroughly) {
     gc_next_imap_index = 0;
 
     segment_summary seg_sum;
-    struct inode cur_inode;
+    struct inode* cur_inode;
 
     /* Calculate segment utilization. */
     util_entry utilization[TOT_SEGMENTS];
     memset(utilization, 0, sizeof(utilization));
     if (!clean_thoroughly) {
         for (int i=0; i<TOT_SEGMENTS; i++) {
-            printf("!%d\n", i);
             utilization[i].segment_number = i;
             memcpy(&seg_sum, &cached_segsum[i], sizeof(seg_sum));
             for (int j=0; j<DATA_BLOCKS_IN_SEGMENT; j++) {
@@ -196,13 +196,12 @@ void collect_garbage(bool clean_thoroughly) {
                 int block_addr = i*BLOCKS_IN_SEGMENT + j;
 
                 if (i_number == 0) continue;
-                printf("seg_sum[%d] = %d.\n", j, i_number);
                 if (dir_index == -1) {
                     if (inode_table[i_number] == block_addr)
                         utilization[i].count++;
                 } else {
-                    get_inode_from_inum(&cur_inode, i_number);
-                    if (cur_inode.direct[dir_index] == block_addr)
+                    get_inode_from_inum(cur_inode, i_number);
+                    if (cur_inode->direct[dir_index] == block_addr)
                         utilization[i].count++;
                 }
             }
@@ -210,12 +209,14 @@ void collect_garbage(bool clean_thoroughly) {
 
         std::sort(utilization, utilization+TOT_SEGMENTS, _util_compare);
 
+        printf("Utilization: ");
         for (int i=0; i<TOT_SEGMENTS; i++) {
-            printf("%d ", utilization[i]);
+            printf("%d(%d) ", utilization[i].segment_number, utilization[i].count);
         }
         printf("\n");
     }
 
+    generate_checkpoint();
     /* Select next free segment to store blocks that are still alive.
      * Here we directly access the inode array, and record all modified inodes. */
     std::set<int> modified_inum;
@@ -237,15 +238,16 @@ void collect_garbage(bool clean_thoroughly) {
         for (int i=i_st; i<i_ed; i++) {
             int seg = utilization[i].segment_number;
             memcpy(&seg_sum, &cached_segsum[i], sizeof(seg_sum));
-            gc_compact_data_blocks(seg_sum, seg, modified_inum);
             segment_bitmap[i] = 0;
+            printf("Cleaning segment %d.\n", i);
+            gc_compact_data_blocks(seg_sum, seg, modified_inum);
         }
 
         // Step 2: write back cached inodes after updating all data blocks.
         std::set<int>::iterator iter = modified_inum.begin();
         while (iter != modified_inum.end()) {
-            cur_inode = cached_inode_array[*iter];
-            inode_table[cur_inode.i_number] = gc_new_inode_block(&cur_inode);
+            cur_inode = &cached_inode_array[*iter];
+            inode_table[cur_inode->i_number] = gc_new_inode_block(cur_inode);
             iter++;
         }
 
@@ -277,15 +279,15 @@ void collect_garbage(bool clean_thoroughly) {
         for (int i=0; i<TOT_SEGMENTS; i++) {
             int seg = utilization[i].segment_number;
             memcpy(&seg_sum, &cached_segsum[i], sizeof(seg_sum));
-            gc_compact_data_blocks(seg_sum, seg, modified_inum);
             segment_bitmap[i] = 0;
+            gc_compact_data_blocks(seg_sum, seg, modified_inum);
         }
 
         // Step 2: write back cached inodes after updating all data blocks.
         std::set<int>::iterator iter = modified_inum.begin();
         while (iter != modified_inum.end()) {
-            cur_inode = cached_inode_array[*iter];
-            inode_table[cur_inode.i_number] = gc_new_inode_block(&cur_inode);
+            cur_inode = &cached_inode_array[*iter];
+            inode_table[cur_inode->i_number] = gc_new_inode_block(cur_inode);
             iter++;
         }
 

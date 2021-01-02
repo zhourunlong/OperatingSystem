@@ -161,17 +161,17 @@ int locate(const char* _path, int &i_number) {
     struct fuse_context* user_info = fuse_get_context();
 
     // Traverse split path from LFS root directory.
-    struct inode block_inode;
+    struct inode* block_inode;
     directory block_dir;
     bool flag;
     std::string target;
 
     int cur_inumber = ROOT_DIR_INUMBER;
     for (int d=0; d<split_path.size(); d++) {
-        get_inode_from_inum(&block_inode, cur_inumber);
+        get_inode_from_inum(block_inode, cur_inumber);
         if (FUNC_ATIME_DIR) {
             update_atime(block_inode, cur_time);  // Update atime according to FUNC_ATIME_ flags.
-            new_inode_block(&block_inode);
+            new_inode_block(block_inode);
         }
         
         target = split_path[d];
@@ -181,7 +181,7 @@ int locate(const char* _path, int &i_number) {
         }
 
         // Target is not a directory.
-        if (block_inode.mode != MODE_DIR) {
+        if (block_inode->mode != MODE_DIR) {
             if (DEBUG_LOCATE_REPORT) {
                 logger(DEBUG, "-x Failed to read the inode: %s is not a directory. Procedure aborted.\n", target.c_str());
                 logger(DEBUG, "============================ PRINT LOCATE() REPORT ====================\n\n");
@@ -191,7 +191,7 @@ int locate(const char* _path, int &i_number) {
             return -ENOTDIR;
         }
         // Do not have permission to access target.
-        if (!verify_permission(PERM_READ, &block_inode, user_info, ENABLE_PERMISSION)) {
+        if (!verify_permission(PERM_READ, block_inode, user_info, ENABLE_PERMISSION)) {
             if (DEBUG_LOCATE_REPORT) {
                 logger(DEBUG, "-x Failed to read the inode: permission denied. Procedure aborted.\n", target.c_str());
                 logger(DEBUG, "============================ PRINT LOCATE() REPORT ====================\n\n");
@@ -204,17 +204,17 @@ int locate(const char* _path, int &i_number) {
         flag = false;
         while (!flag) {
             for (int i=0; i<NUM_INODE_DIRECT; i++) {
-                if (block_inode.direct[i] <= -1)
+                if (block_inode->direct[i] <= -1)
                     continue;
-                if (block_inode.direct[i] > FILE_SIZE) {
-                    if (block_inode.num_direct > i) {
-                        logger(ERROR, "[FATAL ERROR] Corrupt file system on disk: invalid direct[%d] of inode #%d.\n", i, block_inode.i_number);
+                if (block_inode->direct[i] > FILE_SIZE) {
+                    if (block_inode->num_direct > i) {
+                        logger(ERROR, "[FATAL ERROR] Corrupt file system on disk: invalid direct[%d] of inode #%d.\n", i, block_inode->i_number);
                         exit(-1);
                     }
-                    if (ERROR_PATH) logger(ERROR, "[ERROR] Inode not correctly initialized: invalid direct[%d] of inode #%d.\n", i, block_inode.i_number);
+                    if (ERROR_PATH) logger(ERROR, "[ERROR] Inode not correctly initialized: invalid direct[%d] of inode #%d.\n", i, block_inode->i_number);
                     continue;
                 }
-                get_block(block_dir, block_inode.direct[i]);
+                get_block(block_dir, block_inode->direct[i]);
 
                 for (int j=0; j<MAX_DIR_ENTRIES; j++) {
                     if (block_dir[j].i_number <= 0)
@@ -233,11 +233,11 @@ int locate(const char* _path, int &i_number) {
             }
             if (flag) break;
 
-            if (block_inode.next_indirect == 0) break;
+            if (block_inode->next_indirect == 0) break;
 
-            get_inode_from_inum(&block_inode, block_inode.next_indirect);
+            get_inode_from_inum(block_inode, block_inode->next_indirect);
             if (DEBUG_LOCATE_REPORT)
-                logger(DEBUG, "-- Searching (non-head) inode #%d.\n", block_inode.next_indirect);
+                logger(DEBUG, "-- Searching (non-head) inode #%d.\n", block_inode->next_indirect);
         }
 
         if (DEBUG_LOCATE_REPORT)
@@ -263,7 +263,7 @@ int locate(const char* _path, int &i_number) {
             logger(DEBUG, "* Probabyly an error: file has been deleted, but entry in directory remains.\n");
 
         logger(DEBUG, "INODE INFORMATION:\n");
-        struct inode* node = (struct inode*) malloc(sizeof(struct inode));
+        struct inode* node;
         get_inode_from_inum(node, i_number);
         print(node);
         free(node);

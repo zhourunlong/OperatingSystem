@@ -39,8 +39,8 @@ void get_block(void* data, int block_addr) {
  * @param  i_number: i_number of block.
  * @return flag: 0 on success, standard negative error codes on error.
  * Note that the block may be in inode cache, segment buffer, or disk file. */
-void get_inode_from_inum(struct inode* inode_data, int i_number) {
-    memcpy(inode_data, cached_inode_array+i_number, sizeof(struct inode));
+void get_inode_from_inum(struct inode* &inode_data, int i_number) {
+    inode_data = cached_inode_array+i_number;
     if (i_number != inode_data->i_number) {
         printf("ERROR: i_number = %d, inode = %d.\n", i_number, inode_data->i_number);
         logger(ERROR, "[FATAL ERROR] Corrupt file system: inconsistent inode number in memory.\n");
@@ -256,9 +256,10 @@ void add_segbuf_metadata() {
  * @param  _mode: type of the file (1 = file, 2 = dir; -1 = non-head).
  * @param  _permission: using UGO x RWX format in base-8 (e.g., 0777). 
  * [CAUTION] It is required to use malloc to create cur_inode (see file_add_data() below). */
-void file_initialize(struct inode* cur_inode, int _mode, int _permission) {
+void file_initialize(struct inode* &cur_inode, int _mode, int _permission) {
     acquire_writer_lock();
         count_inode++;
+        cur_inode = cached_inode_array + count_inode;
         cur_inode->i_number = count_inode;
     release_writer_lock();
 
@@ -289,11 +290,11 @@ void file_initialize(struct inode* cur_inode, int _mode, int _permission) {
 /** Append to the new file by adding new data blocks (possibly storing full inodes in log).
  * @param  cur_inode: struct for the file inode.
  * @param  data: buffer for the file data block to be appended. */
-void file_add_data(struct inode* cur_inode, void* data) {
+void file_add_data(struct inode* &cur_inode, void* data) {
     // If the file is too large, another (pseudo) inode is necessary.
     if (cur_inode->num_direct == NUM_INODE_DIRECT) {
         // Create the next inode.
-        struct inode* next_inode = (struct inode*) malloc(sizeof(struct inode));
+        struct inode* next_inode;
         file_initialize(next_inode, MODE_MID_INODE, cur_inode->permission);
         
         // Update current inode and commit it.
@@ -306,11 +307,10 @@ void file_add_data(struct inode* cur_inode, void* data) {
         cur_inode->next_indirect = next_inode->i_number;
         new_inode_block(cur_inode);
 
-        // Release current inode by replacing the content with next inode.
-        *cur_inode = *next_inode;
-        free(next_inode);
+        // Release current inode by replacing the pointer.
+        cur_inode = next_inode;
     }
-
+    
     int block_addr = new_data_block(data, cur_inode->i_number, cur_inode->num_direct);
     cur_inode->direct[cur_inode->num_direct] = block_addr;
     cur_inode->fsize_block++;

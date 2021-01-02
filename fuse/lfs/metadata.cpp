@@ -34,12 +34,12 @@ std::lock_guard <std::mutex> guard(global_lock);
 
     // Since getattr() is very fundamental, we shall always allow attribute reading.
     // Otherwise, commands like chmod, chown, etc. do not work correctly.
-    struct inode f_inode;
-    get_inode_from_inum(&f_inode, i_number);
-    if (DEBUG_METADATA_INODE) print(&f_inode);
+    struct inode* f_inode;
+    get_inode_from_inum(f_inode, i_number);
+    if (DEBUG_METADATA_INODE) print(f_inode);
 
-    if (f_inode.i_number != i_number) {
-        print(&f_inode);
+    if (f_inode->i_number != i_number) {
+        print(f_inode);
         logger(ERROR, "[FATAL ERROR] Corrupt file system on disk: inode inconsistent with inumber.\n");
         exit(-1);
     }
@@ -53,15 +53,15 @@ std::lock_guard <std::mutex> guard(global_lock);
 
     // Basic information.
     sbuf->st_ino        = i_number;                /* File serial number. */
-    sbuf->st_nlink      = f_inode.num_links;     /* Link count. */
+    sbuf->st_nlink      = f_inode->num_links;     /* Link count. */
 
     // File mode (see stat.h).
-    switch (f_inode.mode) {
+    switch (f_inode->mode) {
         case (MODE_FILE):
-            sbuf->st_mode = S_IFREG | f_inode.permission;
+            sbuf->st_mode = S_IFREG | f_inode->permission;
             break;
         case (MODE_DIR):
-            sbuf->st_mode = S_IFDIR | f_inode.permission;
+            sbuf->st_mode = S_IFDIR | f_inode->permission;
             break;
         case (MODE_MID_INODE):
             logger(ERROR, "[ERROR] Unexpected access to non-head inode #%d.\n", i_number);
@@ -71,22 +71,22 @@ std::lock_guard <std::mutex> guard(global_lock);
             logger(ERROR, "[ERROR] Unknown file type in inode #%d.\n", i_number);
             flag = -EPERM;  // Unknown file type.
     }
-    sbuf->st_uid        = f_inode.perm_uid;        /* User ID of the file's owner. */
-    sbuf->st_gid        = f_inode.perm_gid;        /* Group ID of the file's group. */
+    sbuf->st_uid        = f_inode->perm_uid;        /* User ID of the file's owner. */
+    sbuf->st_gid        = f_inode->perm_gid;        /* Group ID of the file's group. */
 
     // File size.
-    sbuf->st_size       = f_inode.fsize_byte;     /* Size of file, in bytes. */
-    sbuf->st_blocks     = f_inode.fsize_block;  /* Number of blocks allocated. */
-    sbuf->st_blksize    = f_inode.io_block;    /* Optimal block size for I/O. */
+    sbuf->st_size       = f_inode->fsize_byte;     /* Size of file, in bytes. */
+    sbuf->st_blocks     = f_inode->fsize_block;  /* Number of blocks allocated. */
+    sbuf->st_blksize    = f_inode->io_block;    /* Optimal block size for I/O. */
 
     // Device information.
-    sbuf->st_dev        = f_inode.device;          /* Device. */
+    sbuf->st_dev        = f_inode->device;          /* Device. */
     sbuf->st_rdev       = 0;                      /* Device number, if file is a device. */
 
     // Time stamps
-    sbuf->st_atim       = f_inode.atime;          /* Time of last access. */
-    sbuf->st_mtim       = f_inode.mtime;          /* Time of last modification.  */
-    sbuf->st_ctim       = f_inode.ctime;          /* Time of last status change.  */
+    sbuf->st_atim       = f_inode->atime;          /* Time of last access. */
+    sbuf->st_mtim       = f_inode->mtime;          /* Time of last modification.  */
+    sbuf->st_ctim       = f_inode->ctime;          /* Time of last status change.  */
 
     return flag;
 }
@@ -110,26 +110,26 @@ std::lock_guard <std::mutex> guard(global_lock);
     }
     
     /* Mode 1~7 (in base-8): test file permissions; may be ORed toghether. */ 
-    struct inode f_inode;
-    get_inode_from_inum(&f_inode, i_number);
-    if (DEBUG_METADATA_INODE) print(&f_inode);
+    struct inode* f_inode;
+    get_inode_from_inum(f_inode, i_number);
+    if (DEBUG_METADATA_INODE) print(f_inode);
     
-    if (f_inode.i_number != i_number) {
-        print(&f_inode);
+    if (f_inode->i_number != i_number) {
+        print(f_inode);
         logger(ERROR, "[FATAL ERROR] Corrupt file system on disk: inode inconsistent with inumber.\n");
         exit(-1);
     }
     
     // Mode 4 (R_OK): test read permission.
-    if (!verify_permission(PERM_READ, &f_inode, user_info, (mode & R_OK) && ENABLE_ACCESS_PERM))
+    if (!verify_permission(PERM_READ, f_inode, user_info, (mode & R_OK) && ENABLE_ACCESS_PERM))
         return -EACCES;
     
     // Mode 2 (W_OK): test write permission.
-    if (!verify_permission(PERM_WRITE, &f_inode, user_info, (mode & W_OK) && ENABLE_ACCESS_PERM))
+    if (!verify_permission(PERM_WRITE, f_inode, user_info, (mode & W_OK) && ENABLE_ACCESS_PERM))
         return -EACCES;
     
     // Mode 1 (X_OK): test write permission.
-    if (!verify_permission(PERM_EXEC, &f_inode, user_info, (mode & X_OK) && ENABLE_ACCESS_PERM))
+    if (!verify_permission(PERM_EXEC, f_inode, user_info, (mode & X_OK) && ENABLE_ACCESS_PERM))
         return -EACCES;
 
 
