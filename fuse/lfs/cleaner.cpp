@@ -14,6 +14,8 @@
 #include <set>
 
 
+bool _clean_thoroughly;
+
 /** **************************************
  * Garbaged collection block-IO utilities.
  *    (names started with prefix "gc")
@@ -24,7 +26,6 @@ char gc_segment_buffer[SEGMENT_SIZE], gc_segment_bitmap[TOT_SEGMENTS];
 int gc_inode_table[MAX_NUM_INODE];
 inode gc_cached_inode_array[MAX_NUM_INODE]; 
 char gc_file_buffer[FILE_SIZE];
-
 
 
 /** Append a segment summary entry for a given block (in GC buffer). */
@@ -107,7 +108,7 @@ void gc_move_to_segment() {
         }
 
         if (DEBUG_GARBAGE_COL)
-            logger(DEBUG, "* Start dumping GC buffer to segment %d.\n", next_segment);
+            logger(DEBUG, "* Start dumping GC buffer to segment %d.\n", gc_next_segment);
     } else {    // Segment buffer is not full yet.
         gc_cur_block++;
     }
@@ -176,7 +177,7 @@ void gc_remove_inode(int i_number) {
         }
 
         if (DEBUG_GARBAGE_COL)
-            logger(DEBUG, "* Start dumping GC buffer to segment %d.\n", next_segment);
+            logger(DEBUG, "* Start dumping GC buffer to segment %d.\n", gc_next_segment);
     }
 }
 
@@ -254,8 +255,8 @@ void collect_garbage(bool clean_thoroughly) {
     gc_cur_segment     = 0;
     gc_cur_block       = 0;
     gc_next_imap_index = 0;
-    memcpy(inode_table, gc_inode_table, sizeof(inode_table));
-    memcpy(cached_inode_array, gc_cached_inode_array, sizeof(cached_inode_array));
+    memcpy(gc_inode_table, inode_table, sizeof(inode_table));
+    memcpy(gc_cached_inode_array, cached_inode_array, sizeof(cached_inode_array));
 
     segment_summary seg_sum;
     struct inode* cur_inode;

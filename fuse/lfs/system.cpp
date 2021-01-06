@@ -52,6 +52,9 @@ void* o_init(struct fuse_conn_info* conn, struct fuse_config* cfg) {
 
         load_from_disk_file();
         logger(DEBUG, "[INFO] Successfully loaded an existing file system.\n");
+
+        // Debug
+        print_inode_table();
     }
 
 	return NULL;
@@ -67,6 +70,9 @@ void o_destroy(void* private_data) {
     write_segment(segment_buffer, cur_segment);
     segment_bitmap[cur_segment] = 1;
     generate_checkpoint();
+
+    // Debug
+    print_inode_table();
 
     /* ========== Debug ==========
     print_inode_table();
@@ -140,7 +146,7 @@ void o_destroy(void* private_data) {
 }
 
 
-
+/** Initialize basic LFS structures into a disk file. */
 void initialize_disk_file() {
     // Create a file.
     int file_handle = open(lfs_path, O_RDWR | O_CREAT, 0777);
@@ -201,6 +207,7 @@ void initialize_disk_file() {
 }
 
 
+/** Load LFS structure data from an existing disk file. */
 void load_from_disk_file() {
     /* (A) Read the (newer) checkpoint. */
     checkpoints ckpt;

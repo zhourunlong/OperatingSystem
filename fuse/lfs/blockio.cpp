@@ -44,7 +44,7 @@ void get_inode_from_inum(struct inode* &inode_data, int i_number) {
     if (i_number != inode_data->i_number) {
         logger(ERROR, "[FATAL ERROR] Corrupt file system: inconsistent inode number in memory.\n");
         logger(ERROR, "* Should retrieve i_number %d, but get #%d from inode array.\n", i_number, inode_data->i_number);
-        print_inode_table();
+        getchar();
 
         struct inode err_inode;
         memset(&err_inode, 0, sizeof(err_inode));
