@@ -293,7 +293,7 @@ void load_from_file() {
     }
 
     // Do a sequential-write thorough garbage collection for better performance.
-    collect_garbage(true, true);
+    collect_garbage(true);
     int recount_full_segment = 0;
     for (int i=0; i<TOT_SEGMENTS; i++)
         recount_full_segment += segment_bitmap[i];

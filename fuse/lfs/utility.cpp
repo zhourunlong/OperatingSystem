@@ -153,6 +153,7 @@ int write_superblock(void* buf) {
  * ***************************************/
 /** Update atime according to FUNC_ATIME_ flags */
 void update_atime(struct inode* cur_inode, struct timespec &new_time) {
+    if (!FUNC_ATIME_FILE) return;
     if (FUNC_ATIME_REL) {
         if ((cur_inode->atime.tv_sec < cur_inode->mtime.tv_sec)
             || (cur_inode->atime.tv_sec < cur_inode->ctime.tv_sec)

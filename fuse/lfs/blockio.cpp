@@ -44,6 +44,12 @@ void get_inode_from_inum(struct inode* &inode_data, int i_number) {
     if (i_number != inode_data->i_number) {
         logger(ERROR, "[FATAL ERROR] Corrupt file system: inconsistent inode number in memory.\n");
         logger(ERROR, "* Should retrieve i_number %d, but get #%d from inode array.\n", i_number, inode_data->i_number);
+        print_inode_table();
+
+        struct inode err_inode;
+        memset(&err_inode, 0, sizeof(err_inode));
+        get_block(&err_inode, inode_table[i_number]);
+        print(&err_inode);
         exit(-1);
     }
 }
@@ -60,7 +66,7 @@ void get_next_free_segment() {
     if (count_full_segment == TOT_SEGMENTS) {
         logger(WARN, "\n\n[WARNING] The file system is completely full (100%% occpuied).\n");
         logger(WARN, "[WARNING] We will run thorough garbage collection now for more disk space.\n");
-        collect_garbage(true, false);
+        collect_garbage(true);
 
         /* Recount the number of full segments to determine whether it is full. */
         int recount_full_segment = 0;
@@ -75,20 +81,20 @@ void get_next_free_segment() {
     } else if (count_full_segment >= CLEAN_THORO_THRES) {
         logger(WARN, "\n\n[WARNING] The file system is almost full (exceeding the 96%% threshold).\n");
         logger(WARN, "[WARNING] We will run thorough garbage collection now for more disk space.\n");
-        collect_garbage(true, false);
+        collect_garbage(true);
         generate_checkpoint();
     } else if (count_full_segment >= CLEAN_THRESHOLD) {
         logger(WARN, "\n\n[WARNING] The file system is largely full (exceeding the 80%% threshold).\n");
         logger(WARN, "[WARNING] We will run normal garbage collection now for better performance.\n");
 
         try {
-            collect_garbage(false, false);
+            collect_garbage(false);
         } catch (int e) {
             if (e == -1) {
                 logger(WARN, "\n[WARNING] The file system is highly utilized, so that normal garbage collection fails.\n");
                 logger(WARN, "[WARNING] We will try to perform a thorough garbage collection instead.\n");
 
-                collect_garbage(true, false);
+                collect_garbage(true);
             }
         }
         generate_checkpoint();
@@ -102,8 +108,8 @@ void get_next_free_segment() {
         
         // Initialize segment buffer.
         memset(segment_buffer, 0, sizeof(segment_buffer));
-        cur_segment = next_free_segment;
-        cur_block = 0;
+        cur_segment     = next_free_segment;
+        cur_block       = 0;
         next_imap_index = 0;
     }
 }
