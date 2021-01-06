@@ -96,7 +96,7 @@ void gc_move_to_segment() {
         int gc_next_segment = gc_get_next_free_segment();
         if (gc_next_segment == -1) {
             logger(WARN, "[WARNING] The file system is highly utilized, so that normal garbage collection fails.\n");
-            logger(WARN, "[WARNING] We will try to perform a thorough garbage collection.\n");
+            logger(WARN, "[INFO] We will try to perform a thorough garbage collection.\n");
             /* Throw an exception: we should perform thorough GC. */
             throw ((int) -1);
         } else {
@@ -165,7 +165,7 @@ void gc_remove_inode(int i_number) {
         int gc_next_segment = gc_get_next_free_segment();
         if (gc_next_segment == -1) {
             logger(WARN, "[WARNING] The file system is highly utilized, so that normal garbage collection fails.\n");
-            logger(WARN, "[WARNING] We will try to perform a thorough garbage collection.\n");
+            logger(WARN, "[INFO] We will try to perform a thorough garbage collection.\n");
             /* Throw an exception: copy the back-up memory into disk file, and perform thorough gc. */
             throw ((int) -1);
         } else {
@@ -361,7 +361,7 @@ void collect_garbage(bool clean_thoroughly) {
             iter++;
         }
 
-        logger(WARN, "[WARNING] Successfully finished normal garbage collection.\n");
+        logger(WARN, "[INFO] Successfully finished normal garbage collection.\n");
     } else {
         // If there are no free segments left, we should perform a thorough clean-up.
         // Now it is better to rewrite from timestamp order into sequential order.
@@ -416,7 +416,7 @@ void collect_garbage(bool clean_thoroughly) {
             iter++;
         }
 
-        logger(WARN, "[WARNING] Successfully finished thorough garbage collection.\n");
+        logger(WARN, "[INFO] Successfully finished thorough garbage collection.\n");
     }
 
     /* Write back to disk file */

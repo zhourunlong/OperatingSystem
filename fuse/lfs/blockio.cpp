@@ -65,7 +65,7 @@ void get_next_free_segment() {
     
     if (count_full_segment == TOT_SEGMENTS) {
         logger(WARN, "\n\n[WARNING] The file system is completely full (100%% occpuied).\n");
-        logger(WARN, "[WARNING] We will run thorough garbage collection now for more disk space.\n");
+        logger(WARN, "[INFO] We will run thorough garbage collection now for more disk space.\n");
         collect_garbage(true);
 
         /* Recount the number of full segments to determine whether it is full. */
@@ -75,24 +75,24 @@ void get_next_free_segment() {
         if ((recount_full_segment == TOT_SEGMENTS-1) && (cur_block >= BLOCKS_IN_SEGMENT / 2)) {
             is_full = true;
             logger(WARN, "\n[WARNING] The file system is full, and cannot make any further space.\n");
-            logger(WARN, "====> You may format the disk by deleting the disk file (lfs.data).\n");
+            logger(WARN, "[INFO] You may format the disk by deleting the disk file (lfs.data).\n");
         }
         generate_checkpoint();
     } else if (count_full_segment >= CLEAN_THORO_THRES) {
         logger(WARN, "\n\n[WARNING] The file system is almost full (exceeding the 96%% threshold).\n");
-        logger(WARN, "[WARNING] We will run thorough garbage collection now for more disk space.\n");
+        logger(WARN, "[INFO] We will run thorough garbage collection now for more disk space.\n");
         collect_garbage(true);
         generate_checkpoint();
     } else if (count_full_segment >= CLEAN_THRESHOLD) {
         logger(WARN, "\n\n[WARNING] The file system is largely full (exceeding the 80%% threshold).\n");
-        logger(WARN, "[WARNING] We will run normal garbage collection now for better performance.\n");
+        logger(WARN, "[INFO] We will run normal garbage collection now for better performance.\n");
 
         try {
             collect_garbage(false);
         } catch (int e) {
             if (e == -1) {
                 logger(WARN, "\n[WARNING] The file system is highly utilized, so that normal garbage collection fails.\n");
-                logger(WARN, "[WARNING] We will try to perform a thorough garbage collection instead.\n");
+                logger(WARN, "[INFO] We will try to perform a thorough garbage collection instead.\n");
 
                 collect_garbage(true);
             }
@@ -117,7 +117,8 @@ void get_next_free_segment() {
 /** Increment cur_block, and flush segment buffer if it is full. */
 void move_to_segment() {
     if (is_full) {
-        logger(WARN, "[WARNING] The file system is already full: please expand the disk size.\n* Garbage collection fails because it cannot release any blocks.\n");
+        logger(WARN, "[WARNING] The file system is already full: please expand the disk size.\n");
+        logger(WARN, "* Garbage collection fails because it cannot release any blocks.\n");
         return;
     }
 

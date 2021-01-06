@@ -208,8 +208,6 @@ const bool ERROR_PATH           = 1;    // Report low-level errors in path.cpp.
 const bool ERROR_PERMCPP        = 1;    // Report errors in perm.cpp.
 const bool ERROR_PERM           = 1;    // Report permission errors in all source files.
 
-const bool ENABLE_PERMISSION    = 1;    // Whether to enable permission control or not.
-const bool ENABLE_ACCESS_PERM   = 1;    // Whether to enable permission control in access() or not.
 
 
 /** **************************************
@@ -221,10 +219,15 @@ const bool FUNC_ATIME_REL       = 1;        // Enable relative atime (as with -r
 const int FUNC_ATIME_REL_THRES  = 3600;     // Threshold interval for updating (relative) atime.
 void update_atime(struct inode* cur_inode, struct timespec &new_time);
 
+const bool ENABLE_PERMISSION    = 1;        // Whether to enable permission control or not.
+const bool ENABLE_ACCESS_PERM   = 1;        // Whether to enable permission control in access() or not.
+
 const int PERM_READ             = 4;        // Read permission (R_OK).
 const int PERM_WRITE            = 2;        // Write permission (W_OK).
 const int PERM_EXEC             = 1;        // Execute permission (X_OK)
 bool verify_permission(int mode, struct inode* f_inode, struct fuse_context* u_info, bool enable);
+
+const bool DO_GARBCOL_ON_START  = 1;        // Force a thorough garbage collection on start of LFS.
 
 
 /** **************************************

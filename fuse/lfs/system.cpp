@@ -36,64 +36,9 @@ void* o_init(struct fuse_conn_info* conn, struct fuse_config* cfg) {
     strcpy(lfs_path, _lfs_path.c_str());
 
     if (access(lfs_path, R_OK) != 0) {    // Disk file does not exist.
-        logger(DEBUG, "[INFO] Disk file (lfs.data) does not exist. Try to create and initialize to 0.\n");
+        logger(DEBUG, "[INFO] Disk file (lfs.data) does not exist. Try to create it and initialize to 0.\n");
         
-        // Create a file.
-        int file_handle = open(lfs_path, O_RDWR | O_CREAT, 0777);
-        if (file_handle <= 0) {
-            logger(ERROR, "[FATAL ERROR] Fail to create a new disk file (lfs.data).\n");
-            exit(-1);
-        }
-
-        // Fill 0 into the file.
-        char* buf = (char*) malloc(FILE_SIZE);
-        memset(buf, 0, FILE_SIZE);
-        pwrite(file_handle, buf, FILE_SIZE, 0);
-        free(buf);
-
-        // Must close file after formatting.
-        close(file_handle); 
-        logger(DEBUG, "[INFO] Successfully created a new disk file (lfs.data).\n");
-
-
-        // Initialize global state variables.
-        memset(segment_bitmap, 0, sizeof(segment_bitmap));
-        is_full         = false;
-        count_inode     = 0;
-        cur_segment     = 0;
-        cur_block       = 0;
-        next_checkpoint = 0;
-        next_imap_index = 0;
-        memset(segment_buffer, 0, sizeof(segment_buffer));
-        memset(inode_table, -1, sizeof(inode_table));
-
-        // Initialize superblock.
-        struct superblock init_sblock = {
-            tot_inodes   : TOT_INODES,
-            tot_blocks   : BLOCKS_IN_SEGMENT * TOT_SEGMENTS,
-            tot_segments : TOT_SEGMENTS,
-            block_size   : BLOCK_SIZE,
-            segment_size : SEGMENT_SIZE
-        };
-        write_superblock(&init_sblock);
-        print(&init_sblock);
-
-        // Initialize root directory (i_number = 1).
-        struct inode* root_inode;
-        file_initialize(root_inode, MODE_DIR, 0777);
-
-        buf = (char*) malloc(BLOCK_SIZE);
-        memset(buf, 0, BLOCK_SIZE);
-        file_add_data(root_inode, buf);
-        free(buf);
-
-        new_inode_block(root_inode);
-        write_segment(segment_buffer, 0);
-        segment_bitmap[0] = 1;
-
-        // Generate first checkpoint.
-        generate_checkpoint();
-
+        initialize_disk_file();
         logger(DEBUG, "[INFO] Successfully initialized the file system.\n");
     } else {
         // Try to open an existing file.
@@ -105,7 +50,8 @@ void* o_init(struct fuse_conn_info* conn, struct fuse_config* cfg) {
         close(file_handle);
         logger(DEBUG, "[INFO] Successfully found an existing file system.\n");
 
-        load_from_file();
+        load_from_disk_file();
+        logger(DEBUG, "[INFO] Successfully loaded an existing file system.\n");
     }
 
 	return NULL;
@@ -122,7 +68,7 @@ void o_destroy(void* private_data) {
     segment_bitmap[cur_segment] = 1;
     generate_checkpoint();
 
-    // Debug
+    /* ========== Debug ==========
     print_inode_table();
     //collect_garbage(true, true);
     //generate_checkpoint();
@@ -188,14 +134,75 @@ void o_destroy(void* private_data) {
             printf("Inode #%d / #%d at block #%d.\n", i, inode_block.i_number, _inode_table[i]);
         }
     }
-    // Debug
+    ========== Debug========== */
     
     logger(DEBUG, "[INFO] Successfully saved current state to disk and exited.\n");
 }
 
 
-void load_from_file() {
-    // Read the (newer) checkpoint.
+
+void initialize_disk_file() {
+    // Create a file.
+    int file_handle = open(lfs_path, O_RDWR | O_CREAT, 0777);
+    if (file_handle <= 0) {
+        logger(ERROR, "[FATAL ERROR] Fail to create a new disk file (lfs.data).\n");
+        exit(-1);
+    }
+
+    // Fill 0 into the file.
+    char* buf = (char*) malloc(FILE_SIZE);
+    memset(buf, 0, FILE_SIZE);
+    pwrite(file_handle, buf, FILE_SIZE, 0);
+    free(buf);
+
+    // Must close file after formatting.
+    close(file_handle); 
+    logger(DEBUG, "[INFO] Successfully created a new disk file (lfs.data).\n");
+
+
+    // Initialize global state variables.
+    memset(segment_bitmap, 0, sizeof(segment_bitmap));
+    is_full         = false;
+    count_inode     = 0;
+    cur_segment     = 0;
+    cur_block       = 0;
+    next_checkpoint = 0;
+    next_imap_index = 0;
+    memset(segment_buffer, 0, sizeof(segment_buffer));
+    memset(inode_table, -1, sizeof(inode_table));
+
+    // Initialize superblock.
+    struct superblock init_sblock = {
+        tot_inodes   : TOT_INODES,
+        tot_blocks   : BLOCKS_IN_SEGMENT * TOT_SEGMENTS,
+        tot_segments : TOT_SEGMENTS,
+        block_size   : BLOCK_SIZE,
+        segment_size : SEGMENT_SIZE
+    };
+    write_superblock(&init_sblock);
+    print(&init_sblock);
+
+    // Initialize root directory (i_number = 1).
+    struct inode* root_inode;
+    file_initialize(root_inode, MODE_DIR, 0777);
+
+    buf = (char*) malloc(BLOCK_SIZE);
+    memset(buf, 0, BLOCK_SIZE);
+    file_add_data(root_inode, buf);
+    free(buf);
+
+    new_inode_block(root_inode);
+    write_segment(segment_buffer, 0);
+    segment_bitmap[0] = 1;
+
+
+    // Generate the first checkpoint.
+    generate_checkpoint();
+}
+
+
+void load_from_disk_file() {
+    /* (A) Read the (newer) checkpoint. */
     checkpoints ckpt;
     read_checkpoints(&ckpt);
     print(ckpt);
@@ -217,10 +224,13 @@ void load_from_file() {
         exit(-1);
     }
     
-    // Initialize inode table in memory (by simulation).
+
+    /* (B) Restore the inode table in memory. */
+    // (1) Initialize inode table in memory (by simulation).
+    // Note: since #0 is a valid block number, we should initialized to -1.
     memset(inode_table, -1, sizeof(inode_table));
 
-    // Traverse all segments to reconstruct in-memory inode sturcture.
+    // (2) Traverse all segments to reconstruct latest inode table in memory.
     int inode_update_sec[MAX_NUM_INODE];
     int inode_update_nsec[MAX_NUM_INODE];
     memset(inode_update_sec, 0, sizeof(inode_update_sec));
@@ -261,29 +271,32 @@ void load_from_file() {
         }
 
         if ((newest_sec < seg_sec) || ((newest_sec == seg_sec) && (newest_nsec < seg_nsec))) {
-            newest_seg = seg;
-            newest_sec = seg_sec;
-            newest_nsec = seg_nsec;
-            newest_block = seg_block;
-            newest_imap_index = seg_imap_index;
+            newest_seg          = seg;
+            newest_block        = seg_block;
+            newest_imap_index   = seg_imap_index;
+            newest_sec          = seg_sec;
+            newest_nsec         = seg_nsec;
         }
     }
 
+
+    /* (C) Restore segment buffer. */
     // Restore block pointers (i.e., cur_segment and cur_block).
     if ((newest_block == DATA_BLOCKS_IN_SEGMENT-1) || (newest_imap_index == DATA_BLOCKS_IN_SEGMENT)) {
         cur_segment = newest_seg;
         get_next_free_segment();
     } else {
-        cur_segment = newest_seg;
-        cur_block = newest_block;
+        cur_segment     = newest_seg;
+        cur_block       = newest_block;
         next_imap_index = newest_imap_index;
     }
     
-    // Initialize segment buffer in memory.
+    // Initialize segment buffer in memory by reading current segment.
     read_segment(segment_buffer, cur_segment);
 
-    // Now the inode table and segment buffer is up-to-date.
-    // So we may directly reconstruct inode array in memory.
+
+    /* (D) Reconstruct inode array in memory. */
+    // Note that the inode table and segment buffer is already up-to-date.
     struct inode inode_block;
     for (int i=1; i<=count_inode; i++) {
         if (inode_table[i] >= 0) {
@@ -292,24 +305,25 @@ void load_from_file() {
         }
     }
 
-    // Do a sequential-write thorough garbage collection for better performance.
-    collect_garbage(true);
-    int recount_full_segment = 0;
-    for (int i=0; i<TOT_SEGMENTS; i++)
-        recount_full_segment += segment_bitmap[i];
-    if ((recount_full_segment == TOT_SEGMENTS-1) && (cur_block >= BLOCKS_IN_SEGMENT / 2))
-        is_full = true;
 
+    /* (E) (optional) Do a thorough garbage collection for better performance. */
+    if (DO_GARBCOL_ON_START) {
+        collect_garbage(true);
+
+        // Determine whether the file system is indeed full.
+        int recount_full_segment = 0;
+        for (int i=0; i<TOT_SEGMENTS; i++)
+            recount_full_segment += segment_bitmap[i];
+        if ((recount_full_segment == TOT_SEGMENTS-1) && (cur_block >= BLOCKS_IN_SEGMENT / 2)) {
+            is_full = true;
+            logger(WARN, "[WARNING] The file system is already full: please assign a larger disk size.\n");
+        }
+    } else {
+        if (is_full)
+            logger(WARN, "[WARNING] The file system is reportedly full: please assign a larger disk size.\n");
+    }
+        
     
-    // DEBUG
-    print_inode_table();
-    // DEBUG
-
-
-    // Warn if the file system is already full after recovery and GC.
-    if (is_full)
-        logger(WARN, "[WARNING] The file system is already full: please assign a larger disk size.\n");
-    
-    // Generate a checkpoint for easier recovery.
+    /* (F) Generate a checkpoint for easier recovery. */
     generate_checkpoint();
 }
