@@ -215,7 +215,8 @@ void load_from_disk_file() {
     print(ckpt);
 
     int latest_index = 0;
-    if (ckpt[0].timestamp < ckpt[1].timestamp)
+    if (   (ckpt[0].timestamp_sec < ckpt[1].timestamp_sec)
+        || ((ckpt[0].timestamp_sec == ckpt[1].timestamp_sec) && (ckpt[0].timestamp_nsec < ckpt[1].timestamp_nsec)) )
         latest_index = 1;
     next_checkpoint = 1 - latest_index;
     

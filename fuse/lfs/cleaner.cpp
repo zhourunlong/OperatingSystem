@@ -347,6 +347,7 @@ void collect_garbage(bool clean_thoroughly) {
 
             // Evict the segment (in GC buffer).
             memset(gc_file_buffer + seg*SEGMENT_SIZE, 0, SEGMENT_SIZE);
+            gc_segment_bitmap[seg] = 0;
         }
 
         // Step 2: write back cached inodes after updating all data blocks.

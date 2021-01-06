@@ -129,7 +129,7 @@ struct superblock {
 
 
 const int CHECKPOINT_ADDR = TOT_SEGMENTS * SEGMENT_SIZE + BLOCK_SIZE;
-const int CHECKPOINT_SIZE = 2 * (24+TOT_SEGMENTS);
+const int CHECKPOINT_SIZE = 2 * (28+TOT_SEGMENTS);
 const int CKPT_UPDATE_INTERVAL = 30;    // Minimum interval for checkpoint update (in seconds).
 /** Checkpoint Block: recording periodical checkpoints of volatile information.
  * We should assign 2 checkpoints and use them in turns (for failure restoration).
@@ -142,7 +142,8 @@ struct checkpoint_entry {
     int cur_segment;                    // Next available segment.
     int cur_block;                      // Next available block (in the segment).
     int next_imap_index;                // Index of next free imap entry (within the segment).
-    int timestamp;                      // Timestamp of last change to this checkpoint.
+    int timestamp_sec;                  // Timestamp of last change to this checkpoint.
+    int timestamp_nsec;
 };
 typedef struct checkpoint_entry checkpoints[2];
 
