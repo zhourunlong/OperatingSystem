@@ -289,14 +289,19 @@ void print(block blk, int disp) {
 void print_inode_table() {
     logger(DEBUG, "\n[DEBUG] ******************** PRINT INODE TABLE ********************\n");
     
-    logger(DEBUG, "I_NUMBER  \tBLOCK_ADDR  \n");
-    logger(DEBUG, "==========\t============\n");
+    logger(DEBUG, " I_NUM  BLOCK   I_NUM  BLOCK   I_NUM  BLOCK   I_NUM  BLOCK   I_NUM  BLOCK\n");
+    logger(DEBUG, "====== ======  ====== ======  ====== ======  ====== ======  ====== ======\n");
     
-    int count = 0;
+    int count = 0, col = 0;
     for (int i=0; i<MAX_NUM_INODE; i++) {
         if (inode_table[i] >= 0) {
-            logger(DEBUG, "%d\t\t%d\n", i, inode_table[i]);
+            logger(DEBUG, "%6d %6d  ", i, inode_table[i]);
             count++;
+            col++;
+            if (col == 5) {
+                col = 0;
+                logger(DEBUG, "\n");
+            }
         }
     }
 
@@ -360,35 +365,45 @@ void print_time_stat(struct time_entry* ts) {
 
 
 void interactive_debugger() {
-    logger(DEBUG, "\n[DEBUG] ******************** INTERACTIVE DEBUGGER ********************\n");
+    logger(DEBUG, "\n********************************************************************************\n");
+    logger(DEBUG, "***************************** INTERACTIVE DEBUGGER *****************************\n");
+    logger(DEBUG, "********************************************************************************\n\n");
     char token;
     int op_num;
 
+    printf("[USAGE: q = quit, i = inode, f = file data, d = directory, t = inode table]\n");
     printf("(debugger) >>> ");
-    scanf("\n%c %d", &token, &op_num);
-    printf("%c, %d.\n", token, op_num);
+    scanf("\n%c", &token);
     while (token != 'q') {
         if (token == 'i') {
+            scanf("%d", &op_num);
             struct inode* _inode;
             get_inode_from_inum(_inode, op_num);
             print(_inode);
-        } else if (token == 'b') {
+        } else if (token == 'f') {
+            scanf("%d", &op_num);
             block _block;
             get_block(_block, op_num);
             print(_block, DISP_BYTE_CHAR);
         } else if (token == 'd') {
+            scanf("%d", &op_num);
             directory _block;
             get_block(&_block, op_num);
             print(_block);
+        } else if (token == 't') {
+            print_inode_table();
         } else if (token == 'q') {
             break;
         } else {
             printf("Invalid token %c.\n", token);
         }
 
+        printf("[USAGE: q = quit, i = inode, f = file data, d = directory, t = inode table]\n");
         printf("(debugger) >>> ");
-        scanf("\n%c %d", &token, &op_num);
-        printf("%c, %d.\n", token, op_num);
+        scanf("\n%c", &token);
     }
-    logger(DEBUG, "============================ INTERACTIVE DEBUGGER ====================\n\n");
+
+    logger(DEBUG, "\n================================================================================\n");
+    logger(DEBUG, "============================= INTERACTIVE DEBUGGER =============================\n");
+    logger(DEBUG, "================================================================================\n\n");
 }

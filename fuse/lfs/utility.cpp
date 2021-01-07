@@ -259,25 +259,25 @@ void release_writer_lock() {
 };
 
 void acquire_segment_lock() {
-    segment_lock.lock();
+    // segment_lock.lock();
 };
 
 void release_segment_lock() {
-    segment_lock.unlock();
+    // segment_lock.unlock();
 };
 
 void acquire_counter_lock() {
-    counter_lock.lock();
+    // counter_lock.lock();
 }
 
 void release_counter_lock() {
-    counter_lock.unlock();
+    // counter_lock.unlock();
 }
 
 void acquire_disk_lock() {
-    disk_lock.lock();
+    // disk_lock.lock();
 }
 
 void release_disk_lock() {
-    disk_lock.unlock();
+    // disk_lock.unlock();
 }
