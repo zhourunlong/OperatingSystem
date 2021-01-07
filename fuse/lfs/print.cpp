@@ -142,7 +142,8 @@ void print(checkpoints ckpt){
     logger(DEBUG, "CUR_SEGMENT\t%d   \t\t%d\n", ckpt[0].cur_segment, ckpt[1].cur_segment);
     logger(DEBUG, "CUR_BLOCK  \t%d   \t\t%d\n", ckpt[0].cur_block, ckpt[1].cur_block);
     logger(DEBUG, "NXT_IMAP_ID\t%d   \t\t%d\n", ckpt[0].next_imap_index, ckpt[1].next_imap_index);
-    logger(DEBUG, "TIMESTAMP  \t%d\t%d\n", ckpt[0].timestamp, ckpt[1].timestamp);
+    logger(DEBUG, "TMSTMP_SEC \t%d\t%d\n", ckpt[0].timestamp_sec, ckpt[1].timestamp_sec);
+    logger(DEBUG, "TMSTMP_NSEC\t%d\t%d\n", ckpt[0].timestamp_nsec, ckpt[1].timestamp_nsec);
     logger(DEBUG, "============================ PRINT CHECKPOINTS ====================\n\n");
 }
 

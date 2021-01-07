@@ -45,7 +45,7 @@ void get_inode_from_inum(struct inode* &inode_data, int i_number) {
     if (i_number != inode_data->i_number) {
         logger(ERROR, "[FATAL ERROR] Corrupt file system: inconsistent inode number in memory.\n");
         logger(ERROR, "* Should retrieve i_number %d, but get #%d from inode array.\n", i_number, inode_data->i_number);
-        print_inode_table();
+        getchar();
 
         struct inode err_inode;
         memset(&err_inode, 0, sizeof(err_inode));
@@ -359,8 +359,8 @@ void generate_checkpoint() {
         checkpoints ckpt;
         read_checkpoints(&ckpt);
 
-        time_t cur_time;
-        time(&cur_time);
+        struct timespec cur_time;
+        clock_gettime(CLOCK_REALTIME, &cur_time);
 
         memcpy(ckpt[next_checkpoint].segment_bitmap, segment_bitmap, sizeof(segment_bitmap));
         ckpt[next_checkpoint].is_full           = is_full;
@@ -368,7 +368,8 @@ void generate_checkpoint() {
         ckpt[next_checkpoint].cur_block         = cur_block;
         ckpt[next_checkpoint].cur_segment       = cur_segment;
         ckpt[next_checkpoint].next_imap_index   = next_imap_index;
-        ckpt[next_checkpoint].timestamp         = (int)cur_time;
+        ckpt[next_checkpoint].timestamp_sec     = cur_time.tv_sec;
+        ckpt[next_checkpoint].timestamp_nsec    = cur_time.tv_nsec;
 
         write_checkpoints(&ckpt);
         next_checkpoint = 1 - next_checkpoint;
