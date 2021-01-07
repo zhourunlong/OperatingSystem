@@ -581,11 +581,12 @@ std::lock_guard <std::mutex> guard(global_lock);
         new_inode_block(to_par_inode);
         new_inode_block(from_par_inode);
         
-        // Remove destination directory entry.
-        remove_parent_dir_entry(to_par_inode, to_inum, to_name);
-
+        
         // Conflict case 1: exchange files.
         if (flags == RENAME_EXCHANGE) {
+            // Remove destination directory entry.
+            remove_parent_dir_entry(to_par_inode, to_inum, to_name);
+
             // On exchange, remove source directory entry as well.
             remove_parent_dir_entry(from_par_inode, from_inum, from_name);
 
@@ -602,6 +603,9 @@ std::lock_guard <std::mutex> guard(global_lock);
             free(from_parent_dir); free(to_parent_dir); free(from_name); free(to_name);
             return flag;
         }
+
+        fprintf(stderr, "on rename, remove to object\n");
+        remove_object(to_par_inode, to_name, to_inode->mode);
     } 
     
     // Conflict case 2: overwrite destination file.
