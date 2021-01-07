@@ -46,12 +46,14 @@ int active_blocks, active_inodes;
 int read_block(void* buf, int block_addr) {
     int file_handle = open(lfs_path, O_RDWR);
     int file_offset = block_addr * BLOCK_SIZE;
-    release_lock();
+    
     acquire_disk_lock();
+    release_lock();
     int read_length = pread(file_handle, buf, BLOCK_SIZE, file_offset);
     close(file_handle);
-    release_disk_lock();
     acquire_lock();
+    release_disk_lock();
+    
     return read_length;
 }
 
@@ -59,12 +61,14 @@ int read_block(void* buf, int block_addr) {
 int write_block(void* buf, int block_addr) {
     int file_handle = open(lfs_path, O_RDWR);
     int file_offset = block_addr * BLOCK_SIZE;
-    release_lock();
+    
     acquire_disk_lock();
+    release_lock();
     int write_length = pwrite(file_handle, buf, BLOCK_SIZE, file_offset);
     close(file_handle);
-    release_disk_lock();
     acquire_lock();
+    release_disk_lock();
+    
     return write_length;
 }
 
@@ -72,12 +76,13 @@ int write_block(void* buf, int block_addr) {
 int read_segment(void* buf, int segment_addr) {
     int file_handle = open(lfs_path, O_RDWR);
     int file_offset = segment_addr * SEGMENT_SIZE;
-    release_lock();
+    
     acquire_disk_lock();
+    release_lock();
     int read_length = pread(file_handle, buf, SEGMENT_SIZE, file_offset);
     close(file_handle);
     release_disk_lock();
-    acquire_lock();
+    
     return read_length;
 }
 
@@ -85,12 +90,14 @@ int read_segment(void* buf, int segment_addr) {
 int write_segment(void* buf, int segment_addr) {
     int file_handle = open(lfs_path, O_RDWR);
     int file_offset = segment_addr * SEGMENT_SIZE;
-    release_lock();
+    
     acquire_disk_lock();
+    release_lock();
     int write_length = pwrite(file_handle, buf, SEGMENT_SIZE, file_offset);
     close(file_handle);
-    release_disk_lock();
     acquire_lock();
+    release_disk_lock();
+    
     return write_length;
 }
 
@@ -108,12 +115,14 @@ int write_segment(void* buf, int segment_addr) {
 int read_segment_imap(void* buf, int segment_addr) {
     int file_handle = open(lfs_path, O_RDWR);
     int file_offset = segment_addr * SEGMENT_SIZE + IMAP_OFFSET;
-    release_lock();
+    
     acquire_disk_lock();
+    release_lock();
     int read_length = pread(file_handle, buf, IMAP_SIZE, file_offset);
     close(file_handle);
-    release_disk_lock();
     acquire_lock();
+    release_disk_lock();
+    
     return read_length;
 }
 
@@ -121,12 +130,14 @@ int read_segment_imap(void* buf, int segment_addr) {
 int read_segment_summary(void* buf, int segment_addr) {
     int file_handle = open(lfs_path, O_RDWR);
     int file_offset = segment_addr * SEGMENT_SIZE + SUMMARY_OFFSET;
-    release_lock();
+    
     acquire_disk_lock();
+    release_lock();
     int read_length = pread(file_handle, buf, SUMMARY_SIZE, file_offset);
     close(file_handle);
-    release_disk_lock();
     acquire_lock();
+    release_disk_lock();
+    
     return read_length;
 }
 
@@ -134,12 +145,14 @@ int read_segment_summary(void* buf, int segment_addr) {
 int read_segment_metadata(void* buf, int segment_addr) {
     int file_handle = open(lfs_path, O_RDWR);
     int file_offset = segment_addr * SEGMENT_SIZE + SEGMETA_OFFSET;
-    release_lock();
+    
     acquire_disk_lock();
+    release_lock();
     int read_length = pread(file_handle, buf, SEGMETA_SIZE, file_offset);
     close(file_handle);
-    release_disk_lock();
     acquire_lock();
+    release_disk_lock();
+    
     return read_length;
 }
 
