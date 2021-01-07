@@ -228,8 +228,6 @@ const int PERM_WRITE            = 2;        // Write permission (W_OK).
 const int PERM_EXEC             = 1;        // Execute permission (X_OK)
 bool verify_permission(int mode, struct inode* f_inode, struct fuse_context* u_info, bool enable);
 
-const bool DO_GARBCOL_ON_START  = 1;        // Force a thorough garbage collection on start of LFS.
-
 
 /** **************************************
  * Public variable locks.
@@ -251,3 +249,19 @@ const int CLEAN_THRESHOLD   = (int) (0.8*TOT_SEGMENTS);
 const int CLEAN_THORO_THRES = (int) (0.96*TOT_SEGMENTS);
 const int CLEAN_NUM         = (int) (0.3*TOT_SEGMENTS);
 const int CLEAN_BELOW_UTIL  = (int) (0.01*BLOCKS_IN_SEGMENT);
+
+const bool DO_GARBCOL_ON_START = 1;     // Force a thorough garbage collection on start of LFS.
+
+// Control change of garbage collection level.
+// Logic: when a garbage collection fails to release much space, increments level;
+//        it will not repeat current-level garbage collection before a constant time interval.
+extern int cur_garbcol_level;           // Current garbage collection level.
+extern int last_garbcol_time;           // Last time garbage collection was triggered.
+
+const int GARBCOL_LEVEL_80  = 1;
+const int GARBCOL_LEVEL_96  = 2;
+const int GARBCOL_LEVEL_100 = 3;
+const int GARBCOL_INTERVAL  = 60;
+
+const int CLEAN_NORM_FAIL   = (int) (0.60*TOT_SEGMENTS);
+const int CLEAN_THORO_FAIL  = (int) (0.85*TOT_SEGMENTS);

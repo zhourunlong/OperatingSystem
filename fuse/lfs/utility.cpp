@@ -25,6 +25,9 @@ std::mutex global_lock;
 segment_summary cached_segsum[TOT_SEGMENTS];
 inode cached_inode_array[MAX_NUM_INODE];
 
+int cur_garbcol_level;
+int last_garbcol_time; 
+
 
 /** **************************************
  * Block operations

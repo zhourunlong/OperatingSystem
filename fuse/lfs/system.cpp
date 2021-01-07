@@ -25,6 +25,9 @@ void* o_init(struct fuse_conn_info* conn, struct fuse_config* cfg) {
     struct timespec cur_time;
     clock_gettime(CLOCK_REALTIME, &cur_time);
     last_ckpt_update_time = cur_time;
+    
+    cur_garbcol_level = GARBCOL_LEVEL_80;
+    last_garbcol_time = cur_time.tv_sec;
 
 
     /* ****************************************

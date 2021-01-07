@@ -54,6 +54,27 @@ void get_inode_from_inum(struct inode* &inode_data, int i_number) {
     }
 }
 
+
+/** Update garbage collection level based on time interval. */
+bool get_garbcol_status(int level) {
+    struct timespec cur_time;
+    clock_gettime(CLOCK_REALTIME, &cur_time);
+
+    if (level >= cur_garbcol)
+        last_garbcol_time = cur_time.tv_sec;
+        return true;
+    else {
+        if (cur_time.tv_sec - last_garbcol_time > GARBCOL_INTERVAL) {
+            cur_garbcol = level;
+            last_garbcol_time = cur_time.tv_sec;
+            return true;
+        } else {
+            return false;
+        }
+    }
+}
+
+
 /** Retrieve the next free segment by searching segment_bitmap).
  * We also try to do garbage collection if full segments exceed CLEAN_THRESHOLD (80%).
  * @return flag: true if the disk is not full, and false otherwise. */
@@ -64,6 +85,7 @@ void get_next_free_segment() {
         count_full_segment += segment_bitmap[i];
     
     if (count_full_segment == TOT_SEGMENTS) {
+        get_garbcol_status(GARBCOL_LEVEL_100);
         logger(WARN, "\n\n[WARNING] The file system is completely full (100%% occpuied).\n");
         logger(WARN, "[INFO] We will run thorough garbage collection now for more disk space.\n");
         collect_garbage(true);
@@ -79,25 +101,57 @@ void get_next_free_segment() {
         }
         generate_checkpoint();
     } else if (count_full_segment >= CLEAN_THORO_THRES) {
-        logger(WARN, "\n\n[WARNING] The file system is almost full (exceeding the 96%% threshold).\n");
-        logger(WARN, "[INFO] We will run thorough garbage collection now for more disk space.\n");
-        collect_garbage(true);
-        generate_checkpoint();
-    } else if (count_full_segment >= CLEAN_THRESHOLD) {
-        logger(WARN, "\n\n[WARNING] The file system is largely full (exceeding the 80%% threshold).\n");
-        logger(WARN, "[INFO] We will run normal garbage collection now for better performance.\n");
+        bool isNecessary = get_garbcol_status(GARBCOL_LEVEL_96);
+        if (isNecessary) {
+            logger(WARN, "\n\n[WARNING] The file system is almost full (exceeding the 96%% threshold).\n");
+            logger(WARN, "[INFO] We will run thorough garbage collection now for more disk space.\n");
+            collect_garbage(true);
+            generate_checkpoint();
 
-        try {
-            collect_garbage(false);
-        } catch (int e) {
-            if (e == -1) {
-                logger(WARN, "\n[WARNING] The file system is highly utilized, so that normal garbage collection fails.\n");
-                logger(WARN, "[INFO] We will try to perform a thorough garbage collection instead.\n");
-
-                collect_garbage(true);
+            /* Recount the number of full segments to determine whether it is full. */
+            int recount_full_segment = 0;
+            for (int i=0; i<TOT_SEGMENTS; i++)
+                recount_full_segment += segment_bitmap[i];
+            if (recount_full_segment >= CLEAN_THORO_FAIL) {
+                cur_garbcol_level = GARBCOL_LEVEL_100;
+                logger(WARN, "\n[WARNING] Thorough garbage collection fails to release much space (still >= 85%% full).\n");
+                logger(WARN, "[INFO] It is advisable to use a larger disk file for better performance.\n");
             }
+        } else {
+            logger(WARN, "\n\n[WARNING] The file system is almost full (exceeding the 96%% threshold).\n");
+            logger(WARN, "[WARNING] However, garbage collection is unnecessary because it does not work well.\n");
         }
-        generate_checkpoint();
+    } else if (count_full_segment >= CLEAN_THRESHOLD) {
+        bool isNecessary = get_garbcol_status(GARBCOL_LEVEL_96);
+        if (isNecessary) {
+            logger(WARN, "\n\n[WARNING] The file system is largely full (exceeding the 80%% threshold).\n");
+            logger(WARN, "[INFO] We will run normal garbage collection now for better performance.\n");
+
+            try {
+                collect_garbage(false);
+            } catch (int e) {
+                if (e == -1) {
+                    logger(WARN, "\n[WARNING] The file system is highly utilized, so that normal garbage collection fails.\n");
+                    logger(WARN, "[INFO] We will try to perform a thorough garbage collection instead.\n");
+
+                    collect_garbage(true);
+                }
+            }
+            generate_checkpoint();
+
+            /* Recount the number of full segments to determine whether it is full. */
+            int recount_full_segment = 0;
+            for (int i=0; i<TOT_SEGMENTS; i++)
+                recount_full_segment += segment_bitmap[i];
+            if (recount_full_segment >= CLEAN_NORM_FAIL) {
+                cur_garbcol_level = GARBCOL_LEVEL_96;
+                logger(WARN, "\n[WARNING] Normal garbage collection fails to release much space (still >= 60%% full).\n");
+                logger(WARN, "[INFO] It is advisable to use a larger disk file for better performance.\n");
+            }
+        } else {
+            logger(WARN, "\n\n[WARNING] The file system is almost full (exceeding the 80%% threshold).\n");
+            logger(WARN, "[WARNING] However, garbage collection is unnecessary because it will not work well.\n");
+        }
     } else {    // Select next free segment (without garbage collection).
         int next_free_segment = -1;
         for (int i=(cur_segment+1)%TOT_SEGMENTS; i!=cur_segment; i=(i+1)%TOT_SEGMENTS)
