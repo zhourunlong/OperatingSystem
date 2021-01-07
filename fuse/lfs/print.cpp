@@ -1,5 +1,6 @@
 #include "print.h"
 
+#include "blockio.h"
 #include "logger.h"
 
 /** **************************************
@@ -355,4 +356,39 @@ void print_time_stat(struct time_entry* ts) {
         logger(DEBUG, "\n");
     }
     logger(DEBUG, "============================ TIMESTAMP STAT ====================\n\n");
+}
+
+
+void interactive_debugger() {
+    logger(DEBUG, "\n[DEBUG] ******************** INTERACTIVE DEBUGGER ********************\n");
+    char token;
+    int op_num;
+
+    printf("(debugger) >>> ");
+    scanf("\n%c %d", &token, &op_num);
+    printf("%c, %d.\n", token, op_num);
+    while (token != 'q') {
+        if (token == 'i') {
+            struct inode* _inode;
+            get_inode_from_inum(_inode, op_num);
+            print(_inode);
+        } else if (token == 'b') {
+            block _block;
+            get_block(_block, op_num);
+            print(_block, DISP_BYTE_CHAR);
+        } else if (token == 'd') {
+            directory _block;
+            get_block(&_block, op_num);
+            print(_block);
+        } else if (token == 'q') {
+            break;
+        } else {
+            printf("Invalid token %c.\n", token);
+        }
+
+        printf("(debugger) >>> ");
+        scanf("\n%c %d", &token, &op_num);
+        printf("%c, %d.\n", token, op_num);
+    }
+    logger(DEBUG, "============================ INTERACTIVE DEBUGGER ====================\n\n");
 }

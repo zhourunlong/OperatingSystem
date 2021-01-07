@@ -524,9 +524,13 @@ std::lock_guard <std::mutex> guard(global_lock);
         logger(DEBUG, "RMDIR, %s\n", resolve_prefix(path).c_str());
     
     if (is_full) {
-        logger(WARN, "[WARNING] The file system is already full: please expand the disk size.\n* Garbage collection fails because it cannot release any blocks.\n");
-        logger(WARN, "====> Cannot proceed to remove the directory.\n");
-        return -ENOSPC;
+        if (next_imap_index == BLOCKS_IN_SEGMENT) {
+            logger(WARN, "[WARNING] The file system is already full: please expand the disk size.\n* Garbage collection fails because it cannot release any blocks.\n");
+            logger(WARN, "====> Cannot proceed to remove the directory.\n");
+            return -ENOSPC;
+        } else {
+            is_full = false;
+        }
     }
 
     /* Get information (uid, gid) of the user who calls LFS interface. */
