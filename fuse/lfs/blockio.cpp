@@ -85,23 +85,35 @@ void get_next_free_segment() {
     for (int i=0; i<TOT_SEGMENTS; i++)
         count_full_segment += segment_bitmap[i];
     
+    printf("cur seg = %d, cur blk = %d, count full = %d, cur level = %d.\n", cur_segment, cur_block, count_full_segment, cur_garbcol_level);
+    
+    bool isSequentialNext = false;
     if (count_full_segment == TOT_SEGMENTS) {
-        get_garbcol_status(GARBCOL_LEVEL_100);
-        logger(WARN, "\n\n[WARNING] The file system is completely full (100%% occpuied).\n");
-        logger(WARN, "[INFO] We will run thorough garbage collection now for more disk space.\n");
-        collect_garbage(true);
-
-        /* Recount the number of full segments to determine whether it is full. */
-        int recount_full_segment = 0;
-        for (int i=0; i<TOT_SEGMENTS; i++)
-            recount_full_segment += segment_bitmap[i];
-        if ((recount_full_segment == TOT_SEGMENTS-1) && (cur_block >= BLOCKS_IN_SEGMENT / 2)) {
-            is_full = true;
+        printf("full clean.\n");
+        if (is_full) {
             logger(WARN, "\n[WARNING] The file system is full, and cannot make any further space.\n");
             logger(WARN, "[INFO] You may format the disk by deleting the disk file (lfs.data).\n");
+            return;
+        } else {
+            get_garbcol_status(GARBCOL_LEVEL_100);
+            logger(WARN, "\n\n[WARNING] The file system is completely full (100%% occpuied).\n");
+            logger(WARN, "[INFO] We will run thorough garbage collection now for more disk space.\n");
+            collect_garbage(true);
+            generate_checkpoint();
+
+            /* Recount the number of full segments to determine whether it is full. */
+            int recount_full_segment = 0;
+            for (int i=0; i<TOT_SEGMENTS; i++)
+                recount_full_segment += segment_bitmap[i];
+            if ((recount_full_segment == TOT_SEGMENTS) && (cur_block >= BLOCKS_IN_SEGMENT / 2)) {
+                is_full = true;
+                logger(WARN, "\n[WARNING] The file system is full, and cannot make any further space.\n");
+                logger(WARN, "[INFO] You may format the disk by deleting the disk file (lfs.data).\n");
+                return;
+            }
         }
-        generate_checkpoint();
     } else if (count_full_segment >= CLEAN_THORO_THRES) {
+        printf("thorough clean.\n");
         bool isNecessary = get_garbcol_status(GARBCOL_LEVEL_96);
         if (isNecessary) {
             logger(WARN, "\n\n[WARNING] The file system is almost full (exceeding the 96%% threshold).\n");
@@ -119,11 +131,13 @@ void get_next_free_segment() {
                 logger(WARN, "[INFO] It is advisable to use a larger disk file for better performance.\n");
             }
         } else {
+            isSequentialNext = true;
             logger(WARN, "\n\n[WARNING] The file system is almost full (exceeding the 96%% threshold).\n");
             logger(WARN, "[WARNING] However, garbage collection is unnecessary because it does not work well.\n");
         }
     } else if (count_full_segment >= CLEAN_THRESHOLD) {
-        bool isNecessary = get_garbcol_status(GARBCOL_LEVEL_96);
+        printf("normal clean.\n");
+        bool isNecessary = get_garbcol_status(GARBCOL_LEVEL_80);
         if (isNecessary) {
             logger(WARN, "\n\n[WARNING] The file system is largely full (exceeding the 80%% threshold).\n");
             logger(WARN, "[INFO] We will run normal garbage collection now for better performance.\n");
@@ -150,10 +164,18 @@ void get_next_free_segment() {
                 logger(WARN, "[INFO] It is advisable to use a larger disk file for better performance.\n");
             }
         } else {
+            isSequentialNext = true;
             logger(WARN, "\n\n[WARNING] The file system is almost full (exceeding the 80%% threshold).\n");
             logger(WARN, "[WARNING] However, garbage collection is unnecessary because it will not work well.\n");
         }
-    } else {    // Select next free segment (without garbage collection).
+    } else {
+        isSequentialNext = true;
+    }
+    
+
+    if (isSequentialNext) {
+        // If the function proceeds here, the disk is not full yet.
+        // We have to select next free segment (whether we did garbage collection or not).
         int next_free_segment = -1;
         for (int i=(cur_segment+1)%TOT_SEGMENTS; i!=cur_segment; i=(i+1)%TOT_SEGMENTS)
             if (segment_bitmap[i] == 0) {

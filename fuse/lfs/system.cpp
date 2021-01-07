@@ -216,6 +216,7 @@ void initialize_disk_file() {
 
 /** Load LFS structure data from an existing disk file. */
 void load_from_disk_file() {
+printf("A\n");
     /* (A) Read the (newer) checkpoint. */
     checkpoints ckpt;
     read_checkpoints(&ckpt);
@@ -239,7 +240,7 @@ void load_from_disk_file() {
         exit(-1);
     }
     
-
+printf("B\n");
     /* (B) Restore the inode table in memory. */
     // (1) Initialize inode table in memory (by simulation).
     // Note: since #0 is a valid block number, we should initialized to -1.
@@ -294,7 +295,7 @@ void load_from_disk_file() {
         }
     }
 
-
+printf("C\n");
     /* (C) Restore segment buffer. */
     // Restore block pointers (i.e., cur_segment and cur_block).
     if ((newest_block == DATA_BLOCKS_IN_SEGMENT-1) || (newest_imap_index == DATA_BLOCKS_IN_SEGMENT)) {
@@ -309,18 +310,21 @@ void load_from_disk_file() {
     // Initialize segment buffer in memory by reading current segment.
     read_segment(segment_buffer, cur_segment);
 
-
+printf("D\n");
     /* (D) Reconstruct inode array in memory. */
     // Note that the inode table and segment buffer is already up-to-date.
     struct inode inode_block;
+    print_inode_table();
     for (int i=1; i<=count_inode; i++) {
+        printf("%d\n", i);
         if (inode_table[i] >= 0) {
             get_block(&inode_block, inode_table[i]);
+            print(&inode_block);
             cached_inode_array[i] = inode_block;
         }
     }
 
-
+printf("E\n");
     /* (E) (optional) Do a thorough garbage collection for better performance. */
     if (DO_GARBCOL_ON_START) {
         collect_garbage(true);
@@ -338,7 +342,7 @@ void load_from_disk_file() {
             logger(WARN, "[WARNING] The file system is reportedly full: please assign a larger disk size.\n");
     }
         
-    
+printf("F\n");
     /* (F) Generate a checkpoint for easier recovery. */
     generate_checkpoint();
 }
