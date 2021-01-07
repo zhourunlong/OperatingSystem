@@ -75,7 +75,9 @@ void o_destroy(void* private_data) {
     // Save LFS to disk.
     add_segbuf_metadata();
     write_segment_through_cache(segment_buffer, cur_segment);
+    acquire_segment_lock();
     segment_bitmap[cur_segment] = 1;
+    release_segment_lock();
     generate_checkpoint();
 
     flush_cache();
