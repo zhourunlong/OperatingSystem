@@ -85,11 +85,8 @@ void get_next_free_segment() {
     for (int i=0; i<TOT_SEGMENTS; i++)
         count_full_segment += segment_bitmap[i];
     
-    printf("cur seg = %d, cur blk = %d, count full = %d, cur level = %d.\n", cur_segment, cur_block, count_full_segment, cur_garbcol_level);
-    
     bool isSequentialNext = false;
     if (count_full_segment == TOT_SEGMENTS) {
-        printf("full clean.\n");
         if (is_full) {
             logger(WARN, "\n[WARNING] The file system is full, and cannot make any further space.\n");
             logger(WARN, "[INFO] You may format the disk by deleting the disk file (lfs.data).\n");
@@ -113,7 +110,6 @@ void get_next_free_segment() {
             }
         }
     } else if (count_full_segment >= CLEAN_THORO_THRES) {
-        printf("thorough clean.\n");
         bool isNecessary = get_garbcol_status(GARBCOL_LEVEL_96);
         if (isNecessary) {
             logger(WARN, "\n\n[WARNING] The file system is almost full (exceeding the 96%% threshold).\n");
@@ -136,7 +132,6 @@ void get_next_free_segment() {
             logger(WARN, "[WARNING] However, garbage collection is unnecessary because it does not work well.\n");
         }
     } else if (count_full_segment >= CLEAN_THRESHOLD) {
-        printf("normal clean.\n");
         bool isNecessary = get_garbcol_status(GARBCOL_LEVEL_80);
         if (isNecessary) {
             logger(WARN, "\n\n[WARNING] The file system is largely full (exceeding the 80%% threshold).\n");
@@ -412,8 +407,8 @@ void remove_inode(int i_number) {
         if (DEBUG_BLOCKIO)
             logger(DEBUG, "Remove inode block. Written to imap: #%d.\n", next_imap_index);
         inode_table[i_number] = -1;
-        // memset(cached_inode_array+i_number, 0, sizeof(struct inode));
         add_segbuf_imap(i_number, -1);
+        memset(cached_inode_array+i_number, 0, sizeof(struct inode));
         
         // Imap modification may also trigger segment writeback.
         // If segment buffer is full, it should be flushed to disk file.

@@ -24,6 +24,9 @@ void* o_init(struct fuse_conn_info* conn, struct fuse_config* cfg) {
     (void) conn;
 	cfg->kernel_cache = 1;
 
+    /* Initialize cache first. */
+    init_cache();
+
     /* Retrive system time (for atime updates). */
     struct timespec cur_time;
     clock_gettime(CLOCK_REALTIME, &cur_time);
@@ -78,76 +81,11 @@ void o_destroy(void* private_data) {
     generate_checkpoint();
 
     flush_cache();
+
     // Debug
     print_inode_table();
-
-    /* ========== Debug ==========
-    print_inode_table();
-    //collect_garbage(true, true);
-    //generate_checkpoint();
-    //print_inode_table();
-
-    // Initialize inode table in memory (by simulation).
-    int _inode_table[MAX_NUM_INODE];
-    memset(_inode_table, -1, sizeof(_inode_table));
-
-    // Traverse all segments to reconstruct in-memory inode sturcture.
-    int inode_update_sec[MAX_NUM_INODE];
-    int inode_update_nsec[MAX_NUM_INODE];
-    memset(inode_update_sec, 0, sizeof(inode_update_sec));
-    memset(inode_update_nsec, 0, sizeof(inode_update_nsec));
-
-    inode_map imap;
-    imap_entry im_entry;
-    int newest_seg = -1, newest_sec = 0, newest_nsec = 0, newest_block = 0, newest_imap_index = 0;
-    for (int seg=0; seg<TOT_SEGMENTS; seg++) {
-        segment_summary seg_sum;
-        read_segment_summary(&seg_sum, seg);
-        memcpy(&cached_segsum[seg], &seg_sum, sizeof(seg_sum));
-
-        struct segment_metadata seg_metadata;
-        read_segment_metadata(&seg_metadata, seg);
-        int seg_sec   = seg_metadata.update_sec;
-        int seg_nsec  = seg_metadata.update_nsec;
-        int seg_block = seg_metadata.cur_block;
-        int seg_imap_index;
-
-        read_segment_imap(imap, seg);
-        for (int i=0; i<DATA_BLOCKS_IN_SEGMENT; i++) {
-            im_entry = imap[i];
-            if (im_entry.i_number > 0) {
-                int inode_sec  = inode_update_sec[im_entry.i_number];
-                int inode_nsec = inode_update_nsec[im_entry.i_number];
-                if ((inode_sec <= seg_sec) || ((inode_sec == seg_sec) && (inode_nsec <= seg_nsec))) {
-                    _inode_table[im_entry.i_number] = im_entry.inode_block;
-                    inode_update_sec[im_entry.i_number]  = seg_sec;
-                    inode_update_nsec[im_entry.i_number] = seg_nsec;
-                    if (im_entry.i_number > count_inode)
-                        count_inode = im_entry.i_number;
-                }
-            } else {
-                seg_imap_index = i;
-                break;
-            }
-        }
-
-        if ((newest_sec < seg_sec) || ((newest_sec == seg_sec) && (newest_nsec < seg_nsec))) {
-            newest_seg = seg;
-            newest_sec = seg_sec;
-            newest_nsec = seg_nsec;
-            newest_block = seg_block;
-            newest_imap_index = seg_imap_index;
-        }
-    }
-
-    struct inode inode_block;
-    for (int i=1; i<=count_inode; i++) {
-        if (_inode_table[i] >= 0) {
-            get_block(&inode_block, _inode_table[i]);
-            printf("Inode #%d / #%d at block #%d.\n", i, inode_block.i_number, _inode_table[i]);
-        }
-    }
-    ========== Debug========== */
+    interactive_debugger();
+    // Debug
     
     logger(DEBUG, "[INFO] Successfully saved current state to disk and exited.\n");
 }
@@ -216,7 +154,6 @@ void initialize_disk_file() {
 
 /** Load LFS structure data from an existing disk file. */
 void load_from_disk_file() {
-printf("A\n");
     /* (A) Read the (newer) checkpoint. */
     checkpoints ckpt;
     read_checkpoints(&ckpt);
@@ -239,8 +176,7 @@ printf("A\n");
         logger(ERROR, "[FATAL ERROR] Corrupt file system on disk: invalid checkpoint entry.\n");
         exit(-1);
     }
-    
-printf("B\n");
+
     /* (B) Restore the inode table in memory. */
     // (1) Initialize inode table in memory (by simulation).
     // Note: since #0 is a valid block number, we should initialized to -1.
@@ -295,7 +231,6 @@ printf("B\n");
         }
     }
 
-printf("C\n");
     /* (C) Restore segment buffer. */
     // Restore block pointers (i.e., cur_segment and cur_block).
     if ((newest_block == DATA_BLOCKS_IN_SEGMENT-1) || (newest_imap_index == DATA_BLOCKS_IN_SEGMENT)) {
@@ -310,21 +245,17 @@ printf("C\n");
     // Initialize segment buffer in memory by reading current segment.
     read_segment(segment_buffer, cur_segment);
 
-printf("D\n");
     /* (D) Reconstruct inode array in memory. */
     // Note that the inode table and segment buffer is already up-to-date.
     struct inode inode_block;
     print_inode_table();
     for (int i=1; i<=count_inode; i++) {
-        printf("%d\n", i);
         if (inode_table[i] >= 0) {
             get_block(&inode_block, inode_table[i]);
-            print(&inode_block);
             cached_inode_array[i] = inode_block;
         }
     }
 
-printf("E\n");
     /* (E) (optional) Do a thorough garbage collection for better performance. */
     if (DO_GARBCOL_ON_START) {
         collect_garbage(true);
@@ -341,8 +272,7 @@ printf("E\n");
         if (is_full)
             logger(WARN, "[WARNING] The file system is reportedly full: please assign a larger disk size.\n");
     }
-        
-printf("F\n");
+    
     /* (F) Generate a checkpoint for easier recovery. */
     generate_checkpoint();
 }
