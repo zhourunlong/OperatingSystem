@@ -22,6 +22,7 @@ std::lock_guard <std::mutex> guard(global_lock);
 /* Synchronize manually by writing the current segment into disk file and generate a checkpoint. */
 void manually_synchronize() {
     // Currently flush the whole segment buffer to disk (the same as destroy()).
+    acquire_segment_lock();
     add_segbuf_metadata();
     write_segment_through_cache(segment_buffer, cur_segment);
     segment_bitmap[cur_segment] = 1;
@@ -31,6 +32,7 @@ void manually_synchronize() {
     struct timespec cur_time;
     clock_gettime(CLOCK_REALTIME, &cur_time);
     last_ckpt_update_time = cur_time;
+    release_segment_lock();
 }
 
 int o_fsync(const char* path, int isdatasync, struct fuse_file_info* fi) {

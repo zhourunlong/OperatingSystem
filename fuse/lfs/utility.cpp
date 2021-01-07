@@ -22,6 +22,10 @@ int next_checkpoint, next_imap_index;
 struct timespec last_ckpt_update_time;
 std::mutex global_lock, io_lock;
 
+std::mutex segment_lock;
+std::mutex counter_lock;
+std::mutex disk_lock;
+
 segment_summary cached_segsum[TOT_SEGMENTS];
 inode cached_inode_array[MAX_NUM_INODE];
 
@@ -42,8 +46,12 @@ int active_blocks, active_inodes;
 int read_block(void* buf, int block_addr) {
     int file_handle = open(lfs_path, O_RDWR);
     int file_offset = block_addr * BLOCK_SIZE;
+    release_lock();
+    acquire_disk_lock();
     int read_length = pread(file_handle, buf, BLOCK_SIZE, file_offset);
     close(file_handle);
+    release_disk_lock();
+    acquire_lock();
     return read_length;
 }
 
@@ -51,8 +59,12 @@ int read_block(void* buf, int block_addr) {
 int write_block(void* buf, int block_addr) {
     int file_handle = open(lfs_path, O_RDWR);
     int file_offset = block_addr * BLOCK_SIZE;
+    release_lock();
+    acquire_disk_lock();
     int write_length = pwrite(file_handle, buf, BLOCK_SIZE, file_offset);
     close(file_handle);
+    release_disk_lock();
+    acquire_lock();
     return write_length;
 }
 
@@ -60,8 +72,12 @@ int write_block(void* buf, int block_addr) {
 int read_segment(void* buf, int segment_addr) {
     int file_handle = open(lfs_path, O_RDWR);
     int file_offset = segment_addr * SEGMENT_SIZE;
+    release_lock();
+    acquire_disk_lock();
     int read_length = pread(file_handle, buf, SEGMENT_SIZE, file_offset);
     close(file_handle);
+    release_disk_lock();
+    acquire_lock();
     return read_length;
 }
 
@@ -69,8 +85,12 @@ int read_segment(void* buf, int segment_addr) {
 int write_segment(void* buf, int segment_addr) {
     int file_handle = open(lfs_path, O_RDWR);
     int file_offset = segment_addr * SEGMENT_SIZE;
+    release_lock();
+    acquire_disk_lock();
     int write_length = pwrite(file_handle, buf, SEGMENT_SIZE, file_offset);
     close(file_handle);
+    release_disk_lock();
+    acquire_lock();
     return write_length;
 }
 
@@ -88,8 +108,12 @@ int write_segment(void* buf, int segment_addr) {
 int read_segment_imap(void* buf, int segment_addr) {
     int file_handle = open(lfs_path, O_RDWR);
     int file_offset = segment_addr * SEGMENT_SIZE + IMAP_OFFSET;
+    release_lock();
+    acquire_disk_lock();
     int read_length = pread(file_handle, buf, IMAP_SIZE, file_offset);
     close(file_handle);
+    release_disk_lock();
+    acquire_lock();
     return read_length;
 }
 
@@ -97,8 +121,12 @@ int read_segment_imap(void* buf, int segment_addr) {
 int read_segment_summary(void* buf, int segment_addr) {
     int file_handle = open(lfs_path, O_RDWR);
     int file_offset = segment_addr * SEGMENT_SIZE + SUMMARY_OFFSET;
+    release_lock();
+    acquire_disk_lock();
     int read_length = pread(file_handle, buf, SUMMARY_SIZE, file_offset);
     close(file_handle);
+    release_disk_lock();
+    acquire_lock();
     return read_length;
 }
 
@@ -106,8 +134,12 @@ int read_segment_summary(void* buf, int segment_addr) {
 int read_segment_metadata(void* buf, int segment_addr) {
     int file_handle = open(lfs_path, O_RDWR);
     int file_offset = segment_addr * SEGMENT_SIZE + SEGMETA_OFFSET;
+    release_lock();
+    acquire_disk_lock();
     int read_length = pread(file_handle, buf, SEGMETA_SIZE, file_offset);
     close(file_handle);
+    release_disk_lock();
+    acquire_lock();
     return read_length;
 }
 
@@ -197,12 +229,12 @@ bool verify_permission(int mode, struct inode* f_inode, struct fuse_context* u_i
  * ***************************************/
 
 void acquire_lock() {
-    //global_lock.lock();
+    global_lock.lock();
     return;
 };
 
 void release_lock() {
-    //global_lock.unlock();
+    global_lock.unlock();
     return;
 };
 
@@ -225,3 +257,27 @@ void release_writer_lock() {
     //global_lock.unlock();
     return;
 };
+
+void acquire_segment_lock() {
+    segment_lock.lock();
+};
+
+void release_segment_lock() {
+    segment_lock.unlock();
+};
+
+void acquire_counter_lock() {
+    counter_lock.lock();
+}
+
+void release_counter_lock() {
+    counter_lock.unlock();
+}
+
+void acquire_disk_lock() {
+    disk_lock.lock();
+}
+
+void release_disk_lock() {
+    disk_lock.unlock();
+}
