@@ -22,6 +22,7 @@ std::lock_guard <std::mutex> guard(global_lock);
 /* Synchronize manually by writing the current segment into disk file and generate a checkpoint. */
 void manually_synchronize() {
     // Currently flush the whole segment buffer to disk (the same as destroy()).
+    printf("manually_synchronize() {\n");
     acquire_segment_lock();
     add_segbuf_metadata();
     write_segment_through_cache(segment_buffer, cur_segment);

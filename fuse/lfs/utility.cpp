@@ -292,11 +292,11 @@ void release_counter_lock() {
 }
 
 void acquire_disk_lock() {
-    disk_lock.lock();
+    // disk_lock.lock();
     printf("disk_lock.lock();\n");
 }
 
 void release_disk_lock() {
-    disk_lock.unlock();
+    // disk_lock.unlock();
     printf("disk_lock.unlock();\n");
 }
