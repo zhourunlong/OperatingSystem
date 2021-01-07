@@ -14,6 +14,7 @@
 #include <errno.h>
 #include <sys/stat.h>
 #include <fuse.h>
+#include "wbcache.h"
 
 /** Retrieve block according to the block address.
  * @param  data: pointer of return data.
@@ -30,7 +31,7 @@ void get_block(void* data, int block_addr) {
             memcpy(data, segment_buffer + buffer_offset, BLOCK_SIZE);
         release_reader_lock();
     } else {    // Data in disk file.
-        read_block(data, block_addr);
+        read_block_through_cache(data, block_addr);
     }
 }
 
@@ -125,7 +126,7 @@ void move_to_segment() {
     if (cur_block == DATA_BLOCKS_IN_SEGMENT-1 || next_imap_index == DATA_BLOCKS_IN_SEGMENT) {
         // Segment buffer is full, and should be flushed to disk file.
         add_segbuf_metadata();
-        write_segment(segment_buffer, cur_segment);
+        write_segment_through_cache(segment_buffer, cur_segment);
         segment_bitmap[cur_segment] = 1;
 
         get_next_free_segment();
@@ -342,7 +343,7 @@ void remove_inode(int i_number) {
         // If segment buffer is full, it should be flushed to disk file.
         if (cur_block == DATA_BLOCKS_IN_SEGMENT-1 || next_imap_index == DATA_BLOCKS_IN_SEGMENT) {
             add_segbuf_metadata();
-            write_segment(segment_buffer, cur_segment);
+            write_segment_through_cache(segment_buffer, cur_segment);
             segment_bitmap[cur_segment] = 1;
 
             get_next_free_segment();
