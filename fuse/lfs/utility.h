@@ -234,7 +234,7 @@ const bool DO_GARBCOL_ON_START  = 1;        // Force a thorough garbage collecti
 /** **************************************
  * Public variable locks.
  * ***************************************/
-extern std::mutex global_lock;
+extern std::mutex global_lock, io_lock;
 
 void acquire_lock();
 void release_lock();

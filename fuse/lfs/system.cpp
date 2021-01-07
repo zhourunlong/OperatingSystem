@@ -5,6 +5,7 @@
 #include "utility.h"
 #include "blockio.h"
 #include "path.h"
+#include "wbcache.h"
 
 #include <unistd.h>
 #include <stdlib.h>
@@ -57,6 +58,8 @@ void* o_init(struct fuse_conn_info* conn, struct fuse_config* cfg) {
         print_inode_table();
     }
 
+    init_cache();
+
 	return NULL;
 }
 
@@ -67,10 +70,11 @@ void o_destroy(void* private_data) {
     
     // Save LFS to disk.
     add_segbuf_metadata();
-    write_segment(segment_buffer, cur_segment);
+    write_segment_through_cache(segment_buffer, cur_segment);
     segment_bitmap[cur_segment] = 1;
     generate_checkpoint();
 
+    flush_cache();
     // Debug
     print_inode_table();
 
@@ -198,7 +202,7 @@ void initialize_disk_file() {
     free(buf);
 
     new_inode_block(root_inode);
-    write_segment(segment_buffer, 0);
+    write_segment_through_cache(segment_buffer, 0);
     segment_bitmap[0] = 1;
 
 

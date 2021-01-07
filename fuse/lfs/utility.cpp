@@ -20,7 +20,7 @@ int count_inode;
 int cur_segment, cur_block;
 int next_checkpoint, next_imap_index;
 struct timespec last_ckpt_update_time;
-std::mutex global_lock;
+std::mutex global_lock, io_lock;
 
 segment_summary cached_segsum[TOT_SEGMENTS];
 inode cached_inode_array[MAX_NUM_INODE];

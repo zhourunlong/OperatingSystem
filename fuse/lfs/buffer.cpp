@@ -5,6 +5,7 @@
 #include "utility.h"
 #include "blockio.h"
 #include "path.h"
+#include "wbcache.h"
 
 #include <unistd.h>
 #include <stdlib.h>
@@ -22,7 +23,7 @@ std::lock_guard <std::mutex> guard(global_lock);
 void manually_synchronize() {
     // Currently flush the whole segment buffer to disk (the same as destroy()).
     add_segbuf_metadata();
-    write_segment(segment_buffer, cur_segment);
+    write_segment_through_cache(segment_buffer, cur_segment);
     segment_bitmap[cur_segment] = 1;
     generate_checkpoint();
 
