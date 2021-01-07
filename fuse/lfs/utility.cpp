@@ -259,31 +259,31 @@ void release_writer_lock() {
 };
 
 void acquire_segment_lock() {
-    segment_lock.lock();
     printf("segment_lock.lock();\n");
+    segment_lock.lock();
 };
 
 void release_segment_lock() {
-    segment_lock.unlock();
     printf("segment_lock.unlock();\n");
+    segment_lock.unlock();
 };
 
 void acquire_counter_lock() {
-    counter_lock.lock();
     printf("counter_lock.lock();\n");
+    counter_lock.lock();
 }
 
 void release_counter_lock() {
-    counter_lock.unlock();
     printf("counter_lock.unlock();\n");
+    counter_lock.unlock();
 }
 
 void acquire_disk_lock() {
-    disk_lock.lock();
     printf("disk_lock.lock();\n");
+    disk_lock.lock();
 }
 
 void release_disk_lock() {
-    disk_lock.unlock();
     printf("disk_lock.unlock();\n");
+    disk_lock.unlock();
 }
