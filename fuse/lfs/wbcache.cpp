@@ -17,8 +17,12 @@ std::lock_guard <std::mutex> guard(io_lock);
         i = evict(1);
         int file_handle = open(lfs_path, O_RDWR);
         int file_offset = cacheline_idx * CACHELINE_SIZE;
+        release_lock();
+        acquire_disk_lock();
         int read_length = pread(file_handle, cache + i * CACHELINE_SIZE,
                                 CACHELINE_SIZE, file_offset);
+        release_disk_lock();
+        acquire_lock();
         close(file_handle);
         m[cacheline_idx] = i;
         metablocks[i] = (cacheline_metadata) {cacheline_idx, ++T, false};

@@ -75,9 +75,7 @@ void o_destroy(void* private_data) {
     // Save LFS to disk.
     add_segbuf_metadata();
     write_segment_through_cache(segment_buffer, cur_segment);
-    acquire_segment_lock();
     segment_bitmap[cur_segment] = 1;
-    release_segment_lock();
     generate_checkpoint();
 
     flush_cache();
@@ -155,6 +153,7 @@ void initialize_disk_file() {
 /** Load LFS structure data from an existing disk file. */
 void load_from_disk_file() {
     /* (A) Read the (newer) checkpoint. */
+    acquire_lock();
     checkpoints ckpt;
     read_checkpoints(&ckpt);
     print(ckpt);
@@ -275,4 +274,5 @@ void load_from_disk_file() {
     
     /* (F) Generate a checkpoint for easier recovery. */
     generate_checkpoint();
+    release_lock();
 }

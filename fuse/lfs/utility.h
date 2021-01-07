@@ -245,6 +245,8 @@ void acquire_segment_lock();
 void release_segment_lock();
 void acquire_counter_lock();
 void release_counter_lock();
+void acquire_disk_lock();
+void release_disk_lock();
 
 
 /** **************************************
