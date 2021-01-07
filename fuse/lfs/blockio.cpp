@@ -84,7 +84,6 @@ bool get_garbcol_status(int level) {
  * @return flag: true if the disk is not full, and false otherwise. */
 void get_next_free_segment() {
     // Count full segments for potential garbage collection.
-    acquire_segment_lock();
     int count_full_segment = 0;
     for (int i=0; i<TOT_SEGMENTS; i++)
         count_full_segment += segment_bitmap[i];
@@ -188,12 +187,10 @@ void get_next_free_segment() {
         cur_block       = 0;
         next_imap_index = 0;
     }
-    release_segment_lock();
 }
 
 /** Increment cur_block, and flush segment buffer if it is full. */
 void move_to_segment() {
-    acquire_segment_lock();
     if (is_full) {
         logger(WARN, "[WARNING] The file system is already full: please expand the disk size.\n");
         logger(WARN, "* Garbage collection fails because it cannot release any blocks.\n");
@@ -211,7 +208,6 @@ void move_to_segment() {
     } else {    // Segment buffer is not full yet.
         cur_block++;
     }
-    release_segment_lock();
 }
 
 /** Create a new data block into the segment buffer.
@@ -449,7 +445,6 @@ void remove_inode(int i_number) {
 /** Generate a checkpoint and save it to disk file. */
 void generate_checkpoint() {
     acquire_writer_lock();    // The lock here is to guarantee checkpoint consistency.
-    acquire_segment_lock();
         checkpoints ckpt;
         read_checkpoints(&ckpt);
 
@@ -468,7 +463,6 @@ void generate_checkpoint() {
         write_checkpoints(&ckpt);
         next_checkpoint = 1 - next_checkpoint;
     release_writer_lock();
-    release_segment_lock();
 
     if (DEBUG_CKPT_REPORT)
         print(ckpt);
