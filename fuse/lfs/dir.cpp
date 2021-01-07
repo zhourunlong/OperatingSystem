@@ -470,8 +470,9 @@ int remove_object(struct inode* head_inode, const char* del_name, int del_mode) 
                             }
                             new_inode_block(block_inode);
                         } else {
-                            remove_inode(tail_inode->next_indirect);
+                            int del_inode_number = tail_inode->next_indirect;
                             tail_inode->next_indirect = block_inode->next_indirect;
+                            remove_inode(del_inode_number);
                             if (tail_firblk) {
                                 if (FUNC_ATIME_DIR)
                                     update_atime(tail_inode, cur_time);

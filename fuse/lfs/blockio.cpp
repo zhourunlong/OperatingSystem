@@ -398,7 +398,6 @@ void file_add_data(struct inode* &cur_inode, void* data) {
 void file_modify(struct inode* cur_inode, int direct_index, void* data) {
     if (direct_index >= cur_inode->num_direct) {
         logger(ERROR, "[ERROR] Cannot modify a block that does not exist yet. Request ind: %d\n", direct_index);
-        return;
     }
     
     int block_addr = new_data_block(data, cur_inode->i_number, direct_index);

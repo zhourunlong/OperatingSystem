@@ -192,7 +192,7 @@ extern int active_blocks, active_inodes;
 /** **************************************
  * Debug and error-reporting flags.
  * ***************************************/
-const bool DEBUG_PRINT_COMMAND  = 1;    // Print the name of each command.
+const bool DEBUG_PRINT_COMMAND  = 0;    // Print the name of each command.
 const bool DEBUG_METADATA_INODE = 0;    // Print inode for each metadata query.
 const bool DEBUG_DIRECTORY      = 0;    // Print debug information in directory.cpp.
 const bool DEBUG_FILE           = 0;    // Print debug information in file.cpp.
@@ -203,7 +203,7 @@ const bool DEBUG_CKPT_REPORT    = 1;    // Print checkpoint after each storation
 const bool DEBUG_GARBAGE_COL    = 1;    // Print debug information for garbage collection utilities.
 const bool DEBUG_GC_BLOCKIO     = 0;    // Print GC buffer block I/O information.
 
-const bool ERROR_METADATA       = 1;    // Report errors in metadata.cpp assoc. with locate().
+const bool ERROR_METADATA       = 0;    // Report errors in metadata.cpp assoc. with locate().
 const bool ERROR_DIRECTORY      = 1;    // Report directory operation errors in directory.cpp.
 const bool ERROR_FILE           = 1;    // Report file operation errors in file.cpp.
 const bool ERROR_PATH           = 1;    // Report low-level errors in path.cpp.
