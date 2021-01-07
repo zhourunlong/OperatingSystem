@@ -187,6 +187,7 @@ extern inode cached_inode_array[MAX_NUM_INODE];     // In-memory inode array.
 const long long FILE_SIZE = 1ll * SEGMENT_SIZE * TOT_SEGMENTS + 2 * BLOCK_SIZE;
 const int ROOT_DIR_INUMBER = 1;
 
+extern int active_blocks, active_inodes;
 
 /** **************************************
  * Debug and error-reporting flags.

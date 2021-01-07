@@ -249,6 +249,12 @@ int new_inode_block(struct inode* data) {
     if (DEBUG_BLOCKIO)
         logger(DEBUG, "Add inode block at (segment %d, block %d). Write to imap: #%d.\n", cur_segment, cur_block, next_imap_index);
 
+    if (is_full) {
+        logger(WARN, "[WARNING] The file system is already full: please expand the disk size.\n");
+        logger(WARN, "* Garbage collection fails because it cannot release any blocks.\n");
+        return -1;
+    }
+
     acquire_writer_lock();
         if (!is_full) {
             // Append inode block.

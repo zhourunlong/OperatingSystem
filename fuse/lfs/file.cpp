@@ -603,8 +603,7 @@ std::lock_guard <std::mutex> guard(global_lock);
             free(from_parent_dir); free(to_parent_dir); free(from_name); free(to_name);
             return flag;
         }
-
-        fprintf(stderr, "on rename, remove to object\n");
+        
         remove_object(to_par_inode, to_name, to_inode->mode);
     } 
     

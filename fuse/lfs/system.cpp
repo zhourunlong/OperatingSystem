@@ -19,8 +19,6 @@ void* o_init(struct fuse_conn_info* conn, struct fuse_config* cfg) {
     if (DEBUG_PRINT_COMMAND)
         logger(DEBUG, "INIT, %p, %p\n", conn, cfg);
 
-    init_cache();
-
     (void) conn;
 	cfg->kernel_cache = 1;
 
