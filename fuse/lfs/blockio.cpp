@@ -21,6 +21,7 @@
  * @param  block_addr: block address.
  * Note that the block may be in segment buffer, or in disk file. */
 void get_block(void* data, int block_addr) {
+    printf("get_block(void* data, int block_addr)\n");
     acquire_segment_lock();
     int segment = block_addr / BLOCKS_IN_SEGMENT;
     int block = block_addr % BLOCKS_IN_SEGMENT;
@@ -217,6 +218,7 @@ void move_to_segment() {
  * @return block_addr: global block address of the new block.
  * Note that when the segment buffer is full, we have to write it back into disk file. */
 int new_data_block(void* data, int i_number, int direct_index) {
+    printf("new_data_block(void* data, int i_number, int direct_index)\n");
     acquire_segment_lock();
     int buffer_offset = cur_block * BLOCK_SIZE;
     int block_addr = cur_segment * BLOCKS_IN_SEGMENT + cur_block;
@@ -247,6 +249,7 @@ int new_data_block(void* data, int i_number, int direct_index) {
  * @return block_addr: global block address of the new block.
  * Note that when the segment buffer is full, we have to write it back into disk file. */
 int new_inode_block(struct inode* data) {
+    printf("new_inode_block(struct inode* data)\n");
     acquire_segment_lock();
     int i_number = data->i_number;
     int buffer_offset = cur_block * BLOCK_SIZE;
@@ -335,6 +338,7 @@ void add_segbuf_metadata() {
  * @param  _permission: using UGO x RWX format in base-8 (e.g., 0777). 
  * [CAUTION] It is required to use malloc to create cur_inode (see file_add_data() below). */
 void file_initialize(struct inode* &cur_inode, int _mode, int _permission) {
+    printf("ile_initialize(struct inode* &cur_inode, int _mode, int _permission)\n");
     acquire_segment_lock();
     acquire_counter_lock();
     acquire_writer_lock();
@@ -418,6 +422,7 @@ void file_modify(struct inode* cur_inode, int direct_index, void* data) {
 /** Remove an existing inode.
  * @param  i_number: i_number of an existing inode. */
 void remove_inode(int i_number) {
+    printf("remove_inode(int i_number)\n");
     acquire_writer_lock();
     acquire_segment_lock();
         if (DEBUG_BLOCKIO)
