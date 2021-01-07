@@ -243,13 +243,11 @@ bool verify_permission(int mode, struct inode* f_inode, struct fuse_context* u_i
 
 void acquire_lock() {
     global_lock.lock();
-    printf("global_lock.lock();\n");
     return;
 };
 
 void release_lock() {
     global_lock.unlock();
-    printf("global_lock.unlock();\n");
     return;
 };
 
