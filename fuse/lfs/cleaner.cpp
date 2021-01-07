@@ -4,6 +4,7 @@
 #include "print.h"
 #include "utility.h"
 #include "blockio.h"
+#include "wbcache.h"
 
 #include <stdio.h>
 #include <fcntl.h>
@@ -191,6 +192,22 @@ bool _time_compare(struct time_entry &a, struct time_entry &b) {
 }
 
 
+/** A variant of "get_lock(data, block_addr)" that does not acquire lock. */
+void gc_get_block(void* data, int block_addr) {
+    int segment = block_addr / BLOCKS_IN_SEGMENT;
+    int block = block_addr % BLOCKS_IN_SEGMENT;
+
+    if (segment == cur_segment) {    // Data in segment buffer.
+        int buffer_offset = block * BLOCK_SIZE;
+        memcpy(data, segment_buffer + buffer_offset, BLOCK_SIZE);
+    } else {    // Data in disk file.
+        int file_handle = open(lfs_path, O_RDWR);
+        int file_offset = block_addr * BLOCK_SIZE;
+        int read_length = pread(file_handle, data, BLOCK_SIZE, file_offset);
+        close(file_handle);
+    }
+}
+
 /* Compact data blocks within a segment */
 void gc_compact_data_blocks(summary_entry* seg_sum, int seg, std::set<int> &modified_inum) {
     block data;
@@ -209,7 +226,7 @@ void gc_compact_data_blocks(summary_entry* seg_sum, int seg, std::set<int> &modi
             if (cur_inode->direct[dir_index] == block_addr) {
                 modified_inum.insert(i_number);
                 
-                get_block(&data, block_addr);
+                gc_get_block(&data, block_addr);
                 gc_cached_inode_array[i_number].direct[dir_index] = gc_new_data_block(&data, i_number, dir_index);
             }
         }
@@ -221,6 +238,8 @@ void gc_compact_data_blocks(summary_entry* seg_sum, int seg, std::set<int> &modi
 // * Read data using non-GC APIs (from the original file or cache).
 // * Write data to GC data structures only (especially, never change global cache).
 void collect_garbage(bool clean_thoroughly) {
+    flush_cache();    // Must flush cache in the first hand.
+
     // We will do all garbage collection completely in memory.
     // This may also prevent writing inconsistent data into disk file.
     _clean_thoroughly = clean_thoroughly;

@@ -27,12 +27,14 @@ void get_block(void* data, int block_addr) {
     int block = block_addr % BLOCKS_IN_SEGMENT;
 
     if (segment == cur_segment) {    // Data in segment buffer.
+        printf("Branch 1\n");
         int buffer_offset = block * BLOCK_SIZE;
 
         acquire_reader_lock();
             memcpy(data, segment_buffer + buffer_offset, BLOCK_SIZE);
         release_reader_lock();
     } else {    // Data in disk file.
+        printf("Branch 2\n");
         read_block_through_cache(data, block_addr);
     }
     release_segment_lock();
@@ -48,7 +50,6 @@ void get_inode_from_inum(struct inode* &inode_data, int i_number) {
     if (i_number != inode_data->i_number) {
         logger(ERROR, "[FATAL ERROR] Corrupt file system: inconsistent inode number in memory.\n");
         logger(ERROR, "* Should retrieve i_number %d, but get #%d from inode array.\n", i_number, inode_data->i_number);
-        getchar();
 
         struct inode err_inode;
         memset(&err_inode, 0, sizeof(err_inode));
