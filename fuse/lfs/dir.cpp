@@ -171,6 +171,7 @@ int append_parent_dir_entry(struct inode* head_inode, const char* new_name, int 
     memset(block_dir, 0, sizeof(block_dir));
     block_dir[0].i_number = new_inum;
     memcpy(block_dir[0].filename, new_name, strlen(new_name) * sizeof(char));
+    //++active_blocks;
 
     if (rec_avail_for_ins) {
         for (int i = 0; i < NUM_INODE_DIRECT; ++i)
@@ -178,7 +179,6 @@ int append_parent_dir_entry(struct inode* head_inode, const char* new_name, int 
                 int new_block_addr = new_data_block(&block_dir, avail_for_ins->i_number, i);
                 avail_for_ins->direct[i] = new_block_addr;
                 ++avail_for_ins->num_direct;
-                
                 if (afi_firblk) {
                     if (FUNC_ATIME_DIR)
                         update_atime(avail_for_ins, cur_time);
@@ -228,6 +228,7 @@ bool remove_parent_dir_entry(struct inode* block_inode, int del_inum)  {
                         find = true;
                         block_dir[j].i_number = 0;
                         memset(block_dir[j].filename, 0, sizeof(block_dir[j].filename));
+                        //--active_blocks;
                         break;
                     }
                 if (find == true) {
@@ -264,6 +265,7 @@ bool remove_parent_dir_entry(struct inode* block_inode, int del_inum, const char
                         find = true;
                         block_dir[j].i_number = 0;
                         memset(block_dir[j].filename, 0, sizeof(block_dir[j].filename));
+                        //--active_blocks;
                         break;
                     }
                 if (find == true) {
@@ -360,6 +362,7 @@ std::lock_guard <std::mutex> guard(global_lock);
     inode* dir_inode;
     file_initialize(dir_inode, MODE_DIR, mode);
     new_inode_block(dir_inode);
+    //++active_inodes;
 
     int flag = append_parent_dir_entry(head_inode, dirname, dir_inode->i_number);
     free(parent_dir); free(dirname);
@@ -434,10 +437,12 @@ int remove_object(struct inode* head_inode, const char* del_name, int del_mode) 
                         int cur_inum = block_dir[j].i_number;
                         do {
                             get_inode_from_inum(cur_inode, cur_inum);
+                            //active_blocks -= cur_inode->fsize_block + 1; // direct[*] and the inode block itself
                             int next_inum = cur_inode->next_indirect;
                             remove_inode(cur_inum);
                             cur_inum = next_inum;
                         } while (cur_inum != 0);
+                        //--active_inodes;
                     } else {
                         tmp_head_inode->num_links--;
                         tmp_head_inode->ctime = cur_time;
@@ -452,6 +457,7 @@ int remove_object(struct inode* head_inode, const char* del_name, int del_mode) 
                         if (block_inode->num_direct != 1 || block_inode->mode == MODE_DIR) {
                             --block_inode->num_direct;
                             block_inode->direct[i] = -1;
+                            //--active_blocks;
                             if (firblk) {
                                 if (FUNC_ATIME_DIR)
                                     update_atime(block_inode, cur_time);
@@ -524,9 +530,13 @@ std::lock_guard <std::mutex> guard(global_lock);
         logger(DEBUG, "RMDIR, %s\n", resolve_prefix(path).c_str());
     
     if (is_full) {
-        logger(WARN, "[WARNING] The file system is already full: please expand the disk size.\n* Garbage collection fails because it cannot release any blocks.\n");
-        logger(WARN, "====> Cannot proceed to remove the directory.\n");
-        return -ENOSPC;
+        if (next_imap_index == BLOCKS_IN_SEGMENT) {
+            logger(WARN, "[WARNING] The file system is already full: please expand the disk size.\n* Garbage collection fails because it cannot release any blocks.\n");
+            logger(WARN, "====> Cannot proceed to remove the directory.\n");
+            return -ENOSPC;
+        } else {
+            is_full = false;
+        }
     }
 
     /* Get information (uid, gid) of the user who calls LFS interface. */

@@ -23,7 +23,7 @@ std::lock_guard <std::mutex> guard(global_lock);
     }
 
     stbuf->f_bsize = stbuf->f_frsize = BLOCK_SIZE;
-    stbuf->f_blocks = cur_segment * BLOCKS_IN_SEGMENT + cur_block;
+    stbuf->f_blocks = 0;
     stbuf->f_bfree = stbuf->f_bavail = BLOCKS_IN_SEGMENT * TOT_SEGMENTS - stbuf->f_blocks;
     stbuf->f_files = count_inode;
     stbuf->f_ffree = stbuf->f_favail = MAX_NUM_INODE - count_inode - 1;

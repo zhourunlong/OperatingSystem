@@ -581,11 +581,12 @@ std::lock_guard <std::mutex> guard(global_lock);
         new_inode_block(to_par_inode);
         new_inode_block(from_par_inode);
         
-        // Remove destination directory entry.
-        remove_parent_dir_entry(to_par_inode, to_inum, to_name);
-
+        
         // Conflict case 1: exchange files.
         if (flags == RENAME_EXCHANGE) {
+            // Remove destination directory entry.
+            remove_parent_dir_entry(to_par_inode, to_inum, to_name);
+
             // On exchange, remove source directory entry as well.
             remove_parent_dir_entry(from_par_inode, from_inum, from_name);
 
@@ -602,6 +603,8 @@ std::lock_guard <std::mutex> guard(global_lock);
             free(from_parent_dir); free(to_parent_dir); free(from_name); free(to_name);
             return flag;
         }
+        
+        remove_object(to_par_inode, to_name, to_inode->mode);
     } 
     
     // Conflict case 2: overwrite destination file.
@@ -645,9 +648,13 @@ std::lock_guard <std::mutex> guard(global_lock);
         logger(DEBUG, "UNLINK, %s\n", resolve_prefix(path).c_str());
     
     if (is_full) {
-        logger(WARN, "[WARNING] The file system is already full: please expand the disk size.\n* Garbage collection fails because it cannot release any blocks.\n");
-        logger(WARN, "====> Cannot proceed to unlink the file.\n");
-        return -ENOSPC;
+        if (next_imap_index == BLOCKS_IN_SEGMENT) {
+            logger(WARN, "[WARNING] The file system is already full: please expand the disk size.\n* Garbage collection fails because it cannot release any blocks.\n");
+            logger(WARN, "====> Cannot proceed to unlink the file.\n");
+            return -ENOSPC;
+        } else {
+            is_full = false;
+        }
     }
 
     /* Get information (uid, gid) of the user who calls LFS interface. */
