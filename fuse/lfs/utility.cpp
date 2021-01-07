@@ -116,12 +116,8 @@ int read_segment_imap(void* buf, int segment_addr) {
     int file_handle = open(lfs_path, O_RDWR);
     int file_offset = segment_addr * SEGMENT_SIZE + IMAP_OFFSET;
     
-    acquire_disk_lock();
-    release_lock();
     int read_length = pread(file_handle, buf, IMAP_SIZE, file_offset);
     close(file_handle);
-    acquire_lock();
-    release_disk_lock();
     
     return read_length;
 }
@@ -131,12 +127,8 @@ int read_segment_summary(void* buf, int segment_addr) {
     int file_handle = open(lfs_path, O_RDWR);
     int file_offset = segment_addr * SEGMENT_SIZE + SUMMARY_OFFSET;
     
-    acquire_disk_lock();
-    release_lock();
     int read_length = pread(file_handle, buf, SUMMARY_SIZE, file_offset);
     close(file_handle);
-    acquire_lock();
-    release_disk_lock();
     
     return read_length;
 }
@@ -146,12 +138,8 @@ int read_segment_metadata(void* buf, int segment_addr) {
     int file_handle = open(lfs_path, O_RDWR);
     int file_offset = segment_addr * SEGMENT_SIZE + SEGMETA_OFFSET;
     
-    acquire_disk_lock();
-    release_lock();
     int read_length = pread(file_handle, buf, SEGMETA_SIZE, file_offset);
     close(file_handle);
-    acquire_lock();
-    release_disk_lock();
     
     return read_length;
 }
@@ -292,11 +280,11 @@ void release_counter_lock() {
 }
 
 void acquire_disk_lock() {
-    printf("disk_lock.lock();\n");
-    disk_lock.lock();
+    // printf("disk_lock.lock();\n");
+    // disk_lock.lock();
 }
 
 void release_disk_lock() {
-    printf("disk_lock.unlock();\n");
-    disk_lock.unlock();
+    // printf("disk_lock.unlock();\n");
+    // disk_lock.unlock();
 }
