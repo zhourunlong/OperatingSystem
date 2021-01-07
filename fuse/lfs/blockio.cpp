@@ -61,12 +61,12 @@ bool get_garbcol_status(int level) {
     struct timespec cur_time;
     clock_gettime(CLOCK_REALTIME, &cur_time);
 
-    if (level >= cur_garbcol)
+    if (level >= cur_garbcol_level) {
         last_garbcol_time = cur_time.tv_sec;
         return true;
-    else {
+    } else {
         if (cur_time.tv_sec - last_garbcol_time > GARBCOL_INTERVAL) {
-            cur_garbcol = level;
+            cur_garbcol_level = level;
             last_garbcol_time = cur_time.tv_sec;
             return true;
         } else {
