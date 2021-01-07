@@ -22,6 +22,10 @@ int next_checkpoint, next_imap_index;
 struct timespec last_ckpt_update_time;
 std::mutex global_lock, io_lock;
 
+std::mutex segment_lock;
+std::mutex inode_lock[MAX_NUM_INODE];
+std::mutex counter_lock;
+
 segment_summary cached_segsum[TOT_SEGMENTS];
 inode cached_inode_array[MAX_NUM_INODE];
 
@@ -224,3 +228,19 @@ void release_writer_lock() {
     //global_lock.unlock();
     return;
 };
+
+void acquire_segment_lock() {
+    segment_lock.lock();
+};
+
+void release_segment_lock() {
+    segment_lock.unlock();
+};
+
+void acquire_counter_lock() {
+    counter_lock.lock();
+}
+
+void release_counter_lock() {
+    counter_lock.unlock();
+}

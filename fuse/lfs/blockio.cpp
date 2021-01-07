@@ -21,6 +21,7 @@
  * @param  block_addr: block address.
  * Note that the block may be in segment buffer, or in disk file. */
 void get_block(void* data, int block_addr) {
+    acquire_segment_lock();
     int segment = block_addr / BLOCKS_IN_SEGMENT;
     int block = block_addr % BLOCKS_IN_SEGMENT;
 
@@ -33,6 +34,7 @@ void get_block(void* data, int block_addr) {
     } else {    // Data in disk file.
         read_block_through_cache(data, block_addr);
     }
+    release_segment_lock();
 }
 
 /** Retrieve block according to the i_number of inode block.
@@ -61,12 +63,13 @@ bool get_garbcol_status(int level) {
     struct timespec cur_time;
     clock_gettime(CLOCK_REALTIME, &cur_time);
 
-    if (level >= cur_garbcol)
+    if (level >= cur_garbcol_level) {
         last_garbcol_time = cur_time.tv_sec;
         return true;
+    }
     else {
         if (cur_time.tv_sec - last_garbcol_time > GARBCOL_INTERVAL) {
-            cur_garbcol = level;
+            cur_garbcol_level = level;
             last_garbcol_time = cur_time.tv_sec;
             return true;
         } else {
@@ -81,6 +84,7 @@ bool get_garbcol_status(int level) {
  * @return flag: true if the disk is not full, and false otherwise. */
 void get_next_free_segment() {
     // Count full segments for potential garbage collection.
+    acquire_segment_lock();
     int count_full_segment = 0;
     for (int i=0; i<TOT_SEGMENTS; i++)
         count_full_segment += segment_bitmap[i];
@@ -167,10 +171,12 @@ void get_next_free_segment() {
         cur_block       = 0;
         next_imap_index = 0;
     }
+    release_segment_lock();
 }
 
 /** Increment cur_block, and flush segment buffer if it is full. */
 void move_to_segment() {
+    acquire_segment_lock();
     if (is_full) {
         logger(WARN, "[WARNING] The file system is already full: please expand the disk size.\n");
         logger(WARN, "* Garbage collection fails because it cannot release any blocks.\n");
@@ -188,6 +194,7 @@ void move_to_segment() {
     } else {    // Segment buffer is not full yet.
         cur_block++;
     }
+    release_segment_lock();
 }
 
 /** Create a new data block into the segment buffer.
@@ -197,6 +204,7 @@ void move_to_segment() {
  * @return block_addr: global block address of the new block.
  * Note that when the segment buffer is full, we have to write it back into disk file. */
 int new_data_block(void* data, int i_number, int direct_index) {
+    acquire_segment_lock();
     int buffer_offset = cur_block * BLOCK_SIZE;
     int block_addr = cur_segment * BLOCKS_IN_SEGMENT + cur_block;
 
@@ -215,6 +223,7 @@ int new_data_block(void* data, int i_number, int direct_index) {
             move_to_segment();
         }
     release_writer_lock();
+    release_segment_lock();
     
     return block_addr;
 }
@@ -225,6 +234,7 @@ int new_data_block(void* data, int i_number, int direct_index) {
  * @return block_addr: global block address of the new block.
  * Note that when the segment buffer is full, we have to write it back into disk file. */
 int new_inode_block(struct inode* data) {
+    acquire_segment_lock();
     int i_number = data->i_number;
     int buffer_offset = cur_block * BLOCK_SIZE;
     int block_addr = cur_segment * BLOCKS_IN_SEGMENT + cur_block;
@@ -250,7 +260,7 @@ int new_inode_block(struct inode* data) {
             move_to_segment();
         }
     release_writer_lock();
-
+    release_segment_lock();
     return block_addr;
 }
 
@@ -306,6 +316,8 @@ void add_segbuf_metadata() {
  * @param  _permission: using UGO x RWX format in base-8 (e.g., 0777). 
  * [CAUTION] It is required to use malloc to create cur_inode (see file_add_data() below). */
 void file_initialize(struct inode* &cur_inode, int _mode, int _permission) {
+    acquire_segment_lock();
+    acquire_counter_lock();
     acquire_writer_lock();
         count_inode++;
         cur_inode = cached_inode_array + count_inode;
@@ -333,6 +345,8 @@ void file_initialize(struct inode* &cur_inode, int _mode, int _permission) {
     cur_inode->atime = cur_time;
     cur_inode->mtime = cur_time;
     cur_inode->ctime = cur_time;
+    release_counter_lock();
+    release_segment_lock();
 }
 
 
@@ -387,6 +401,7 @@ void file_modify(struct inode* cur_inode, int direct_index, void* data) {
  * @param  i_number: i_number of an existing inode. */
 void remove_inode(int i_number) {
     acquire_writer_lock();
+    acquire_segment_lock();
         if (DEBUG_BLOCKIO)
             logger(DEBUG, "Remove inode block. Written to imap: #%d.\n", next_imap_index);
         inode_table[i_number] = -1;
@@ -403,6 +418,7 @@ void remove_inode(int i_number) {
             get_next_free_segment();
             segment_bitmap[cur_segment] = 1;
         }
+    release_segment_lock();
     release_writer_lock();
 }
 
@@ -410,6 +426,7 @@ void remove_inode(int i_number) {
 /** Generate a checkpoint and save it to disk file. */
 void generate_checkpoint() {
     acquire_writer_lock();    // The lock here is to guarantee checkpoint consistency.
+    acquire_segment_lock();
         checkpoints ckpt;
         read_checkpoints(&ckpt);
 
@@ -428,6 +445,7 @@ void generate_checkpoint() {
         write_checkpoints(&ckpt);
         next_checkpoint = 1 - next_checkpoint;
     release_writer_lock();
+    release_segment_lock();
 
     if (DEBUG_CKPT_REPORT)
         print(ckpt);

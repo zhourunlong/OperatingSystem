@@ -240,6 +240,10 @@ void acquire_reader_lock();
 void release_reader_lock();
 void acquire_writer_lock();
 void release_writer_lock();
+void acquire_segment_lock();
+void release_segment_lock();
+void acquire_counter_lock();
+void release_counter_lock();
 
 
 /** **************************************
