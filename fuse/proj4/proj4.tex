@@ -182,6 +182,11 @@
   To maintain the consistency of the whole file system, we use locks for each independent inode. In each file operation, the thread needs to first locate the inodes it need to access, and then acquire all these locks corresponding to them (in the order from small inumbers to large inumbers). 
 
   To make the cache operations atomic, we use a mutex lock for all the cache operations. 
+
+  To test the concurrency, move testconcurrency.cpp to the mounted disk, run \texttt{g++ testconcurrency.cpp -o testconcurrency -std=c++11 -lpthread}. 
+  Then run \texttt{./testconcurrency 10 10 } and open a new terminal. Use htop to see the CPU utility. 
+
+  The time to compile the whole LFS code in our file system is 7s, where the time cost is 6.3s in ubuntu20. 
 \end{homeworkProblem}
 
 

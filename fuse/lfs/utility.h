@@ -275,3 +275,7 @@ const int GARBCOL_INTERVAL  = 60;
 
 const int CLEAN_NORM_FAIL   = (int) (0.60*TOT_SEGMENTS);
 const int CLEAN_THORO_FAIL  = (int) (0.85*TOT_SEGMENTS);
+
+
+
+const bool USE_CACHE        = false;

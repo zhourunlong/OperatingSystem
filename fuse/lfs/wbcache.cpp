@@ -12,6 +12,12 @@ int T;
 int read_block_through_cache(void* buf, int block_addr) {
 std::lock_guard <std::mutex> guard(io_lock);
     //std::cerr << "read block " << block_addr << " || ";
+    char _buffer[BLOCK_SIZE];
+    int file_handle = open(lfs_path, O_RDWR);
+    int file_offset = block_addr * BLOCK_SIZE;
+    int read_length = pread(file_handle, _buffer, BLOCK_SIZE, file_offset);
+    close(file_handle);
+
     int cacheline_idx = block_addr / BLOCKS_PER_CACHELINE, i;
     if (m.find(cacheline_idx) != m.end()) {
         i = m[cacheline_idx];
@@ -41,6 +47,14 @@ std::lock_guard <std::mutex> guard(io_lock);
     memcpy(buf, cache + i * CACHELINE_SIZE
               + block_addr % BLOCKS_PER_CACHELINE * BLOCK_SIZE,
               BLOCK_SIZE * sizeof(char));
+    
+    /* bool flag = true;
+    char* _buf = (char*) buf;
+    for (int j=0; j<BLOCK_SIZE; j++) {
+        flag = flag && (_buf[j] == _buffer[j]);
+    }
+    if (!flag) printf("WRONG IN CACHE!\n"); */
+
     return BLOCK_SIZE;
 }
 
@@ -118,7 +132,6 @@ int evict(int len) {
     fsync(file_handle);
     close(file_handle);
 
-    fprintf(stderr, "evicted %d len = %d\n", r, len);
     return r;
 }
 
