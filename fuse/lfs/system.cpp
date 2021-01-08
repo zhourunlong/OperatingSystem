@@ -208,7 +208,7 @@ void load_from_disk_file() {
             if (im_entry.i_number > 0) {
                 int inode_sec  = inode_update_sec[im_entry.i_number];
                 int inode_nsec = inode_update_nsec[im_entry.i_number];
-                if ((inode_sec <= seg_sec) || ((inode_sec == seg_sec) && (inode_nsec <= seg_nsec))) {
+                if ((inode_sec < seg_sec) || ((inode_sec == seg_sec) && (inode_nsec <= seg_nsec))) {
                     inode_table[im_entry.i_number] = im_entry.inode_block;
                     inode_update_sec[im_entry.i_number]  = seg_sec;
                     inode_update_nsec[im_entry.i_number] = seg_nsec;
@@ -254,6 +254,7 @@ void load_from_disk_file() {
             cached_inode_array[i] = inode_block;
         }
     }
+    print_inode_table();
 
     /* (E) (optional) Do a thorough garbage collection for better performance. */
     if (DO_GARBCOL_ON_START) {

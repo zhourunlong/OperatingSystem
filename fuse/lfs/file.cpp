@@ -653,7 +653,8 @@ std::lock_guard <std::mutex> guard(global_lock);
             logger(WARN, "====> Cannot proceed to unlink the file.\n");
             return -ENOSPC;
         } else {
-            is_full = false;
+            // The disk remains full is no more inode is available.
+            is_full = (count_inode >= MAX_NUM_INODE-1);
         }
     }
 

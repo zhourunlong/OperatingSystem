@@ -343,6 +343,10 @@ void file_initialize(struct inode* &cur_inode, int _mode, int _permission) {
     acquire_segment_lock();
     acquire_counter_lock();
     acquire_writer_lock();
+        if (count_inode >= MAX_NUM_INODE-1) {
+            is_full = true;
+            return;
+        }
         count_inode++;
         cur_inode = cached_inode_array + count_inode;
         cur_inode->i_number = count_inode;
