@@ -236,13 +236,8 @@ void acquire_lock() {
 };
 
 void release_lock() {
-<<<<<<< HEAD
-    printf("global_lock.unlock();\n");
-    global_lock.unlock();
-=======
     // printf("global_lock.unlock();\n");
     // global_lock.unlock();
->>>>>>> c8db139017e67038ff2e9ecc9221fdb0adf8855d
     return;
 };
 
