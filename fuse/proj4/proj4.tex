@@ -175,6 +175,16 @@
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 % Begin edit from here
 
+\begin{homeworkProblem}[Task 2]
+  To make sure that only one thread can access the segment buffer and segment bitmap, we use a mutex lock named segment\_lock. Threads intend to enter get\_block(), 
+  new\_data\_block(), new\_inode\_block() and remove\_inode() have to acquire segment\_lock first and then release it before returning. 
+
+  To maintain the consistency of the whole file system, we use locks for each independent inode. In each file operation, the thread needs to first locate the inodes it need to access 
+  and then acquire the locks corresponding to them. 
+
+  To make the cache operations atomic, we use a mutex lock for all the cache operations. 
+\end{homeworkProblem}
+
 \begin{homeworkProblem}[Task 3]
 
 The write-back cache overrides our original \texttt{read\_block()} and
