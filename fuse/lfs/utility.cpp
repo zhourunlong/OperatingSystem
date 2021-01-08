@@ -237,7 +237,7 @@ void acquire_lock() {
 
 void release_lock() {
     printf("global_lock.unlock();\n");
-    // global_lock.unlock();
+    global_lock.unlock();
     return;
 };
 
