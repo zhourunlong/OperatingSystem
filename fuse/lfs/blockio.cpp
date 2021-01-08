@@ -21,20 +21,18 @@
  * @param  block_addr: block address.
  * Note that the block may be in segment buffer, or in disk file. */
 void get_block(void* data, int block_addr) {
-    printf("get_block(void* data, int block_addr)\n");
+    // printf("get_block(void* data, int block_addr)\n");
     acquire_segment_lock();
     int segment = block_addr / BLOCKS_IN_SEGMENT;
     int block = block_addr % BLOCKS_IN_SEGMENT;
 
     if (segment == cur_segment) {    // Data in segment buffer.
-        printf("Branch 1\n");
         int buffer_offset = block * BLOCK_SIZE;
 
         acquire_reader_lock();
             memcpy(data, segment_buffer + buffer_offset, BLOCK_SIZE);
         release_reader_lock();
     } else {    // Data in disk file.
-        printf("Branch 2\n");
         read_block_through_cache(data, block_addr);
     }
     release_segment_lock();
@@ -51,11 +49,12 @@ void get_inode_from_inum(struct inode* &inode_data, int i_number) {
         logger(ERROR, "[FATAL ERROR] Corrupt file system: inconsistent inode number in memory.\n");
         logger(ERROR, "* Should retrieve i_number %d, but get #%d from inode array.\n", i_number, inode_data->i_number);
 
-        struct inode err_inode;
+        /* struct inode err_inode;
         memset(&err_inode, 0, sizeof(err_inode));
         get_block(&err_inode, inode_table[i_number]);
         print(&err_inode);
-        exit(-1);
+        exit(-1); */
+        // For debugging only (not used in submission).
     }
 }
 
@@ -219,7 +218,7 @@ void move_to_segment() {
  * @return block_addr: global block address of the new block.
  * Note that when the segment buffer is full, we have to write it back into disk file. */
 int new_data_block(void* data, int i_number, int direct_index) {
-    printf("new_data_block(void* data, int i_number, int direct_index)\n");
+    // printf("new_data_block(void* data, int i_number, int direct_index)\n");
     acquire_segment_lock();
     int buffer_offset = cur_block * BLOCK_SIZE;
     int block_addr = cur_segment * BLOCKS_IN_SEGMENT + cur_block;
@@ -250,7 +249,7 @@ int new_data_block(void* data, int i_number, int direct_index) {
  * @return block_addr: global block address of the new block.
  * Note that when the segment buffer is full, we have to write it back into disk file. */
 int new_inode_block(struct inode* data) {
-    printf("new_inode_block(struct inode* data)\n");
+    // printf("new_inode_block(struct inode* data)\n");
     acquire_segment_lock();
     int i_number = data->i_number;
     int buffer_offset = cur_block * BLOCK_SIZE;
@@ -339,10 +338,14 @@ void add_segbuf_metadata() {
  * @param  _permission: using UGO x RWX format in base-8 (e.g., 0777). 
  * [CAUTION] It is required to use malloc to create cur_inode (see file_add_data() below). */
 void file_initialize(struct inode* &cur_inode, int _mode, int _permission) {
-    printf("ile_initialize(struct inode* &cur_inode, int _mode, int _permission)\n");
+    // printf("file_initialize(struct inode* &cur_inode, int _mode, int _permission)\n");
     acquire_segment_lock();
     acquire_counter_lock();
     acquire_writer_lock();
+        if (count_inode >= MAX_NUM_INODE-1) {
+            is_full = true;
+            return;
+        }
         count_inode++;
         cur_inode = cached_inode_array + count_inode;
         cur_inode->i_number = count_inode;
@@ -423,14 +426,17 @@ void file_modify(struct inode* cur_inode, int direct_index, void* data) {
 /** Remove an existing inode.
  * @param  i_number: i_number of an existing inode. */
 void remove_inode(int i_number) {
-    printf("remove_inode(int i_number)\n");
+    // printf("remove_inode(int i_number)\n");
     acquire_writer_lock();
     acquire_segment_lock();
         if (DEBUG_BLOCKIO)
             logger(DEBUG, "Remove inode block. Written to imap: #%d.\n", next_imap_index);
         inode_table[i_number] = -1;
         add_segbuf_imap(i_number, -1);
-        memset(cached_inode_array+i_number, 0, sizeof(struct inode));
+
+        // Caution: we cannot set the inode to 0 here due to synchronization problems.
+        // However, inode_table should be set to 0 for correct book-keeping.
+        // memset(cached_inode_array+i_number, 0, sizeof(struct inode));
         
         // Imap modification may also trigger segment writeback.
         // If segment buffer is full, it should be flushed to disk file.
