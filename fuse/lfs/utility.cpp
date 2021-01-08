@@ -262,13 +262,13 @@ void release_writer_lock() {
 };
 
 void acquire_segment_lock() {
-    //printf("segment_lock.lock();\n");
-    //segment_lock.lock();
+    printf("segment_lock.lock();\n");
+    segment_lock.lock();
 };
 
 void release_segment_lock() {
-    //printf("segment_lock.unlock();\n");
-    //segment_lock.unlock();
+    printf("segment_lock.unlock();\n");
+    segment_lock.unlock();
 };
 
 void acquire_counter_lock() {
