@@ -183,6 +183,11 @@
   and then acquire the locks corresponding to them. 
 
   To make the cache operations atomic, we use a mutex lock for all the cache operations. 
+
+  To test the concurrency, move testconcurrency.cpp to the mounted disk, run \texttt{g++ testconcurrency.cpp -o testconcurrency -std=c++11 -lpthread}. 
+  Then run \texttt{./testconcurrency 10 10 } and open a new terminal. Use htop to see the CPU utility. 
+
+  The time to compile the whole LFS code in our file system is 7s, where the time cost is 6.3s in ubuntu20. 
 \end{homeworkProblem}
 
 \begin{homeworkProblem}[Task 3]
@@ -195,7 +200,9 @@ is applied to decide to-be-deleted cachelines. When an eviction finishes,
 all evicted dirty cachelines are \texttt{fsync()}ed to disk.
 
 The cache also provides \texttt{init\_cache()} and \texttt{flush\_cache()}
-functions to support file system initialization and garbage collection.
+functions to support file system initialization and garbage collection. 
+
+
 
 \end{homeworkProblem}
 
