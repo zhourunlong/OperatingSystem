@@ -332,7 +332,7 @@ int o_mkdir(const char* path, mode_t mode) {
     int locate_err = locate(parent_dir, par_inum);
     if (locate_err != 0) {
         if (ERROR_DIRECTORY)
-            logger(ERROR, "[ERROR] Cannot open the parent directory (error #%d).\n", locate_err);
+            logger(ERROR, "[ERROR] Cannot open the parent directory of %s (error #%d).\n", path, locate_err);
         free(parent_dir); free(dirname);
         return locate_err;
     }
@@ -365,14 +365,15 @@ int o_mkdir(const char* path, mode_t mode) {
         free(parent_dir); free(dirname);
         return -EEXIST;
     }
+
     std::set <int> get_inodes;
     get_inodes.insert(par_inum);
-    get_inodes.insert(tmp_inum);
 
     for (auto it = get_inodes.begin(); it != get_inodes.end(); it++) {
         std::lock_guard <std::mutex> guard(inode_lock[*it]);
     }
 
+    printf("mkdir path = %s, acquire lock %d and %d.\n", path, par_inum, tmp_inum);
 
 
     if (!verify_permission(PERM_WRITE, head_inode, user_info, ENABLE_PERMISSION)) {
@@ -389,6 +390,13 @@ int o_mkdir(const char* path, mode_t mode) {
 
     int flag = append_parent_dir_entry(head_inode, dirname, dir_inode->i_number);
     free(parent_dir); free(dirname);
+
+
+    int print_inum;
+    printf("mkdir path = %s, release lock %d and %d.\n", path, par_inum, tmp_inum);
+    printf("locate %s error = %d.\n", path, locate("/2", print_inum));
+    
+    
     return flag;
 }
 
@@ -599,7 +607,7 @@ int o_rmdir(const char* path) {
     int locate_err = locate(parent_dir, par_inum);
     if (locate_err != 0) {
         if (ERROR_DIRECTORY)
-            logger(ERROR, "[ERROR] Cannot open the parent directory (error #%d).\n", locate_err);
+            logger(ERROR, "[ERROR] Cannot open the parent directory of %s (error #%d).\n", path, locate_err);
         free(parent_dir); free(dirname);
         return locate_err;
     }

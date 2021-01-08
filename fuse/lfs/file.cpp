@@ -460,7 +460,7 @@ int o_create(const char *path, mode_t mode, struct fuse_file_info *fi) {
     int locate_err = locate(parent_dir, par_inum);
     if (locate_err != 0) {
         if (ERROR_FILE)
-            logger(ERROR, "[ERROR] Cannot open the parent directory (error #%d).\n", locate_err);
+            logger(ERROR, "[ERROR] Cannot open the parent directory of %s (error #%d).\n", path, locate_err);
         free(parent_dir); free(dirname);
         return locate_err;
     }
@@ -496,7 +496,6 @@ int o_create(const char *path, mode_t mode, struct fuse_file_info *fi) {
 
     std::set <int> get_inodes;
     get_inodes.insert(par_inum);
-    get_inodes.insert(tmp_inum);
 
     for (auto it = get_inodes.begin(); it != get_inodes.end(); it++) {
         std::lock_guard <std::mutex> guard(inode_lock[*it]);
