@@ -278,4 +278,4 @@ const int CLEAN_THORO_FAIL  = (int) (0.85*TOT_SEGMENTS);
 
 
 
-const bool USE_CACHE        = true;
+const bool USE_CACHE        = false;
