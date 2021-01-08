@@ -23,6 +23,7 @@ int o_opendir(const char* path, struct fuse_file_info* fi) {
     int fh;
     int locate_err = locate(path, fh);
     fi->fh = fh;
+    std::lock_guard <std::mutex> guard(inode_lock[fh]);
     if (locate_err != 0) {
         if (ERROR_DIRECTORY)
             logger(ERROR, "[ERROR] Cannot open the directory (error #%d).\n", locate_err);
@@ -61,6 +62,7 @@ int o_readdir(const char* path, void* buf, fuse_fill_dir_t filler, off_t offset,
     int fh;
     int locate_err = locate(path, fh);
     fi->fh = fh;
+    std::lock_guard <std::mutex> guard(inode_lock[fh]);
     if (locate_err != 0) {
         if (ERROR_DIRECTORY)
             logger(ERROR, "[ERROR] Cannot open the directory (error #%d).\n", locate_err);
@@ -351,6 +353,15 @@ int o_mkdir(const char* path, mode_t mode) {
         free(parent_dir); free(dirname);
         return -EEXIST;
     }
+    std::set <int> get_inodes;
+    get_inodes.insert(par_inum);
+    get_inodes.insert(tmp_inum);
+
+    for (auto it = get_inodes.begin(); it != get_inodes.end(); it++) {
+        std::lock_guard <std::mutex> guard(inode_lock[*it]);
+    }
+
+
 
     if (!verify_permission(PERM_WRITE, head_inode, user_info, ENABLE_PERMISSION)) {
         if (ERROR_PERM)
@@ -564,6 +575,13 @@ int o_rmdir(const char* path) {
         return locate_err;
     }
 
+    std::set <int> get_inodes;
+    get_inodes.insert(par_inum);
+
+    for (auto it = get_inodes.begin(); it != get_inodes.end(); it++) {
+        std::lock_guard <std::mutex> guard(inode_lock[*it]);
+    }
+
     inode* head_inode;
     get_inode_from_inum(head_inode, par_inum);
     if (!verify_permission(PERM_WRITE, head_inode, user_info, ENABLE_PERMISSION)) {
@@ -580,7 +598,7 @@ int o_rmdir(const char* path) {
         return -ENOTDIR;
     }
 
-    int flag = remove_object(head_inode, dirname, MODE_DIR);
+    int flag = remove_object(head_inode, dirname, MODE_DIR); //whether to add lock for deleted dir
     free(parent_dir); free(dirname);
     return flag;
 }

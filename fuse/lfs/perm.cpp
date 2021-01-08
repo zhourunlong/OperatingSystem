@@ -30,6 +30,12 @@ int o_chmod(const char* path, mode_t mode, struct fuse_file_info* fi) {
             logger(ERROR, "[ERROR] Cannot access the path (error #%d).\n", locate_err);
         return locate_err;
     }
+    std::set <int> get_inodes;
+    get_inodes.insert(fh);
+
+    for (auto it = get_inodes.begin(); it != get_inodes.end(); it++) {
+        std::lock_guard <std::mutex> guard(inode_lock[*it]);
+    }
 
     inode* block_inode;
     get_inode_from_inum(block_inode, fh);
@@ -59,6 +65,13 @@ int o_chown(const char* path, uid_t uid, gid_t gid, struct fuse_file_info* fi) {
         if (ERROR_PERMCPP)
             logger(ERROR, "[ERROR] Cannot access the path (error #%d).\n", locate_err);
         return locate_err;
+    }
+
+    std::set <int> get_inodes;
+    get_inodes.insert(fh);
+
+    for (auto it = get_inodes.begin(); it != get_inodes.end(); it++) {
+        std::lock_guard <std::mutex> guard(inode_lock[*it]);
     }
 
     inode* block_inode;

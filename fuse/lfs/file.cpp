@@ -190,6 +190,12 @@ int o_open(const char* path, struct fuse_file_info* fi) {
     clock_gettime(CLOCK_REALTIME, &cur_time);
     int inode_num;
     int flag = locate(path, inode_num);
+    std::set <int> get_inodes;
+    get_inodes.insert(inode_num);
+
+    for (auto it = get_inodes.begin(); it != get_inodes.end(); it++) {
+        std::lock_guard <std::mutex> guard(inode_lock[*it]);
+    }
     if (flag != 0) {
         if (ERROR_FILE)
             logger(ERROR, "[ERROR] Cannot open the file (error #%d).\n", flag);
@@ -267,6 +273,12 @@ int o_read(const char* path, char *buf, size_t size, off_t offset, struct fuse_f
         }
     }
     int inode_num = fi->fh;
+    std::set <int> get_inodes;
+    get_inodes.insert(inode_num);
+
+    for (auto it = get_inodes.begin(); it != get_inodes.end(); it++) {
+        std::lock_guard <std::mutex> guard(inode_lock[*it]);
+    }
     
     inode* cur_inode;
     get_inode_from_inum(cur_inode, inode_num);
@@ -379,6 +391,12 @@ int o_write(const char* path, const char* buf, size_t size, off_t offset, struct
         }
     }
     int inode_num = fi->fh;
+    std::set <int> get_inodes;
+    get_inodes.insert(inode_num);
+
+    for (auto it = get_inodes.begin(); it != get_inodes.end(); it++) {
+        std::lock_guard <std::mutex> guard(inode_lock[*it]);
+    }
 
     inode* cur_inode;
     int perm_flag = 0;
@@ -469,6 +487,14 @@ int o_create(const char *path, mode_t mode, struct fuse_file_info *fi) {
         free(parent_dir); free(dirname);
         return -EEXIST;
     }
+
+    std::set <int> get_inodes;
+    get_inodes.insert(par_inum);
+    get_inodes.insert(tmp_inum);
+
+    for (auto it = get_inodes.begin(); it != get_inodes.end(); it++) {
+        std::lock_guard <std::mutex> guard(inode_lock[*it]);
+    }
     
     inode* file_inode;
     file_initialize(file_inode, MODE_FILE, mode);
@@ -542,6 +568,17 @@ int o_rename(const char* from, const char* to, unsigned int flags) {
     }
 
     locate_err = locate(to, to_inum);  // This is not necessarily an error.
+
+    std::set <int> get_inodes;
+    get_inodes.insert(from_par_inum);
+    get_inodes.insert(to_par_inum);
+    get_inodes.insert(from_inum);
+    if (locate_err == 0)
+        get_inodes.insert(to_inum);
+
+    for (auto it = get_inodes.begin(); it != get_inodes.end(); it++) {
+        std::lock_guard <std::mutex> guard(inode_lock[*it]);
+    }
     if (locate_err == 0) {  // Destination file already exists.
         if (flags == RENAME_NOREPLACE) {
             logger(ERROR, "[ERROR] Destination file already exists, and cannot be overwritten.\n");
@@ -767,6 +804,15 @@ int o_link(const char* src, const char* dest) {
         return -EEXIST;
     }
 
+    std::set <int> get_inodes;
+    get_inodes.insert(dest_par_inum);
+    get_inodes.insert(dest_inum);
+    get_inodes.insert(src_inum);
+
+    for (auto it = get_inodes.begin(); it != get_inodes.end(); it++) {
+        std::lock_guard <std::mutex> guard(inode_lock[*it]);
+    }
+
     inode* dest_par_inode;
     get_inode_from_inum(dest_par_inode, dest_par_inum);
     if (!verify_permission(PERM_WRITE | PERM_READ, dest_par_inode, user_info, ENABLE_PERMISSION)) {
@@ -814,6 +860,13 @@ int o_truncate(const char* path, off_t size, struct fuse_file_info *fi) {
         }
     }
     int inode_num = fi->fh;
+
+    std::set <int> get_inodes;
+    get_inodes.insert(inode_num);
+
+    for (auto it = get_inodes.begin(); it != get_inodes.end(); it++) {
+        std::lock_guard <std::mutex> guard(inode_lock[*it]);
+    }
 
     inode* cur_inode;
     get_inode_from_inum(cur_inode, inode_num);

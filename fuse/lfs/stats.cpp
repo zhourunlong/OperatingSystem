@@ -22,6 +22,13 @@ int o_statfs(const char* path, struct statvfs* stbuf) {
         return locate_err;
     }
 
+    std::set <int> get_inodes;
+    get_inodes.insert(inum);
+
+    for (auto it = get_inodes.begin(); it != get_inodes.end(); it++) {
+        std::lock_guard <std::mutex> guard(inode_lock[*it]);
+    }
+
     stbuf->f_bsize = stbuf->f_frsize = BLOCK_SIZE;
     stbuf->f_blocks = 0;
     stbuf->f_bfree = stbuf->f_bavail = BLOCKS_IN_SEGMENT * TOT_SEGMENTS - stbuf->f_blocks;
@@ -52,6 +59,13 @@ int o_utimens(const char* path, const struct timespec ts[2], struct fuse_file_in
         if (ERROR_DIRECTORY)
             logger(ERROR, "[ERROR] Cannot open the directory (error #%d).\n", locate_err);
         return locate_err;
+    }
+
+    std::set <int> get_inodes;
+    get_inodes.insert(inum);
+
+    for (auto it = get_inodes.begin(); it != get_inodes.end(); it++) {
+        std::lock_guard <std::mutex> guard(inode_lock[*it]);
     }
 
     inode* block_inode;

@@ -25,6 +25,7 @@ std::mutex global_lock, io_lock;
 std::mutex segment_lock;
 std::mutex counter_lock;
 std::mutex disk_lock;
+std::mutex inode_lock[MAX_NUM_INODE];
 
 segment_summary cached_segsum[TOT_SEGMENTS];
 inode cached_inode_array[MAX_NUM_INODE];

@@ -3,6 +3,7 @@
 #include <sys/stat.h>   /* struct timespec */
 #include <fuse.h>       /* sturct fuse_context */
 #include <mutex>
+#include <set>
 
 // [CAUTION] to represent "empty" values, we follow the following convention:
 // (1) "empty" inode = 0;
@@ -234,6 +235,7 @@ bool verify_permission(int mode, struct inode* f_inode, struct fuse_context* u_i
  * Public variable locks.
  * ***************************************/
 extern std::mutex global_lock, io_lock;
+extern std::mutex inode_lock[MAX_NUM_INODE];
 
 void acquire_lock();
 void release_lock();
