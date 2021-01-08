@@ -59,7 +59,7 @@ std::lock_guard <std::mutex> guard(io_lock);
     int i = evict(SEGMENT_SIZE / CACHELINE_SIZE);
     memcpy(cache + i * CACHELINE_SIZE, buf, SEGMENT_SIZE * sizeof(char));
     for (int j = 0; j < SEGMENT_SIZE / CACHELINE_SIZE; ++j) {
-        int cacheline_idx = segment_addr * SEGMENT_SIZE / CACHELINE_SIZE + j;
+        int cacheline_idx = SEGMENT_SIZE / CACHELINE_SIZE * segment_addr + j;
         m[cacheline_idx] = i + j;
         metablocks[i + j] = (cacheline_metadata) {cacheline_idx, ++T, true};
         if (!inheap[i + j]) {
