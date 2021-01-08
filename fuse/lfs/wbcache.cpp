@@ -15,6 +15,7 @@ std::lock_guard <std::mutex> guard(io_lock);
     int cacheline_idx = block_addr / BLOCKS_PER_CACHELINE, i;
     if (m.find(cacheline_idx) != m.end()) {
         i = m[cacheline_idx];
+        metablocks[i].timestamp = ++T;
     } else {
         i = evict(1);
 
@@ -109,11 +110,9 @@ int evict(int len) {
     int file_handle = open(lfs_path, O_RDWR);
     for (int i = 0; i < len; ++i) {
         int file_offset = metablocks[r + i].cacheline_idx * CACHELINE_SIZE;
-        if (metablocks[r + i].dirty) {
-            int q = pwrite(file_handle, cache + (r + i) * CACHELINE_SIZE,
+        if (metablocks[r + i].dirty)
+            pwrite(file_handle, cache + (r + i) * CACHELINE_SIZE,
                    CACHELINE_SIZE, file_offset);
-            std::cerr << "pwrite " << q << "\n";
-        }
         m.erase(metablocks[r + i].cacheline_idx);
     }
     fsync(file_handle);

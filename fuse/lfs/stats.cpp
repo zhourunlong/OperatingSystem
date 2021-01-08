@@ -25,9 +25,7 @@ int o_statfs(const char* path, struct statvfs* stbuf) {
     std::set <int> get_inodes;
     get_inodes.insert(inum);
 
-    for (auto it = get_inodes.begin(); it != get_inodes.end(); it++) {
-        std::lock_guard <std::mutex> guard(inode_lock[*it]);
-    }
+    std::lock_guard <std::mutex> guard(inode_lock[inum]);
 
     stbuf->f_bsize = stbuf->f_frsize = BLOCK_SIZE;
     stbuf->f_blocks = 0;
@@ -64,9 +62,7 @@ int o_utimens(const char* path, const struct timespec ts[2], struct fuse_file_in
     std::set <int> get_inodes;
     get_inodes.insert(inum);
 
-    for (auto it = get_inodes.begin(); it != get_inodes.end(); it++) {
-        std::lock_guard <std::mutex> guard(inode_lock[*it]);
-    }
+    std::lock_guard <std::mutex> guard(inode_lock[inum]);
 
     inode* block_inode;
     get_inode_from_inum(block_inode, inum);

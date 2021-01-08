@@ -33,9 +33,7 @@ int o_chmod(const char* path, mode_t mode, struct fuse_file_info* fi) {
     std::set <int> get_inodes;
     get_inodes.insert(fh);
 
-    for (auto it = get_inodes.begin(); it != get_inodes.end(); it++) {
-        std::lock_guard <std::mutex> guard(inode_lock[*it]);
-    }
+    std::lock_guard <std::mutex> guard(inode_lock[fh]);
 
     inode* block_inode;
     get_inode_from_inum(block_inode, fh);
@@ -70,9 +68,7 @@ int o_chown(const char* path, uid_t uid, gid_t gid, struct fuse_file_info* fi) {
     std::set <int> get_inodes;
     get_inodes.insert(fh);
 
-    for (auto it = get_inodes.begin(); it != get_inodes.end(); it++) {
-        std::lock_guard <std::mutex> guard(inode_lock[*it]);
-    }
+    std::lock_guard <std::mutex> guard(inode_lock[fh]);
 
     inode* block_inode;
     get_inode_from_inum(block_inode, fh);

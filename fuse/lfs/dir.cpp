@@ -369,9 +369,8 @@ int o_mkdir(const char* path, mode_t mode) {
     std::set <int> get_inodes;
     get_inodes.insert(par_inum);
 
-    for (auto it = get_inodes.begin(); it != get_inodes.end(); it++) {
-        std::lock_guard <std::mutex> guard(inode_lock[*it]);
-    }
+    for (auto it:get_inodes)
+        inode_lock[it].lock();
 
     printf("mkdir path = %s, acquire lock %d and %d.\n", path, par_inum, tmp_inum);
 
@@ -380,6 +379,8 @@ int o_mkdir(const char* path, mode_t mode) {
         if (ERROR_PERM)
             logger(ERROR, "[ERROR] Permission denied: not allowed to write.\n");
         free(parent_dir); free(dirname);
+        for (auto it:get_inodes)
+            inode_lock[it].unlock();
         return -EACCES;
     }
 
@@ -396,7 +397,9 @@ int o_mkdir(const char* path, mode_t mode) {
     printf("mkdir path = %s, release lock %d and %d.\n", path, par_inum, tmp_inum);
     printf("locate %s error = %d.\n", path, locate("/2", print_inum));
     
-    
+    for (auto it:get_inodes)
+        inode_lock[it].unlock();
+
     return flag;
 }
 
@@ -622,9 +625,8 @@ int o_rmdir(const char* path) {
     get_inodes.insert(par_inum);
     get_inodes.insert(delete_inum);
 
-    for (auto it = get_inodes.begin(); it != get_inodes.end(); it++) {
-        std::lock_guard <std::mutex> guard(inode_lock[*it]);
-    }
+    for (auto it:get_inodes)
+        inode_lock[it].lock();
 
     inode* head_inode;
     get_inode_from_inum(head_inode, par_inum);
@@ -632,6 +634,8 @@ int o_rmdir(const char* path) {
         if (ERROR_PERM)
             logger(ERROR, "[ERROR] Permission denied: not allowed to write.\n");
         free(parent_dir); free(dirname);
+        for (auto it:get_inodes)
+            inode_lock[it].unlock();
         return -EACCES;
     }
 
@@ -639,10 +643,14 @@ int o_rmdir(const char* path) {
         if (ERROR_DIRECTORY)
             logger(ERROR, "[ERROR] %s is not a directory.\n", parent_dir);
         free(parent_dir); free(dirname);
+        for (auto it:get_inodes)
+            inode_lock[it].unlock();
         return -ENOTDIR;
     }
 
     int flag = remove_object(head_inode, dirname, MODE_DIR);
     free(parent_dir); free(dirname);
+    for (auto it:get_inodes)
+        inode_lock[it].unlock();
     return flag;
 }

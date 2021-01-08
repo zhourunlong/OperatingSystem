@@ -34,9 +34,7 @@ int o_getattr(const char* path, struct stat* sbuf, struct fuse_file_info* fi) {
     std::set <int> get_inodes;
     get_inodes.insert(i_number);
 
-    for (auto it = get_inodes.begin(); it != get_inodes.end(); it++) {
-        std::lock_guard <std::mutex> guard(inode_lock[*it]);
-    }
+    std::lock_guard <std::mutex> guard(inode_lock[i_number]);
 
     // Since getattr() is very fundamental, we shall always allow attribute reading.
     // Otherwise, commands like chmod, chown, etc. do not work correctly.
@@ -117,9 +115,7 @@ int o_access(const char* path, int mode) {
     std::set <int> get_inodes;
     get_inodes.insert(i_number);
 
-    for (auto it = get_inodes.begin(); it != get_inodes.end(); it++) {
-        std::lock_guard <std::mutex> guard(inode_lock[*it]);
-    }
+    std::lock_guard <std::mutex> guard(inode_lock[i_number]);
     
     /* Mode 1~7 (in base-8): test file permissions; may be ORed toghether. */ 
     struct inode* f_inode;
