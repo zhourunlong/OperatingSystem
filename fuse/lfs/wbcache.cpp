@@ -10,7 +10,7 @@ char cache[CACHE_SIZE];
 int T;
 
 int read_block_through_cache(void* buf, int block_addr) {
-std::lock_guard <std::mutex> guard(io_lock);
+// std::lock_guard <std::mutex> guard(io_lock);
     int cacheline_idx = block_addr / BLOCKS_PER_CACHELINE, i;
     if (m.find(cacheline_idx) != m.end()) {
 printf("read block 1\n");
@@ -48,19 +48,19 @@ printf("read block 2f\n");
 }
 
 int write_block_through_cache(void* buf, int block_addr) {
-std::lock_guard <std::mutex> guard(io_lock);
+// std::lock_guard <std::mutex> guard(io_lock);
     // not used, do nothing
     return 0;
 }
 
 int read_segment_through_cache(void* buf, int segment_addr) {
-std::lock_guard <std::mutex> guard(io_lock);
+// std::lock_guard <std::mutex> guard(io_lock);
     // not used, do nothing
     return 0;
 }
 
 int write_segment_through_cache(void* buf, int segment_addr) {
-std::lock_guard <std::mutex> guard(io_lock);
+// std::lock_guard <std::mutex> guard(io_lock);
     int i = evict(SEGMENT_SIZE / CACHELINE_SIZE);
     memcpy(cache + i * CACHELINE_SIZE, buf, SEGMENT_SIZE * sizeof(char));
     for (int j = 0; j < SEGMENT_SIZE / CACHELINE_SIZE; ++j) {

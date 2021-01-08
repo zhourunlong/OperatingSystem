@@ -28,7 +28,7 @@ int main(int argc, char* argv[]) {
     std::thread th[n];
     for (int i = 0; i < n; ++i) {
         th[i] = std::thread(func, i, m);
-        th[i].join();
+        th[i].fork();
     }
     return 0;
 }
