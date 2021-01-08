@@ -1,0 +1,444 @@
+%!TEX builder = latexmk
+%!TEX program = xelatex
+\documentclass{article}
+\usepackage{enumitem}
+\setenumerate[1]{leftmargin=2em, itemsep=0pt, partopsep=0pt, parsep=\parskip, topsep=0pt}
+\setenumerate[2]{leftmargin=2em, itemsep=0pt, partopsep=0pt, parsep=\parskip, topsep=0pt}
+\setitemize[1]{leftmargin=2em, itemsep=0pt, partopsep=0pt, parsep=\parskip, topsep=0pt}
+\setitemize[2]{leftmargin=2em, itemsep=0pt, partopsep=0pt, parsep=\parskip, topsep=0pt}
+\usepackage{amsmath,amsfonts,amsthm,amssymb}
+\usepackage{setspace}
+\usepackage{fancyhdr}
+\usepackage{lastpage}
+\usepackage{extramarks}
+\usepackage{chngpage}
+\usepackage{soul,color,framed}
+\usepackage{graphicx,float,wrapfig}
+\usepackage{CJK}
+\usepackage{algorithm}  
+\usepackage{algpseudocode}
+\usepackage{array,booktabs} 
+\usepackage{longtable}
+\usepackage{listings}
+\usepackage{color}
+\usepackage{extarrows}
+\usepackage{subfigure}
+\usepackage{indentfirst}
+\newcommand{\Class}{Operating System}
+\newcommand{\ClassInstructor}{Wei Xu}
+
+% Homework Specific Information. Change it to your own
+\newcommand{\Title}{Project 4}
+\newcommand{\DueDate}{Jan 8, 2021}
+\newcommand{\StudentName}{}
+\newcommand{\StudentClass}{}
+\newcommand{\StudentNumber}{}
+
+% In case you need to adjust margins:
+\topmargin=-0.45in      %
+\evensidemargin=0in     %
+\oddsidemargin=0in      %
+\textwidth=6.5in        %
+\textheight=9.0in       %
+\headsep=0.25in         %
+
+% Setup the header and footer
+\pagestyle{fancy}                                                       %
+\lhead{\StudentName}                                                 %
+\chead{\Title}  %
+\rhead{\firstxmark}                                                     %
+\lfoot{\lastxmark}                                                      %
+\cfoot{}                                                                %
+\rfoot{Page\ \thepage\ of\ \protect\pageref{LastPage}}                          %
+\renewcommand\headrulewidth{0.4pt}                                      %
+\renewcommand\footrulewidth{0.4pt}                                      %
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+% Some tools
+\newcommand{\enterProblemHeader}[1]{\nobreak\extramarks{#1}{#1 continued on next page\ldots}\nobreak%
+                                    \nobreak\extramarks{#1 (continued)}{#1 continued on next page\ldots}\nobreak}%
+\newcommand{\exitProblemHeader}[1]{\nobreak\extramarks{#1 (continued)}{#1 continued on next page\ldots}\nobreak%
+                                   \nobreak\extramarks{#1}{}\nobreak}%
+
+\newcommand{\homeworkProblemName}{}%
+\newcounter{homeworkProblemCounter}%
+\newenvironment{homeworkProblem}[1][Problem \arabic{homeworkProblemCounter}]%
+  {\stepcounter{homeworkProblemCounter}%
+   \renewcommand{\homeworkProblemName}{#1}%
+   \section*{\homeworkProblemName}%
+   \enterProblemHeader{\homeworkProblemName}}%
+  {\exitProblemHeader{\homeworkProblemName}}%
+
+\newcommand{\homeworkSectionName}{}%
+\newlength{\homeworkSectionLabelLength}{}%
+\newenvironment{homeworkSection}[1]%
+  {% We put this space here to make sure we're not connected to the above.
+
+   \renewcommand{\homeworkSectionName}{#1}%
+   \settowidth{\homeworkSectionLabelLength}{\homeworkSectionName}%
+   \addtolength{\homeworkSectionLabelLength}{0.25in}%
+   \changetext{}{-\homeworkSectionLabelLength}{}{}{}%
+   \subsection*{\homeworkSectionName}%
+   \enterProblemHeader{\homeworkProblemName\ [\homeworkSectionName]}}%
+  {\enterProblemHeader{\homeworkProblemName}%
+
+   % We put the blank space above in order to make sure this margin
+   % change doesn't happen too soon.
+   \changetext{}{+\homeworkSectionLabelLength}{}{}{}}%
+
+\newcommand{\Answer}{\textbf{Answer:} }
+\newcommand{\Acknowledgement}[1]{\ \\{\bf Acknowledgement:} #1}
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+% Make title
+\title{\textmd{\bf \Class: \Title}\\{\large Instructed by \textit{\ClassInstructor}}\\\normalsize\vspace{0.1in}\small{Due\ on\ \DueDate}}
+\date{}
+\author{\textbf{\StudentName}\ \ \StudentClass\ \ \StudentNumber}
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+% Listing Settings
+\definecolor{mygreen}{rgb}{0,0.6,0}
+\definecolor{mygray}{rgb}{0.5,0.5,0.5}
+\definecolor{mymauve}{rgb}{0.58,0,0.82}
+\definecolor{shade}{rgb}{0.92,0.92,0.92}
+
+\lstset{
+  aboveskip=1em,                   % above skip space
+  backgroundcolor=\color[rgb]{0.9,0.9,0.9},
+                                   % choose the background color; you must add \usepackage{color} or \usepackage{xcolor}; should come as last argument
+  basicstyle=\ttfamily,            % the size of the fonts that are used for the code
+  breakatwhitespace=false,         % sets if automatic breaks should only happen at whitespace
+  breaklines=true,                 % sets automatic line breaking
+  captionpos=b,                    % sets the caption-position to bottom
+  commentstyle=\color{mygreen},    % comment style
+  deletekeywords={...},            % if you want to delete keywords from the given language
+  escapeinside={\%*}{*)},          % if you want to add LaTeX within your code
+  extendedchars=true,              % lets you use non-ASCII characters; for 8-bits encodings only, does not work with UTF-8
+  frame=single,                    % adds a frame around the code
+  keepspaces=true,                 % keeps spaces in text, useful for keeping indentation of code (possibly needs columns=flexible)
+  keywordstyle=\color{blue},       % keyword style
+  morekeywords={algexpr, frac, sqrt, pwr, b1, b2, b3, ln, sin, term},  
+                                   % if you want to add more keywords to the set
+  numbers=left,                    % where to put the line-numbers; possible values are (none, left, right)
+  numbersep=5pt,                   % how far the line-numbers are from the code
+  numberstyle=\color{mygray},      % the style that is used for the line-numbers
+  rulecolor=\color{black},         % if not set, the frame-color may be changed on line-breaks within not-black text (e.g. comments (green here))
+  showspaces=false,                % show spaces everywhere adding particular underscores; it overrides 'showstringspaces'
+  showstringspaces=false,          % underline spaces within strings only
+  showtabs=false,                  % show tabs within strings adding particular underscores
+  stepnumber=5,                    % the step between two line-numbers. If it's 1, each line will be numbered
+  stringstyle=\color{mymauve},     % string literal style
+  tabsize=2,                       % sets default tabsize to 2 spaces
+  title=\lstname,                  % show the filename of files included with \lstinputlisting; also try caption instead of title
+  xleftmargin=2em,                 % left margin
+  xrightmargin=2em,                % right margin
+}
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+
+\renewcommand{\algorithmicrequire}{\textbf{Input:}}  % Use Input in the format of Algorithm  
+\renewcommand{\algorithmicensure}{\textbf{Output:}} % Use Output in the format of Algorithm  
+
+
+\newcommand*{\dif}{\mathop{}\!\mathrm{d}}
+\newcommand*{\img}{\mathrm{i}}
+\newcommand*{\dps}{\displaystyle}
+\newcommand*{\lf}{\left\lfloor}
+\newcommand*{\rf}{\right\rfloor}
+\newcommand*{\lc}{\left\lceil}
+\newcommand*{\rc}{\right\rceil}
+\newcommand*{\ovt}[2]{\dps{\mathop{#1}^{#2}}}
+
+\newtheorem{lma}{Lemma}
+
+\newcommand{\lm}[1]{\textbf{Lemma \ref{#1}}}
+\newcommand{\lgd}[2]{\left(\frac{#1}{#2}\right)}
+\newcommand{\ds}[2]{\dps \frac{\partial #1}{\partial #2}}
+\newcommand{\bds}[2]{\dps \frac{\partial}{\partial #2}\left(#1\right)}
+\newcommand{\Eds}[2]{\dps \frac{\partial^2 #1}{\partial #2^2}}
+\newcommand{\eds}[3]{\dps \frac{\partial^2 #1}{\partial #2\partial #3}}
+\newcommand{\E}[1]{\mathbb{E}\left[#1\right]}
+\newcommand{\Var}[1]{\mathrm{Var}\left[#1\right]}
+\newcommand{\Cov}[1]{\mathrm{Cov}\left[#1\right]}
+
+\newcommand{\Fig}[1]{\textbf{Figure \ref{#1}}}
+
+\begin{document}
+\begin{spacing}{1.1}
+\maketitle \thispagestyle{empty}
+%\cite{}
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+% Begin edit from here
+
+\begin{homeworkProblem}[Data Structures]
+
+Our system consists of data structures corresponding to physical and logical entities, which keeps complete information to restore a consistent state of LFS. To make read and write easier, they are all structs and arrays (instead of classes). Detailed declarations can all be found in header file \colorbox{shade}{\textbf{\ttfamily utility.h}}:
+\begin{itemize}
+  \item The disk file (representing hard disks) is usually read in blocks and written in segments. For clarity, \colorbox{shade}{\textbf{\ttfamily block}} is an \texttt{char[1024]} array. For parameters we may simply use \texttt{char*} or even \texttt{void*}.
+  \begin{itemize}
+    \item \textit{File data blocks} are struct-less, which means they are plainly bytes without extra information.
+    
+    \item \textit{Directory data blocks} consist of 16 directory entries in type \colorbox{shade}{\textbf{\ttfamily dir\_entry}}. Each entry contains a \texttt{filename} field as \texttt{char[60]}, and a \texttt{i\_number} field as \texttt{int}. The maximum length of name can be modified, as long as the total size of a {\textbf{\ttfamily directory}} is 1024 B.
+    
+    \item \textit{Inode blocks} have fixed internal structure defined as \colorbox{shade}{\textbf{\ttfamily struct inode}} (of length 1024 B exactly).
+    
+    \item \textit{Indirect blocks} are not separately structured for the sake of convenience. Rather, we borrow inodes to represent indirect blocks (with mode set to \texttt{-1}). Note that these ``fake'' inodes are also recorded in local \texttt{inode\_map}s and the global \texttt{inode\_table} (see below), but direct access to them will return an error. \textit{\bfseries Note:} \textit{this design not only makes the path-traversing procedure easier, but also reduces the update cost, since we only have to update a few inodes rather than the complete chain.}
+  \end{itemize}
+  
+  \item Segment is a logical unit for efficient write-backs and metadata management. Since we do not explicitly read segments out, we only have to maintain a \colorbox{shade}{\textbf{\ttfamily segment\_buffer}} in memory. Segments consist of consecutive blocks: the first 1008 of them are normal blocks (declared above), while the last 16 of them store segment metadata, including \textit{inode map}, \textit{segment summary} and \textit{segment metadata}.
+  \begin{itemize}
+    \item \textit{Inode map} is an array consisting of inode map entries (\colorbox{shade}{\textbf{\ttfamily struct imap\_entry}}). An inode map entry consists of \texttt{i\_number} and \texttt{inode\_block} fields, representing a map from inode number to its block number. There may be several entries with identical inode number even in the same segment, but the last one always stands for the latest version, and is cached in a linear table \texttt{inode\_table}.
+    
+    \item \textit{Segment summary} is an array consisting of summary entries (\colorbox{shade}{\textbf{\ttfamily struct summary\_entry}}). An inode map entry consists of \texttt{i\_number} and \texttt{direct\_index} fields, where the latter stands for the offset of the data block within the file, represented using the index in \texttt{index[]} (write \texttt{-1} for inodes).
+    
+    \item \textit{Segment metadata} is an array consisting of other metadata (up to 256 bytes that remains free). Currently we maintain \texttt{updata\_time} (last write-back time) and \texttt{cur\_block} (next block number).
+  \end{itemize}
+  
+  \item Following the 100 segments, we store some metadata for the whole file system.
+  \begin{itemize}
+    \item \textit{LFS ``superblock''} (as \colorbox{shade}{\textbf{\ttfamily struct superblock}}) keeps basic properties of the file system. In our project these are all constants, so we only write them once, and never directly read them.
+    
+    \item \textit{LFS checkpoints} (as \colorbox{shade}{\textbf{\ttfamily struct checkpoint}}) keep periodical state snapshots (most global variables in memory) of the file system. The two checkpoint fields will be alternatingly written to ensure completeness of the snapshot. Checkpoints are read only at initialization state (for crash recoveries). 
+  \end{itemize}
+\end{itemize}
+
+We also declare several constants to describe the properties of the system. Theoretically, any \textit{coherent} set of constants should work fine with the system, but we only test with the constants provided in the code.
+
+\end{homeworkProblem}
+
+
+\begin{homeworkProblem}[Code]
+
+Functions in the system are classified into different abstract levels for clarity and robustness. Header files \texttt{*.h} contain functions that can be called from other files, while source files \texttt{*.cpp} contain their implementation and some auxiliary files. Non-interface functions are equipped with explanatory comments.
+
+\begin{itemize}
+  \item \colorbox{shade}{\textbf{\ttfamily utility.*}} contains all global data structure declarations, constants, global variables (line 173-184), debug switches (190-204) and behaviour flags (206-207, 213-215) (in header file). It also provides \textit{lowest-level I/O interfaces} (a collection of ``read''s and ``write''s) and \textit{lock interfaces} (not implemented yet).
+  
+  \item \colorbox{shade}{\textbf{\ttfamily path.*}} contains functions regarding path resolution and path traversal (\texttt{locate()}).
+  
+  \item \colorbox{shade}{\textbf{\ttfamily blockio.*}} contains \textit{higher-level I/O interfaces} that handle segment ``read''s and ``write''s. These functions automatically locate the data (in memory / on disk), append blocks at the end of the segment, update segment metadata, write-back full segments, and generate checkpoints.
+  
+  \item \colorbox{shade}{\textbf{\ttfamily file.*}, \textbf{\ttfamily dir.*}, \textbf{\ttfamily buffer.*}, \textbf{\ttfamily metadata.*}, \textbf{\ttfamily stats.*}, \textbf{\ttfamily perm.*} and \textbf{\ttfamily system.*}} implement necessary FUSE interfaces. \colorbox{shade}{\textbf{\ttfamily index.*}} manages these interfaces, and \colorbox{shade}{\textbf{\ttfamily main.cpp}} passes these interfaces to FUSE.
+  
+  \item \colorbox{shade}{\textbf{\ttfamily logger.*} and \textbf{\ttfamily print.*}} provide output interface and pretty-print functions for all data structures.
+\end{itemize}
+
+\end{homeworkProblem}
+
+
+\begin{homeworkProblem}[Details for Requirements 7-10]
+
+\begin{itemize}
+
+\item \emph{Requirement 7:} \texttt{chmod} and \texttt{chown} by
+modifying metadata in inodes.
+
+\item \emph{Requirement 8:} A global lock is declaired in
+\colorbox{shade}{\texttt{lfs/utility.cpp}}. For simplicity in project 3, all
+functions require this lock when start and return this lock before return.
+
+\item \emph{Requirement 9:} We implemented a segment buffer, and flush it
+whenever \texttt{sync} is called.
+
+\item \emph{Requirement 10:} \texttt{init} function in
+\colorbox{shade}{\texttt{lfs/system.cpp}} scans the permanent storage file on
+disk, and restores the file system before crash. It only takes into account
+segments which have been successfully written to disk, which can be determined by
+extra timestamps recorded in each segment. Inode maps can be restored by reading
+segment summary and imap table in each segment.
+
+\end{itemize}
+
+\end{homeworkProblem}
+
+\begin{homeworkProblem}[Tests]
+
+  Open terminal in \colorbox{shade}{\texttt{proj3}} directory, then run 
+  \colorbox{shade}{\texttt{bash test.sh}}. This will execute all five tests.
+  Refer to \colorbox{shade}{\texttt{test.sh}} for compile options if you
+  want to run each test separately.
+
+  \noindent\fbox{\colorbox{shade}{\textbf{\ttfamily testfile.cpp}}}
+  
+  A test for operations \texttt{open}, \texttt{create} and \texttt{write}.
+  This test creates a file with $100$ characters.
+  Copy the binary file to an empty directory and execute 
+  \colorbox{shade}{\texttt{./testfile}}.
+
+  If the file system functions properly, there should be no errors.
+
+  \noindent\fbox{\colorbox{shade}{\textbf{\ttfamily testfile2.cpp}}}
+  
+  A test for operations \texttt{create}, \texttt{write} and \texttt{mkdir},
+  an implicit requirement is thread-safety.
+  This test creates $1000$ directories, each with a file inside.
+  Copy the binary file to an empty directory and run
+  \colorbox{shade}{\texttt{./testfile2}}.
+
+  If the file system functions properly, there should be no errors.
+
+  \noindent\fbox{\colorbox{shade}{\textbf{\ttfamily testmkdir.cpp}}}
+  
+  A stress test for block-segment management and operation \texttt{mkdir}.
+  This test creates directories named $0,1,2,\ldots,n-1$.
+  Copy the binary file to an empty directory and execute 
+  \colorbox{shade}{\texttt{./testmkdir <n>}}.
+
+  If the file system functions properly, there should be no errors.
+  
+  \noindent\fbox{\colorbox{shade}{\textbf{\ttfamily testrmdir.cpp}}}
+  
+  A stress test for block-segment management and operation \texttt{rmdir}.
+  This test creates a tree structure of $n$ directories first, then keeps removing
+  a random directory until all directories are deleted.
+  Copy the binary file to an empty directory and execute 
+  \colorbox{shade}{\texttt{./testrmdir <n>}}.
+
+  If the file system functions properly, \texttt{testrmdir} should not
+  exit due to assertion failure.
+
+  \noindent\fbox{\colorbox{shade}{\textbf{\ttfamily testconcurrency.cpp}}}
+  
+  A stress test for block-segment management and thread-safety.
+  This test invokes $n$ threads. Each thread creates $m$ directories, each
+  with a file inside. Copy the binary file to an empty directory and execute 
+  \colorbox{shade}{\texttt{./testrmdir <n> <m>}}.
+
+  If the file system functions properly, there should be exactly
+  $n\times m$ directories.
+\end{homeworkProblem}
+
+
+\begin{homeworkProblem}[Command-line Tests]
+
+  Open a shell in directory \colorbox{shade}{\texttt{lfs}}, and execute \colorbox{shade}{\texttt{./fuse disk100Mi}} first. Then you are free to try any of the following command-line tests. To deal with file name conflicts between tests, you may directly use \colorbox{shade}{\texttt{rm -rf *}} to wipe LFS. These tests are based on Linux shell commands, so the correct results can be obtained by trying on a real Linux system (however, updates for \texttt{atime} may be slightly different).
+  
+  
+  \textit{{\bfseries Note:}} \textit{due to the implementation of FUSE, commands are executed under the permission of \colorbox{shade}{\texttt{others}}. This should be dealt with caution when analyzing the results of the following tests.}
+
+  \noindent\fbox{\colorbox{shade}{\textbf{Test for permission control}}}
+  Run through the following commands to test permission control of files and directories. Use \colorbox{shade}{\texttt{chmod}} to change permission. Directory should contain some files initially.
+  
+  \textbf{(1) Files.} Under permission \colorbox{shade}{\texttt{774}}, file is readable but not writable; under permission \colorbox{shade}{\texttt{776}}, file is both readable and writable. It is trickier to test for \colorbox{shade}{\texttt{772}} (file is writable but not readable), and you have to write a simple C++ program. \textit{{\bfseries Note:}} \textit{file permission is \colorbox{shade}{\texttt{664}} by default, so we manually run \colorbox{shade}{\texttt{chmod 666}} below.}
+  
+  \textbf{(2) Directories.} Under permission \colorbox{shade}{\texttt{774}}, \colorbox{shade}{\texttt{772}} and \colorbox{shade}{\texttt{771}}, the directory (\texttt{a}) can only be read (e.g. \colorbox{shade}{\texttt{ls a}}), write (e.g. \colorbox{shade}{\texttt{touch a/f.txt}}) and accessed (e.g. \colorbox{shade}{\texttt{cd a}}), respectively. Permissions are composable.
+  
+  \textit{{\bfseries Note:}} \textit{you may disable permission by flags \colorbox{shade}{\texttt{ENABLE\_PERMISSION}} (for internal control by internal ``\texttt{if}''s) and \colorbox{shade}{\texttt{ENABLE\_ACCESS\_PERM}} (for external permission queries through \texttt{access}), since they follow different mechanisms. You may refer to the manual below for details.}
+  
+  
+  \noindent\fbox{\colorbox{shade}{\textbf{Test for timestamps}}}
+  Run through the following commands in the first column of the table.
+  
+  \newcommand{\tabincell}[2]{\begin{tabular}{@{}#1@{}} #2 \end{tabular}}
+  \newcolumntype{C}{m{2.0cm}<{\centering}}
+  \begin{table}[H]
+    \centering
+    \vspace*{-8pt}
+    \begin{tabular}{!{\vrule width 1.5pt}c!{\vrule width 1.5pt}c|C|C|C!{\vrule width 1.5pt}}
+      \specialrule{1.5pt}{0pt}{0pt}
+      \textbf{Commands} & \textbf{\ttfamily stat ?} & \textbf{no flags} & \textbf{\ttfamily nodiratime} & \textbf{\ttfamily \tabincell{c}{nodiratime \\ \& relatime}} \\
+      \specialrule{1.5pt}{0pt}{0pt}
+      \texttt{mkdir a} & \texttt{a} & \multicolumn{3}{c!{\vrule width 1.5pt}}{\texttt{a}, \texttt{m}, \texttt{c} are initialized to the same.} \\\hline
+      \texttt{touch a/x.txt} & \texttt{a} & \texttt{a}, \texttt{m}, \texttt{c} & \texttt{m}, \texttt{c} & \texttt{a}, \texttt{m}, \texttt{c} \\\hline
+      \texttt{ls a} & \texttt{a} & \texttt{a}, \texttt{c} & --- & --- \\\hline
+      \texttt{mv a b} & \texttt{b} & \texttt{c} & \texttt{c} & \texttt{c} \\\hline
+      \texttt{ls b} & \texttt{b} & \texttt{a}, \texttt{c} & --- & \texttt{a}, \texttt{c} \\
+      \specialrule{1.5pt}{0pt}{0pt}
+      \texttt{chmod 666 b/x.txt} & \texttt{x.txt} & \texttt{c} & \texttt{c} & \texttt{c} \\\hline
+      \texttt{echo "abc" >> b/x.txt} & \texttt{x.txt} & \texttt{a}, \texttt{m}, \texttt{c} & \texttt{a}, \texttt{m}, \texttt{c} & \texttt{a}, \texttt{m}, \texttt{c} \\\hline
+      \texttt{cat b/x.txt} & \texttt{x.txt} & \texttt{a}, \texttt{c} & \texttt{a}, \texttt{c} & --- \\\hline
+      \texttt{mv b/x.txt b/y.txt} & \texttt{y.txt} & \texttt{c} & \texttt{c} & \texttt{c} \\\hline
+      \texttt{cat b/y.txt} & \texttt{y.txt} & \texttt{a}, \texttt{c} & \texttt{a}, \texttt{c} & \texttt{a}, \texttt{c} \\
+      \specialrule{1.5pt}{0pt}{0pt}
+    \end{tabular}
+  \end{table}
+  
+  \textit{{\bfseries Note:}} \textit{we implement different \texttt{atime} policy as Linux does. You may turn on \texttt{nodiratime} by setting \texttt{FUNC\_ATIME\_DIR}, and turn on \texttt{relatime} by setting \texttt{FUNC\_ATIME\_REL}. You may refer to the manual below.}
+\end{homeworkProblem}
+
+  
+  \noindent\fbox{\colorbox{shade}{\textbf{Test for common commands {\ttfamily ln}, {\ttfamily mv} and {\ttfamily cp}}}}
+  Run through the following commands.
+  \begin{itemize}
+    \item \colorbox{shade}{\textbf{\ttfamily touch a; chmod 664 a; echo "abc" >> a; ln a b}}: use \texttt{cat} and \texttt{ls} to verify that they are identical. \textit{{\bfseries Note:}} \textit{\texttt{stat} may return different inode numbers, but this seems to be a FUSE bug. By opening debug switch \texttt{DEBUG\_METADATA\_INODE}, you may verify they are actually the same.}
+    \item \colorbox{shade}{\textbf{\ttfamily mv b c; echo "def" >> c}}: after renaming the link, \texttt{ls} will return \texttt{a, c}, and both will contain ``def''.
+    \item \colorbox{shade}{\textbf{\ttfamily touch d; chmod 666 d; cp c d; echo "ghi" >> d}}: by copying a hard link, a new file completely irrelevant of the linked file is created. Only file \texttt{d} contains ``ghi'', while files \texttt{a} and \texttt{c} remain the same.
+  \end{itemize}
+  
+  
+  \noindent\fbox{\colorbox{shade}{\textbf{Test for crash recoveries}}} The FUSE background console can be called out by adding \texttt{-f} argument after mount path (e.g., \colorbox{shade}{\texttt{./fuse disk100Mi -f}}). The system can be crashed by sending \colorbox{shade}{\texttt{Ctrl-C}} to the console, or use debug tools like \colorbox{shade}{\texttt{gdb}}. \textit{{\bfseries Note:}} \textit{to make it even harder, you may avoid generating checkpoints on exit (by commenting line 232 out in \texttt{system.cpp}). Our system survives crashes without checkpoints.}
+
+
+\begin{homeworkProblem}[Manual]
+
+\begin{itemize}
+
+\item To compile, execute \colorbox{shade}{\texttt{scons}} in 
+\colorbox{shade}{\texttt{lfs/}} directory. If any issue happens, you may need
+to use Ubuntu 20.04 and install \texttt{scons}. The environment we use is equipped with \texttt{scons 3.1.2} and \texttt{gcc 9.3.0}.
+
+\item To mount file system, either execute \colorbox{shade}{\texttt{bash buildfs.sh}}
+in \colorbox{shade}{\texttt{proj3/}} directory, or manually execute
+(this also applies to the ``echo file system'' in task 1)
+\colorbox{shade}{\texttt{./fuse <mount directory> <options>}}. For example, to show debug and error messages in background console, you should append option \colorbox{shade}{\texttt{-f}}.
+
+\item Line 190-204 of \colorbox{shade}{\texttt{lfs/utility.h}} contain several
+debug switches. To make them work, add \colorbox{shade}{\texttt{-f}} first.
+\begin{itemize}
+  \item To enable ``echo'' in LFS, toggle on \texttt{DEBUG\_PRINT\_COMMAND} (\textit{on by default}).
+  
+  \item To print the procedure of name resolution (in \texttt{locate()}), toggle on \texttt{DEBUG\_LOCATE\_REPORT}.
+  
+  \item To print checkpoints after each update, toggle on \texttt{DEBUG\_CKPT\_REPORT} (\textit{on by default}).
+\end{itemize}
+
+\item Line 206-207, 213-215 of \colorbox{shade}{\texttt{lfs/utility.h}} provide some flags for modifying system behaviour.
+\begin{itemize}
+  \item \texttt{FUNC\_ATIME\_DIR} is a flag for 
+directory \texttt{atime} updates. When it is turned on, access
+timestamps of all files \textit{along the path} will be updated.
+Note that this will be very space-consuming.
+
+  \item \texttt{FUNC\_ATIME\_REL} is a flag for 
+``relative'' \texttt{atime} updates. When it is turned on, access
+timestamps of all files and directories will be updated only if (1)
+\texttt{atime} is earlier than \texttt{mtime} or \texttt{ctime}, or
+(2) it has been a long time since last update (longer than
+\texttt{FUNC\_ATIME\_REL\_THRES}.
+
+  \item \texttt{ENABLE\_ACCESS\_PERM} is a flag for
+external permission queries. When it is turned on, the \texttt{o\_access()}
+interface will report true permissions of the request. \textit{{\bfseries Note:}}
+\textit{all Linux commands use \texttt{o\_access()} to request for file permission.
+Therefore, when you use it for a test, the internal permission control does not really
+obtain an opportunity to work, although it prints debug messages. }
+
+  \item \texttt{ENABLE\_PERMISSION} is a flag for internal permission control.
+  
+  \item Flags for \texttt{atime} are \textit{off by default}, while flags for permission are \textit{on by default}.
+\end{itemize}
+
+\item Since we provide a full set of overloaded pretty-print functions (in \texttt{print.*}), we do not provide an explicit \texttt{block\_dump} class (which is equally hard to be called from outside). If you want to print anything out for checking, just add appropriate print functions in \texttt{o\_init} (probably after a \texttt{Ctrl-C} crash).
+
+\end{itemize}
+
+\end{homeworkProblem}
+
+\begin{homeworkProblem}[Limitations]
+
+We have not implemented garbage collection, so when the file system is full, we
+can not even delete files. This deficiency will be settled in Project 4.
+
+\end{homeworkProblem}
+
+% End edit to here
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\end{spacing}
+\end{document}
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
