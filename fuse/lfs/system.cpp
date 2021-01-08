@@ -203,17 +203,24 @@ void load_from_disk_file() {
         int seg_imap_index;
 
         read_segment_imap(imap, seg);
+        bool is_inode_deleted[MAX_NUM_INODE];
+        memset(is_inode_deleted, 0, sizeof(is_inode_deleted));
         for (int i=0; i<DATA_BLOCKS_IN_SEGMENT; i++) {
             im_entry = imap[i];
             if (im_entry.i_number > 0) {
                 int inode_sec  = inode_update_sec[im_entry.i_number];
                 int inode_nsec = inode_update_nsec[im_entry.i_number];
                 if ((inode_sec < seg_sec) || ((inode_sec == seg_sec) && (inode_nsec <= seg_nsec))) {
-                    inode_table[im_entry.i_number] = im_entry.inode_block;
-                    inode_update_sec[im_entry.i_number]  = seg_sec;
-                    inode_update_nsec[im_entry.i_number] = seg_nsec;
-                    if (im_entry.i_number > count_inode)
-                        count_inode = im_entry.i_number;
+                    if (!is_inode_deleted[im_entry.i_number]) {
+                        inode_table[im_entry.i_number] = im_entry.inode_block;
+                        if (im_entry.inode_block == -1)
+                            is_inode_deleted[im_entry.i_number] = true;
+
+                        inode_update_sec[im_entry.i_number]  = seg_sec;
+                        inode_update_nsec[im_entry.i_number] = seg_nsec;
+                        if (im_entry.i_number > count_inode)
+                            count_inode = im_entry.i_number;
+                    }
                 }
             } else {
                 seg_imap_index = i;
@@ -254,7 +261,6 @@ void load_from_disk_file() {
             cached_inode_array[i] = inode_block;
         }
     }
-    print_inode_table();
 
     /* (E) (optional) Do a thorough garbage collection for better performance. */
     if (DO_GARBCOL_ON_START) {

@@ -10,26 +10,21 @@ char cache[CACHE_SIZE];
 int T;
 
 int read_block_through_cache(void* buf, int block_addr) {
-// std::lock_guard <std::mutex> guard(io_lock);
+std::lock_guard <std::mutex> guard(io_lock);
     int cacheline_idx = block_addr / BLOCKS_PER_CACHELINE, i;
     if (m.find(cacheline_idx) != m.end()) {
-printf("read block 1\n");
         i = m[cacheline_idx];
     } else {
-printf("read block 2\n");
         i = evict(1);
-printf("read block 2a\n");
+
         int file_handle = open(lfs_path, O_RDWR);
         int file_offset = cacheline_idx * CACHELINE_SIZE;
-printf("read block 2b\n");
+
         acquire_disk_lock();
-printf("read block 2c\n");
         release_lock();
         int read_length = pread(file_handle, cache + i * CACHELINE_SIZE,
                                 CACHELINE_SIZE, file_offset);
-printf("read block 2d\n");
         acquire_lock();
-printf("read block 2e\n");
         release_disk_lock();
         
         close(file_handle);
@@ -40,7 +35,7 @@ printf("read block 2e\n");
             heap.push(std::make_pair(T, i));
         }
     }
-printf("read block 2f\n");
+
     memcpy(buf, cache + i * CACHELINE_SIZE
               + block_addr % BLOCKS_PER_CACHELINE * BLOCK_SIZE,
               BLOCK_SIZE * sizeof(char));
@@ -48,19 +43,19 @@ printf("read block 2f\n");
 }
 
 int write_block_through_cache(void* buf, int block_addr) {
-// std::lock_guard <std::mutex> guard(io_lock);
+std::lock_guard <std::mutex> guard(io_lock);
     // not used, do nothing
     return 0;
 }
 
 int read_segment_through_cache(void* buf, int segment_addr) {
-// std::lock_guard <std::mutex> guard(io_lock);
+std::lock_guard <std::mutex> guard(io_lock);
     // not used, do nothing
     return 0;
 }
 
 int write_segment_through_cache(void* buf, int segment_addr) {
-// std::lock_guard <std::mutex> guard(io_lock);
+std::lock_guard <std::mutex> guard(io_lock);
     int i = evict(SEGMENT_SIZE / CACHELINE_SIZE);
     memcpy(cache + i * CACHELINE_SIZE, buf, SEGMENT_SIZE * sizeof(char));
     for (int j = 0; j < SEGMENT_SIZE / CACHELINE_SIZE; ++j) {

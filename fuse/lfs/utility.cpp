@@ -230,13 +230,13 @@ bool verify_permission(int mode, struct inode* f_inode, struct fuse_context* u_i
  * ***************************************/
 
 void acquire_lock() {
-    printf("global_lock.lock()\n");
+    // printf("global_lock.lock()\n");
     // global_lock.lock();
     return;
 };
 
 void release_lock() {
-    printf("global_lock.unlock();\n");
+    // printf("global_lock.unlock();\n");
     // global_lock.unlock();
     return;
 };
@@ -262,31 +262,31 @@ void release_writer_lock() {
 };
 
 void acquire_segment_lock() {
-    printf("segment_lock.lock();\n");
+    // printf("segment_lock.lock();\n");
     segment_lock.lock();
 };
 
 void release_segment_lock() {
-    printf("segment_lock.unlock();\n");
+    // printf("segment_lock.unlock();\n");
     segment_lock.unlock();
 };
 
 void acquire_counter_lock() {
-    printf("counter_lock.lock();\n");
+    // printf("counter_lock.lock();\n");
     counter_lock.lock();
 }
 
 void release_counter_lock() {
-    printf("counter_lock.unlock();\n");
+    // printf("counter_lock.unlock();\n");
     counter_lock.unlock();
 }
 
 void acquire_disk_lock() {
-    printf("disk_lock.lock();\n");
+    // printf("disk_lock.lock();\n");
     // disk_lock.lock();
 }
 
 void release_disk_lock() {
-    printf("disk_lock.unlock();\n");
+    // printf("disk_lock.unlock();\n");
     // disk_lock.unlock();
 }
