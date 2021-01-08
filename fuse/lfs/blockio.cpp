@@ -34,6 +34,7 @@ void get_block(void* data, int block_addr) {
         release_reader_lock();
     } else {    // Data in disk file.
         read_block_through_cache(data, block_addr);
+        //read_block(data, block_addr);
     }
     release_segment_lock();
 }
@@ -202,6 +203,7 @@ void move_to_segment() {
         // Segment buffer is full, and should be flushed to disk file.
         add_segbuf_metadata();
         write_segment_through_cache(segment_buffer, cur_segment);
+        //write_segment(segment_buffer, cur_segment);
         segment_bitmap[cur_segment] = 1;
 
         get_next_free_segment();
@@ -443,6 +445,7 @@ void remove_inode(int i_number) {
         if (cur_block == DATA_BLOCKS_IN_SEGMENT-1 || next_imap_index == DATA_BLOCKS_IN_SEGMENT) {
             add_segbuf_metadata();
             write_segment_through_cache(segment_buffer, cur_segment);
+            //write_segment(segment_buffer, cur_segment);
             segment_bitmap[cur_segment] = 1;
 
             get_next_free_segment();

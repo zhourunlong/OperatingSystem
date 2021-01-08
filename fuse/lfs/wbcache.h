@@ -40,7 +40,7 @@ extern std::priority_queue <pii, std::vector <pii>, std::greater <pii> > heap;
 
 extern cacheline_metadata metablocks[NUM_CACHELINE];
 
-extern std::bitset <NUM_CACHELINE> inheap;
+extern int inheap[NUM_CACHELINE];
                                     // each cache block in heap or not
 
 extern char cache[CACHE_SIZE];

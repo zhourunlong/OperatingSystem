@@ -5,12 +5,13 @@
 std::map <int, int> m;
 std::priority_queue <pii, std::vector <pii>, std::greater <pii> > heap;
 cacheline_metadata metablocks[NUM_CACHELINE];
-std::bitset <NUM_CACHELINE> inheap;
+int inheap[NUM_CACHELINE];
 char cache[CACHE_SIZE];
 int T;
 
 int read_block_through_cache(void* buf, int block_addr) {
 std::lock_guard <std::mutex> guard(io_lock);
+    //std::cerr << "read block " << block_addr << " || ";
     int cacheline_idx = block_addr / BLOCKS_PER_CACHELINE, i;
     if (m.find(cacheline_idx) != m.end()) {
         i = m[cacheline_idx];
@@ -56,6 +57,7 @@ std::lock_guard <std::mutex> guard(io_lock);
 
 int write_segment_through_cache(void* buf, int segment_addr) {
 std::lock_guard <std::mutex> guard(io_lock);
+    //std::cerr << "write segment " << segment_addr << " || ";
     int i = evict(SEGMENT_SIZE / CACHELINE_SIZE);
     memcpy(cache + i * CACHELINE_SIZE, buf, SEGMENT_SIZE * sizeof(char));
     for (int j = 0; j < SEGMENT_SIZE / CACHELINE_SIZE; ++j) {
@@ -77,12 +79,15 @@ int evict(int len) {
             std::pair <int, int> u = heap.top();
             heap.pop();
             if (metablocks[u.second].timestamp != u.first) {
-                heap.push(std::make_pair(metablocks[u.second].timestamp,
-                                         u.second));
+                if (inheap[u.second] == 1)
+                    heap.push(std::make_pair(metablocks[u.second].timestamp,
+                                             u.second));
+                else
+                    --inheap[u.second];
                 continue;
             }
             r = u.second;
-            inheap[r] = 0;
+            --inheap[r];
             break;
         }
     } else {
@@ -104,24 +109,29 @@ int evict(int len) {
     int file_handle = open(lfs_path, O_RDWR);
     for (int i = 0; i < len; ++i) {
         int file_offset = metablocks[r + i].cacheline_idx * CACHELINE_SIZE;
-        if (metablocks[r + i].dirty)
-            pwrite(file_handle, cache + (r + i) * CACHELINE_SIZE,
+        if (metablocks[r + i].dirty) {
+            int q = pwrite(file_handle, cache + (r + i) * CACHELINE_SIZE,
                    CACHELINE_SIZE, file_offset);
+            std::cerr << "pwrite " << q << "\n";
+        }
         m.erase(metablocks[r + i].cacheline_idx);
     }
     fsync(file_handle);
     close(file_handle);
+
+    fprintf(stderr, "evicted %d len = %d\n", r, len);
     return r;
 }
 
 void init_cache() {
-    T = 0;
     m.clear();
     while (heap.size()) heap.pop();
     for (int i = 0; i < NUM_CACHELINE; ++i) {
-        metablocks[i] = (cacheline_metadata) {-1, 0, false};
+        inheap[i] = 1;
+        metablocks[i] = (cacheline_metadata) {-1, i, false};
         heap.push(std::make_pair(0, i));
     }
+    T = NUM_CACHELINE;
 }
 
 void flush_cache() {
