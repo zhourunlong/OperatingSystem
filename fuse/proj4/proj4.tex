@@ -176,26 +176,47 @@
 % Begin edit from here
 
 \begin{homeworkProblem}[Task 2]
-  To make sure that only one thread can access the segment buffer and segment bitmap, we use a mutex lock named segment\_lock. Threads intend to enter get\_block(), 
-  new\_data\_block(), new\_inode\_block() and remove\_inode() have to acquire segment\_lock first and then release it before returning. 
+  To make sure that only one thread can access the segment buffer and segment bitmap, we use a mutex lock named \texttt{segment\_lock}. Threads intend to enter \texttt{get\_block()}, 
+  \texttt{new\_data\_block()}, \texttt{new\_inode\_block()} and \texttt{remove\_inode()} have to acquire \texttt{segment\_lock} first and then release it before returning. 
 
-  To maintain the consistency of the whole file system, we use locks for each independent inode. In each file operation, the thread needs to first locate the inodes it need to access 
-  and then acquire the locks corresponding to them. 
+  To maintain the consistency of the whole file system, we use locks for each independent inode. In each file operation, the thread needs to first locate the inodes it need to access, and then acquire all these locks corresponding to them (in the order from small inumbers to large inumbers). 
 
   To make the cache operations atomic, we use a mutex lock for all the cache operations. 
 \end{homeworkProblem}
 
+
+
 \begin{homeworkProblem}[Task 3]
 
-The write-back cache overrides our original \texttt{read\_block()} and
+  The write-back cache overrides our original \texttt{read\_block()} and
 \texttt{write\_segment()} functions with their \texttt{\_through\_cache()}
 versions. The cache occupies $4$MB space with $512$ cachelines, and each
 cacheline contains contiguous $8$ blocks. Upon any cache miss, LRU policy
 is applied to decide to-be-deleted cachelines. When an eviction finishes,
 all evicted dirty cachelines are \texttt{fsync()}ed to disk.
 
-The cache also provides \texttt{init\_cache()} and \texttt{flush\_cache()}
+  The cache also provides \texttt{init\_cache()} and \texttt{flush\_cache()}
 functions to support file system initialization and garbage collection.
+
+\end{homeworkProblem}
+
+
+
+\begin{homeworkProblem}[Task 4]
+
+  The garbage collection mechanism may be automatically triggered whenever LFS asks for a free new segment. For simplicity, we consider three levels of ``fullness'' that may trigger such a mechanism:
+  \begin{itemize}
+    \item \textbf{Largely full}: when 80\% of the segments are full. In this case, the \textit{normal garbage collection} procedure will be performed, where \textit{the least utilized blocks are cleaned}. The normal mode guarantees that at least 30\% of the segments are cleaned, and those with utilization smaller than 1\% will also be cleaned. 
+    
+    \item \textbf{Almost full}: when 96\% of the segments are full. In this case, the \textit{thorough garbage collection} procedure will be performed, where \textit{all segments will be scanned, cleaned, and reordered in disk file}.
+    
+    \item \textbf{Completely full}: when 100\% of the segments are full. In this case, the same \textit{thorough garbage collection} procedure will be performed. When it fails to release much space, LFS will report itself as full, and stop creating new segments (read and deletion are still applicable, in most cases).
+  \end{itemize}
+  To prevent performing garbage collection too frequently, we set a lower bound \texttt{GARBCOL\_INTERVAL} for the same mode of \textit{failed collections}; i.e., once some collection fails, the same procedure will not be repeated until \texttt{GARBCOL\_INTERVAL} seconds later.
+  
+  For the concurrent version, when we start the garbage collection procedure, we will redirect all new blocks to a temporary log queue in memory, which will be flushed to disk as soon as the garbage collection procedure completes. The semantics of a logged system naturally guarantees the correctness of writing concurrency. For the reading part, we will read the disk file as usual, since the contents will not be replaced until the end of garbage collection.
+  
+  We provide two heavily-loaded tests (\texttt{testGC1.cpp} and \texttt{testGC2.cpp}) for garbage collection. 
 
 \end{homeworkProblem}
 
