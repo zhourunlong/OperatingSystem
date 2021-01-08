@@ -123,7 +123,8 @@ int write_in_file(const char* path, const char* buf, size_t size,
                     cur_inode->fsize_byte = cur_buf_pos + offset;
                     cur_inode->fsize_block = (cur_buf_pos + offset + BLOCK_SIZE - 1) / BLOCK_SIZE;
                     update_atime(cur_inode, cur_time);
-                    cur_inode->mtime = cur_time;
+                    if (FUNC_TIMESTAMPS)
+                        cur_inode->mtime = cur_time;
                     new_inode_block(cur_inode);
                 } else {
                     new_inode_block(cur_inode);
@@ -131,19 +132,22 @@ int write_in_file(const char* path, const char* buf, size_t size,
                     head_inode->fsize_byte = cur_buf_pos + offset;
                     head_inode->fsize_block = (cur_buf_pos + offset + BLOCK_SIZE - 1) / BLOCK_SIZE;
                     update_atime(head_inode, cur_time);
-                    head_inode->mtime = cur_time;
+                    if (FUNC_TIMESTAMPS)
+                        head_inode->mtime = cur_time;
                     new_inode_block(head_inode);
                 }
             } else {
                 if (cur_inode->i_number == inode_num) {
                     update_atime(cur_inode, cur_time);
-                    cur_inode->mtime = cur_time;
+                    if (FUNC_TIMESTAMPS)
+                        cur_inode->mtime = cur_time;
                     new_inode_block(cur_inode);
                 } else {
                     new_inode_block(cur_inode);
                     get_inode_from_inum(head_inode, inode_num);
                     update_atime(head_inode, cur_time);
-                    head_inode->mtime = cur_time;
+                    if (FUNC_TIMESTAMPS)
+                        head_inode->mtime = cur_time;
                     new_inode_block(head_inode);
                 }
             }
@@ -174,7 +178,8 @@ int write_in_file(const char* path, const char* buf, size_t size,
     head_inode->fsize_byte = len;
     head_inode->fsize_block = (len + BLOCK_SIZE - 1) / BLOCK_SIZE;
     update_atime(head_inode, cur_time);
-    head_inode->mtime = cur_time;
+    if (FUNC_TIMESTAMPS)
+        head_inode->mtime = cur_time;
     new_inode_block(head_inode);
 
     return cur_buf_pos;
@@ -234,7 +239,8 @@ int o_open(const char* path, struct fuse_file_info* fi) {
 
         truncate_inode(cur_inode, -1);
         cur_inode->fsize_block = cur_inode->fsize_byte = 0;
-        cur_inode->ctime = cur_time;
+        if (FUNC_TIMESTAMPS)
+            cur_inode->ctime = cur_time;
         new_inode_block(cur_inode);
     }
 
@@ -611,10 +617,12 @@ int o_rename(const char* from, const char* to, unsigned int flags) {
         }
         
         // Update timestamps.
-        to_par_inode->mtime = cur_time;
-        from_par_inode->mtime = cur_time;
-        to_par_inode->ctime = cur_time;
-        from_par_inode->ctime = cur_time;
+        if (FUNC_TIMESTAMPS) {
+            to_par_inode->mtime = cur_time;
+            from_par_inode->mtime = cur_time;
+            to_par_inode->ctime = cur_time;
+            from_par_inode->ctime = cur_time;
+        }
         new_inode_block(to_par_inode);
         new_inode_block(from_par_inode);
         
@@ -628,8 +636,10 @@ int o_rename(const char* from, const char* to, unsigned int flags) {
             remove_parent_dir_entry(from_par_inode, from_inum, from_name);
 
             // Update timestamps.
-            to_inode->ctime = cur_time;
-            new_inode_block(to_inode);
+            if (FUNC_TIMESTAMPS) {
+                to_inode->ctime = cur_time;
+                new_inode_block(to_inode);
+            }
 
             inode* head_inode;
             get_inode_from_inum(head_inode, to_par_inum);
@@ -658,8 +668,10 @@ int o_rename(const char* from, const char* to, unsigned int flags) {
     }
     
     // Update timestamps.
-    from_par_inode->mtime = cur_time;
-    from_inode->ctime = cur_time;
+    if (FUNC_TIMESTAMPS) {
+        from_par_inode->mtime = cur_time;
+        from_inode->ctime = cur_time;
+    }
     new_inode_block(from_par_inode);
     new_inode_block(from_inode);
 
@@ -723,6 +735,20 @@ int o_unlink(const char* path) {
             logger(ERROR, "[ERROR] Permission denied: not allowed to access parent directory.\n");
         free(parent_dir); free(file_name);
         return -EACCES;
+    }
+
+    tmp = relative_to_absolute(path, "./", 0);
+    char* delete_dir = (char*) malloc((tmp.length() + 1) * SC);
+    strcpy(delete_dir, tmp.c_str());
+    int delete_inum;
+    locate_err = locate(delete_dir, delete_inum);
+
+    std::set <int> get_inodes;
+    get_inodes.insert(par_inum);
+    get_inodes.insert(delete_inum);
+
+    for (auto it = get_inodes.begin(); it != get_inodes.end(); it++) {
+        std::lock_guard <std::mutex> guard(inode_lock[*it]);
     }
 
     int flag = remove_object(head_inode, file_name, MODE_FILE);
@@ -824,7 +850,8 @@ int o_link(const char* src, const char* dest) {
     int flag = append_parent_dir_entry(dest_par_inode, dest_name, src_inum);
 
     src_inode->num_links += 1;
-    src_inode->ctime = cur_time;
+    if (FUNC_TIMESTAMPS)
+        src_inode->ctime = cur_time;
     new_inode_block(src_inode);
     free(src_parent_dir); free(dest_parent_dir); free(src_name); free(dest_name);
     return flag;
@@ -888,7 +915,8 @@ int o_truncate(const char* path, off_t size, struct fuse_file_info *fi) {
     cur_inode->fsize_byte = size;
     cur_inode->fsize_block = (size + BLOCK_SIZE - 1) / BLOCK_SIZE;
     update_atime(cur_inode, cur_time);
-    cur_inode->mtime = cur_time;
+    if (FUNC_TIMESTAMPS) 
+        cur_inode->mtime = cur_time;
     new_inode_block(cur_inode);
     off_t t_offset = size;
     while (t_offset > 0) {

@@ -150,12 +150,17 @@ int append_parent_dir_entry(struct inode* head_inode, const char* new_name, int 
                     if (firblk) {
                         if (FUNC_ATIME_DIR)
                             update_atime(block_inode, cur_time);
-                        block_inode->mtime = block_inode->ctime = cur_time;
+                        
+                        if (FUNC_TIMESTAMPS)
+                            block_inode->mtime = block_inode->ctime = cur_time;
                     } else {
-                        if (FUNC_ATIME_DIR)
-                            update_atime(head_inode, cur_time);
-                        head_inode->mtime = head_inode->ctime = cur_time;
-                        new_inode_block(head_inode);
+                        if (FUNC_TIMESTAMPS) {
+                            if (FUNC_ATIME_DIR)
+                                update_atime(head_inode, cur_time);
+                            
+                            head_inode->mtime = head_inode->ctime = cur_time;
+                            new_inode_block(head_inode);
+                        }
                     }
                     new_inode_block(block_inode);
                     return 0;
@@ -184,12 +189,17 @@ int append_parent_dir_entry(struct inode* head_inode, const char* new_name, int 
                 if (afi_firblk) {
                     if (FUNC_ATIME_DIR)
                         update_atime(avail_for_ins, cur_time);
-                    avail_for_ins->mtime = avail_for_ins->ctime = cur_time;
+
+                    if (FUNC_TIMESTAMPS)
+                        avail_for_ins->mtime = avail_for_ins->ctime = cur_time;
                 } else {
-                    if (FUNC_ATIME_DIR)
-                        update_atime(head_inode, cur_time);
-                    head_inode->mtime = head_inode->ctime = cur_time;
-                    new_inode_block(head_inode);
+                    if (FUNC_TIMESTAMPS) {
+                        if (FUNC_ATIME_DIR)
+                            update_atime(head_inode, cur_time);
+                        
+                        head_inode->mtime = head_inode->ctime = cur_time;
+                        new_inode_block(head_inode);
+                    }
                 }
                 new_inode_block(avail_for_ins);
                 return 0;
@@ -203,13 +213,15 @@ int append_parent_dir_entry(struct inode* head_inode, const char* new_name, int 
     append_inode->num_direct = 1;
     new_inode_block(append_inode);
     tail_inode->next_indirect = append_inode->i_number;
-    if (tail_firblk)
-        tail_inode->ctime = cur_time;
-    else {
-        head_inode->ctime = cur_time;
-        new_inode_block(head_inode);
+    if (FUNC_TIMESTAMPS) {
+        if (tail_firblk)
+            tail_inode->ctime = cur_time;
+        else {
+            head_inode->ctime = cur_time;
+            new_inode_block(head_inode);
+        }
+        new_inode_block(tail_inode);
     }
-    new_inode_block(tail_inode);
     return 0;
 }
 
@@ -429,7 +441,7 @@ int remove_object(struct inode* head_inode, const char* del_name, int del_mode) 
                                     if (tmp_dir[s].i_number != 0) {
                                         if (ERROR_DIRECTORY)
                                             logger(ERROR, "[ERROR] Directory %s is not empty.\n", del_name);
-                                        if (FUNC_ATIME_DIR) {
+                                        if (FUNC_ATIME_DIR && FUNC_TIMESTAMPS) {
                                             update_atime(tmp_head_inode, cur_time);
                                             new_inode_block(tmp_head_inode);
                                         }
@@ -456,7 +468,8 @@ int remove_object(struct inode* head_inode, const char* del_name, int del_mode) 
                         //--active_inodes;
                     } else {
                         tmp_head_inode->num_links--;
-                        tmp_head_inode->ctime = cur_time;
+                        if (FUNC_TIMESTAMPS)
+                            tmp_head_inode->ctime = cur_time;
                         new_inode_block(tmp_head_inode);
                     }
 
@@ -472,12 +485,18 @@ int remove_object(struct inode* head_inode, const char* del_name, int del_mode) 
                             if (firblk) {
                                 if (FUNC_ATIME_DIR)
                                     update_atime(block_inode, cur_time);
-                                block_inode->mtime = block_inode->ctime = cur_time;
+                                
+                                if (FUNC_TIMESTAMPS)
+                                    block_inode->mtime = block_inode->ctime = cur_time;
                             } else {
-                                if (FUNC_ATIME_DIR)
-                                    update_atime(head_inode, cur_time);
-                                head_inode->mtime = head_inode->ctime = cur_time;
-                                new_inode_block(head_inode);
+                                if (FUNC_TIMESTAMPS) {
+                                    if (FUNC_ATIME_DIR)
+                                        update_atime(head_inode, cur_time);
+                                    
+                                    
+                                    head_inode->mtime = head_inode->ctime = cur_time;
+                                    new_inode_block(head_inode);
+                                }
                             }
                             new_inode_block(block_inode);
                         } else {
@@ -487,12 +506,17 @@ int remove_object(struct inode* head_inode, const char* del_name, int del_mode) 
                             if (tail_firblk) {
                                 if (FUNC_ATIME_DIR)
                                     update_atime(tail_inode, cur_time);
-                                tail_inode->mtime = tail_inode->ctime = cur_time;
+                                
+                                if (FUNC_TIMESTAMPS)
+                                    tail_inode->mtime = tail_inode->ctime = cur_time;
                             } else {
-                                if (FUNC_ATIME_DIR)
-                                    update_atime(head_inode, cur_time);
-                                head_inode->mtime = head_inode->ctime = cur_time;
-                                new_inode_block(head_inode);
+                                if (FUNC_TIMESTAMPS) {
+                                    if (FUNC_ATIME_DIR)
+                                        update_atime(head_inode, cur_time);
+                                    
+                                    head_inode->mtime = head_inode->ctime = cur_time;
+                                    new_inode_block(head_inode);
+                                }
                             }
                             new_inode_block(tail_inode);
                         }
@@ -504,12 +528,17 @@ int remove_object(struct inode* head_inode, const char* del_name, int del_mode) 
                         if (firblk) {
                             if (FUNC_ATIME_DIR)
                                 update_atime(block_inode, cur_time);
-                            block_inode->mtime = block_inode->ctime = cur_time;
+                            
+                            if (FUNC_TIMESTAMPS)
+                                block_inode->mtime = block_inode->ctime = cur_time;
                         } else {
-                            if (FUNC_ATIME_DIR)
-                                update_atime(head_inode, cur_time);
-                            head_inode->mtime = head_inode->ctime = cur_time;
-                            new_inode_block(head_inode);
+                            if (FUNC_TIMESTAMPS) {
+                                if (FUNC_ATIME_DIR)
+                                    update_atime(head_inode, cur_time);
+                                
+                                head_inode->mtime = head_inode->ctime = cur_time;
+                                new_inode_block(head_inode);
+                            }
                         }
                         new_inode_block(block_inode);
                     }
@@ -575,8 +604,15 @@ int o_rmdir(const char* path) {
         return locate_err;
     }
 
+    tmp = relative_to_absolute(path, "./", 0);
+    char* delete_dir = (char*) malloc((tmp.length() + 1) * SC);
+    strcpy(delete_dir, tmp.c_str());
+    int delete_inum;
+    locate_err = locate(delete_dir, delete_inum);
+
     std::set <int> get_inodes;
     get_inodes.insert(par_inum);
+    get_inodes.insert(delete_inum);
 
     for (auto it = get_inodes.begin(); it != get_inodes.end(); it++) {
         std::lock_guard <std::mutex> guard(inode_lock[*it]);
@@ -598,7 +634,7 @@ int o_rmdir(const char* path) {
         return -ENOTDIR;
     }
 
-    int flag = remove_object(head_inode, dirname, MODE_DIR); //whether to add lock for deleted dir
+    int flag = remove_object(head_inode, dirname, MODE_DIR);
     free(parent_dir); free(dirname);
     return flag;
 }

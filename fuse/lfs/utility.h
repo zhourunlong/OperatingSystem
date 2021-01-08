@@ -216,6 +216,7 @@ const bool ERROR_PERM           = 1;    // Report permission errors in all sourc
 /** **************************************
  * Timestamp and permission utilities.
  * ***************************************/
+const bool FUNC_TIMESTAMPS      = 0;        // Enable mtime and ctime.
 const bool FUNC_ATIME_DIR       = 0;        // Enable atime update for directories.
 const bool FUNC_ATIME_FILE      = 0;        // Enable atime update for files.
 const bool FUNC_ATIME_REL       = 1;        // Enable relative atime (as with -relatime).
