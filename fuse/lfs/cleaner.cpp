@@ -217,7 +217,10 @@ void gc_compact_data_blocks(summary_entry* seg_sum, int seg, std::set<int> &modi
         int dir_index = seg_sum[j].direct_index;
         int block_addr = seg*BLOCKS_IN_SEGMENT + j;
 
-        if ((i_number == 0) || (inode_table[i_number] == -1)) continue;
+        // Caution: use a stronger test criterion for validity.
+        // Note that segment summary may be wrong sometimes.
+        if ((i_number <= 0) || (i_number >=MAX_NUM_INODE) || (inode_table[i_number] == -1)) continue;
+        
         if (dir_index == -1) {  // Block j is an inode block.
             if (inode_table[i_number] == block_addr)
                 modified_inum.insert(i_number);
@@ -225,7 +228,7 @@ void gc_compact_data_blocks(summary_entry* seg_sum, int seg, std::set<int> &modi
             get_inode_from_inum(cur_inode, i_number);
             if (cur_inode->direct[dir_index] == block_addr) {
                 modified_inum.insert(i_number);
-                
+
                 gc_get_block(&data, block_addr);
                 gc_cached_inode_array[i_number].direct[dir_index] = gc_new_data_block(&data, i_number, dir_index);
             }
@@ -238,7 +241,9 @@ void gc_compact_data_blocks(summary_entry* seg_sum, int seg, std::set<int> &modi
 // * Read data using non-GC APIs (from the original file or cache).
 // * Write data to GC data structures only (especially, never change global cache).
 void collect_garbage(bool clean_thoroughly) {
-    flush_cache();    // Must flush cache in the first hand.
+    // Must flush and re-initialize cache in the first hand.
+    flush_cache();
+    init_cache();
 
     // We will do all garbage collection completely in memory.
     // This may also prevent writing inconsistent data into disk file.
@@ -301,7 +306,10 @@ void collect_garbage(bool clean_thoroughly) {
                     int dir_index = seg_sum[j].direct_index;
                     int block_addr = i*BLOCKS_IN_SEGMENT + j;
 
-                    if ((i_number == 0) || (inode_table[i_number] == -1)) continue;
+                    // Caution: use a stronger test criterion for validity.
+                    // Note that segment summary may be wrong sometimes.
+                    if ((i_number <= 0) || (i_number >=MAX_NUM_INODE) || (inode_table[i_number] == -1)) continue;
+
                     if (dir_index == -1) {  // Block j is an inode block.
                         if (inode_table[i_number] == block_addr)
                             utilization[i].count++;
