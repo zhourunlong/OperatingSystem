@@ -372,7 +372,7 @@ int o_mkdir(const char* path, mode_t mode) {
     for (auto it:get_inodes)
         inode_lock[it].lock();
 
-    printf("mkdir path = %s, acquire lock %d and %d.\n", path, par_inum, tmp_inum);
+    //printf("mkdir path = %s, acquire lock %d and %d.\n", path, par_inum, tmp_inum);
 
 
     if (!verify_permission(PERM_WRITE, head_inode, user_info, ENABLE_PERMISSION)) {
@@ -394,8 +394,8 @@ int o_mkdir(const char* path, mode_t mode) {
 
 
     int print_inum;
-    printf("mkdir path = %s, release lock %d and %d.\n", path, par_inum, tmp_inum);
-    printf("locate %s error = %d.\n", path, locate("/2", print_inum));
+    //printf("mkdir path = %s, release lock %d and %d.\n", path, par_inum, tmp_inum);
+    //printf("locate %s error = %d.\n", path, locate("/2", print_inum));
     
     for (auto it:get_inodes)
         inode_lock[it].unlock();

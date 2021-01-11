@@ -25,6 +25,7 @@ const int BLOCKS_PER_CACHELINE = 8;
 const int NUM_BLOCK = CACHE_SIZE / BLOCK_SIZE;
 const int CACHELINE_SIZE = BLOCK_SIZE * BLOCKS_PER_CACHELINE;
 const int NUM_CACHELINE = CACHE_SIZE / CACHELINE_SIZE;
+const int CACHELINES_PER_SEGMENT = SEGMENT_SIZE / CACHELINE_SIZE;
 
 struct cacheline_metadata {
     int cacheline_idx;
@@ -47,7 +48,7 @@ extern char cache[CACHE_SIZE];
 
 extern int T;                       // counter
 
-int evict(int n);                   // n: # contiguous blocks to evict
+int evict(/*int n*/);                   // n: # contiguous blocks to evict
 
 void init_cache();
 

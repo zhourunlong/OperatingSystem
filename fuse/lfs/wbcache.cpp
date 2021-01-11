@@ -11,30 +11,17 @@ int T;
 
 int read_block_through_cache(void* buf, int block_addr) {
 std::lock_guard <std::mutex> guard(io_lock);
-    //std::cerr << "read block " << block_addr << " || ";
-    char _buffer[BLOCK_SIZE];
-    int file_handle = open(lfs_path, O_RDWR);
-    int file_offset = block_addr * BLOCK_SIZE;
-    int read_length = pread(file_handle, _buffer, BLOCK_SIZE, file_offset);
-    close(file_handle);
-
     int cacheline_idx = block_addr / BLOCKS_PER_CACHELINE, i;
     if (m.find(cacheline_idx) != m.end()) {
         i = m[cacheline_idx];
         metablocks[i].timestamp = ++T;
     } else {
-        i = evict(1);
+        i = evict();
 
         int file_handle = open(lfs_path, O_RDWR);
         int file_offset = cacheline_idx * CACHELINE_SIZE;
-
-        acquire_disk_lock();
-        release_lock();
         int read_length = pread(file_handle, cache + i * CACHELINE_SIZE,
                                 CACHELINE_SIZE, file_offset);
-        acquire_lock();
-        release_disk_lock();
-        
         close(file_handle);
         m[cacheline_idx] = i;
         metablocks[i] = (cacheline_metadata) {cacheline_idx, ++T, false};
@@ -47,14 +34,6 @@ std::lock_guard <std::mutex> guard(io_lock);
     memcpy(buf, cache + i * CACHELINE_SIZE
               + block_addr % BLOCKS_PER_CACHELINE * BLOCK_SIZE,
               BLOCK_SIZE * sizeof(char));
-    
-    /* bool flag = true;
-    char* _buf = (char*) buf;
-    for (int j=0; j<BLOCK_SIZE; j++) {
-        flag = flag && (_buf[j] == _buffer[j]);
-    }
-    if (!flag) printf("WRONG IN CACHE!\n"); */
-
     return BLOCK_SIZE;
 }
 
@@ -72,66 +51,53 @@ std::lock_guard <std::mutex> guard(io_lock);
 
 int write_segment_through_cache(void* buf, int segment_addr) {
 std::lock_guard <std::mutex> guard(io_lock);
-    //std::cerr << "write segment " << segment_addr << " || ";
-    int i = evict(SEGMENT_SIZE / CACHELINE_SIZE);
-    memcpy(cache + i * CACHELINE_SIZE, buf, SEGMENT_SIZE * sizeof(char));
-    for (int j = 0; j < SEGMENT_SIZE / CACHELINE_SIZE; ++j) {
-        int cacheline_idx = SEGMENT_SIZE / CACHELINE_SIZE * segment_addr + j;
-        m[cacheline_idx] = i + j;
-        metablocks[i + j] = (cacheline_metadata) {cacheline_idx, ++T, true};
-        if (!inheap[i + j]) {
-            inheap[i + j] = 1;
-            heap.push(std::make_pair(T, i + j));
+    int first_cacheline_idx = CACHELINES_PER_SEGMENT * segment_addr;
+    for (int j = 0; j < CACHELINES_PER_SEGMENT; ++j) {
+        int cacheline_idx = first_cacheline_idx + j;
+        int i;
+        if (m.find(cacheline_idx) != m.end()) {
+            i = m[cacheline_idx];
+            metablocks[i].timestamp = ++T;
+            metablocks[i].dirty = true;
+        } else {
+            i = evict();
+            m[cacheline_idx] = i;
+            metablocks[i] = (cacheline_metadata) {cacheline_idx, ++T, true};
+            if (!inheap[i]) {
+                inheap[i] = 1;
+                heap.push(std::make_pair(T, i));
+            }
         }
+        memcpy(cache + i * CACHELINE_SIZE, buf + j * CACHELINE_SIZE, CACHELINE_SIZE);
     }
     return SEGMENT_SIZE;
 }
 
-int evict(int len) {
+int evict() {
     int r;
-    if (len == 1) {
-        while (1) {
-            std::pair <int, int> u = heap.top();
-            heap.pop();
-            if (metablocks[u.second].timestamp != u.first) {
-                if (inheap[u.second] == 1)
-                    heap.push(std::make_pair(metablocks[u.second].timestamp,
-                                             u.second));
-                else
-                    --inheap[u.second];
-                continue;
-            }
-            r = u.second;
-            --inheap[r];
-            break;
+    while (1) {
+        std::pair <int, int> u = heap.top();
+        heap.pop();
+        if (metablocks[u.second].timestamp != u.first) {
+            if (inheap[u.second] == 1)
+                heap.push(std::make_pair(metablocks[u.second].timestamp,
+                                            u.second));
+            else
+                --inheap[u.second];
+            continue;
         }
-    } else {
-        long long sum = 0;
-        r = 0;
-        for (int i = 0; i < len; ++i)
-            sum += metablocks[i].timestamp;
-        long long mi = sum;
-        for (int i = 1; i <= NUM_CACHELINE - len; ++i) {
-            sum += metablocks[i + len - 1].timestamp;
-            sum -= metablocks[i - 1].timestamp;
-            if (sum < mi) {
-                mi = sum;
-                r = i;
-            }
-        }
+        r = u.second;
+        --inheap[r];
+        break;
     }
-
-    int file_handle = open(lfs_path, O_RDWR);
-    for (int i = 0; i < len; ++i) {
-        int file_offset = metablocks[r + i].cacheline_idx * CACHELINE_SIZE;
-        if (metablocks[r + i].dirty)
-            pwrite(file_handle, cache + (r + i) * CACHELINE_SIZE,
-                   CACHELINE_SIZE, file_offset);
-        m.erase(metablocks[r + i].cacheline_idx);
+    if (metablocks[r].dirty) {
+        int file_handle = open(lfs_path, O_RDWR);
+        int file_offset = metablocks[r].cacheline_idx * CACHELINE_SIZE;
+        pwrite(file_handle, cache + r * CACHELINE_SIZE, CACHELINE_SIZE, file_offset);
+        close(file_handle);
+        fsync(file_handle);
     }
-    fsync(file_handle);
-    close(file_handle);
-
+    m.erase(metablocks[r].cacheline_idx);
     return r;
 }
 
