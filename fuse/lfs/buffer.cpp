@@ -14,6 +14,7 @@
 
 int o_flush(const char* path, struct fuse_file_info* fi) {
 // std::lock_guard <std::mutex> guard(global_lock);
+    opt_lock_holder zhymoyu;
     if (DEBUG_PRINT_COMMAND)
         logger(DEBUG, "FLUSH, %s, %p\n", resolve_prefix(path).c_str(), fi);
     return 0;
@@ -41,6 +42,7 @@ void manually_synchronize() {
 
 int o_fsync(const char* path, int isdatasync, struct fuse_file_info* fi) {
 // std::lock_guard <std::mutex> guard(global_lock);
+    opt_lock_holder zhymoyu;
     if (DEBUG_PRINT_COMMAND)
         logger(DEBUG, "FSYNC, %s, %d, %p\n",
                resolve_prefix(path).c_str(), isdatasync, fi);
@@ -52,6 +54,7 @@ int o_fsync(const char* path, int isdatasync, struct fuse_file_info* fi) {
 
 int o_fsyncdir(const char* path, int isdatasync, struct fuse_file_info* fi) {
 // std::lock_guard <std::mutex> guard(global_lock);
+    opt_lock_holder zhymoyu;
     if (DEBUG_PRINT_COMMAND)
         logger(DEBUG, "FSYNCDIR, %s, %d, %p\n",
                resolve_prefix(path).c_str(), isdatasync, fi);

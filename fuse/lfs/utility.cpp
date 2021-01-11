@@ -328,3 +328,19 @@ void end_gc() {
     trigger_gc = false;
     num_opt_lock.unlock();
 }
+
+opt_lock_holder::opt_lock_holder() {
+    start_operation();
+}
+
+opt_lock_holder::~opt_lock_holder() {
+    end_operation();
+}
+
+gc_lock_holder::gc_lock_holder() {
+    start_gc();
+}
+
+gc_lock_holder::~gc_lock_holder() {
+    end_gc();
+}

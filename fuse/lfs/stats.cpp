@@ -11,6 +11,7 @@
 
 int o_statfs(const char* path, struct statvfs* stbuf) {
 // std::lock_guard <std::mutex> guard(global_lock);
+    opt_lock_holder zhymoyu;
     if (DEBUG_PRINT_COMMAND)
         logger(DEBUG, "STATFS, %s, %p\n", resolve_prefix(path).c_str(), stbuf);
     
@@ -41,6 +42,7 @@ int o_statfs(const char* path, struct statvfs* stbuf) {
 
 int o_utimens(const char* path, const struct timespec ts[2], struct fuse_file_info *fi) {
 // std::lock_guard <std::mutex> guard(global_lock);
+    opt_lock_holder zhymoyu;
     if (DEBUG_PRINT_COMMAND)
         logger(DEBUG, "UTIMENS, %s, %p, %p\n",
                resolve_prefix(path).c_str(), &ts, fi);

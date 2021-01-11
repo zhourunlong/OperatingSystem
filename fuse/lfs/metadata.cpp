@@ -17,6 +17,7 @@ extern struct options options;
 
 int o_getattr(const char* path, struct stat* sbuf, struct fuse_file_info* fi) {
 // std::lock_guard <std::mutex> guard(global_lock);
+    opt_lock_holder zhymoyu;
     if (DEBUG_PRINT_COMMAND)
         logger(DEBUG, "GETATTR, %s, %p, %p\n", resolve_prefix(path).c_str(), sbuf, fi);
     
@@ -98,6 +99,7 @@ int o_getattr(const char* path, struct stat* sbuf, struct fuse_file_info* fi) {
 
 int o_access(const char* path, int mode) {
 // std::lock_guard <std::mutex> guard(global_lock);
+    opt_lock_holder zhymoyu;
     if (DEBUG_PRINT_COMMAND)
         logger(DEBUG, "ACCESS, %s, %d\n", resolve_prefix(path).c_str(), mode);
 

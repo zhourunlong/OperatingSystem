@@ -262,6 +262,18 @@ void end_operation();
 void start_gc();
 void end_gc();
 
+class opt_lock_holder {
+public:
+    opt_lock_holder();
+    ~opt_lock_holder();
+};
+
+class gc_lock_holder {
+public:
+    gc_lock_holder();
+    ~gc_lock_holder();
+};
+
 
 /** **************************************
  * Garbage collection.
