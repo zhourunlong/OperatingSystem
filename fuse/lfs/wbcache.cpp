@@ -94,8 +94,8 @@ int evict() {
         int file_handle = open(lfs_path, O_RDWR);
         int file_offset = metablocks[r].cacheline_idx * CACHELINE_SIZE;
         pwrite(file_handle, cache + r * CACHELINE_SIZE, CACHELINE_SIZE, file_offset);
-        close(file_handle);
         fsync(file_handle);
+        close(file_handle);
     }
     m.erase(metablocks[r].cacheline_idx);
     return r;
