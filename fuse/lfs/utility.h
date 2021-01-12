@@ -4,6 +4,7 @@
 #include <fuse.h>       /* sturct fuse_context */
 #include <mutex>
 #include <set>
+#include <condition_variable>
 
 // [CAUTION] to represent "empty" values, we follow the following convention:
 // (1) "empty" inode = 0;
@@ -239,6 +240,9 @@ extern std::mutex inode_lock[MAX_NUM_INODE];
 
 extern std::mutex gc_lock;
 extern std::mutex num_opt_lock;
+
+extern std::condition_variable cond_gc;
+extern std::condition_variable cond_opt;
 
 extern int num_opt;
 extern bool trigger_gc;

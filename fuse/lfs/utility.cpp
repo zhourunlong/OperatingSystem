@@ -207,7 +207,10 @@ std::mutex segment_lock;
 std::mutex counter_lock;
 std::mutex disk_lock;
 std::mutex inode_lock[MAX_NUM_INODE];
+std::mutex gc_lock;
 std::mutex num_opt_lock;
+std::condition_variable cond_gc;
+std::condition_variable cond_opt;
 
 int num_opt = 0;
 bool trigger_gc = false;
@@ -233,39 +236,43 @@ void release_counter_lock() {
 /** Maintain a counter of threads that are currently alive.
  * Invoked after acquiring all inode locks in an o_xxx() function. */
 opt_lock_holder::opt_lock_holder() {
-    while (true) {
-        num_opt_lock.lock();
-        if (trigger_gc == true) num_opt_lock.unlock();
-        else break;
+    printf("opt_lock_holder\n");
+    std::unique_lock<std::mutex> u_gc_lock(gc_lock);
+    
+    while (trigger_gc == true) {
+        cond_gc.wait(u_gc_lock);
     }
     num_opt += 1;
-    num_opt_lock.unlock();
+    printf("%d\n", num_opt);
+    // cond_gc.notify_all();
 }
 
 /** Maintain a counter of threads that are currently alive.
  * Invoked before an o_xxx() function exits. */
 opt_lock_holder::~opt_lock_holder() {
-    num_opt_lock.lock();
+    printf("~opt_lock_holder()\n");
+    std::unique_lock<std::mutex> u_gc_lock(gc_lock);
     num_opt -= 1;
-    num_opt_lock.unlock();
+    cond_gc.notify_all();
 }
 
 /** Maintain a flag indicating whether a GC is on-going.
  * Invoked at the beginning of garbage_collection(). */
 gc_lock_holder::gc_lock_holder() {
-    while (true) {
-        num_opt_lock.lock();
-        if (num_opt > 1) num_opt_lock.unlock();  // One thread must remain alive to do garbage collection.
-        else break;
+    printf("gc_lock_holder\n");
+    std::unique_lock<std::mutex> u_gc_lock(gc_lock);
+    while (num_opt >= 1) {
+        cond_gc.wait(u_gc_lock);
     }
     trigger_gc = true;
-    num_opt_lock.unlock();
+    // cond_gc.notify_all();
 }
 
 /** Maintain a flag indicating whether a GC is on-going.
  * Invoked at the end of garbage_collection(). */
 gc_lock_holder::~gc_lock_holder() {
-    num_opt_lock.lock();
+    printf("~gc_lock_holder()\n");
+    std::unique_lock<std::mutex> u_gc_lock(gc_lock);
     trigger_gc = false;
-    num_opt_lock.unlock();
+    cond_gc.notify_all();
 }
