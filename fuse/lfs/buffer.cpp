@@ -23,20 +23,19 @@ int o_flush(const char* path, struct fuse_file_info* fi) {
 /* Synchronize manually by writing the current segment into disk file and generate a checkpoint. */
 void manually_synchronize() {
     // Currently flush the whole segment buffer to disk (the same as destroy()).
-    printf("manually_synchronize() {\n");
     acquire_segment_lock();
-    add_segbuf_metadata();
-    if (USE_CACHE)
-        write_segment_through_cache(segment_buffer, cur_segment);
-    else
-        write_segment(segment_buffer, cur_segment);
-    segment_bitmap[cur_segment] = 1;
-    generate_checkpoint();
+        add_segbuf_metadata();
+        if (USE_CACHE)
+            write_segment_through_cache(segment_buffer, cur_segment);
+        else
+            write_segment(segment_buffer, cur_segment);
+        segment_bitmap[cur_segment] = 1;
+        generate_checkpoint();
 
-    // Update checkpoint time.
-    struct timespec cur_time;
-    clock_gettime(CLOCK_REALTIME, &cur_time);
-    last_ckpt_update_time = cur_time;
+        // Update checkpoint time.
+        struct timespec cur_time;
+        clock_gettime(CLOCK_REALTIME, &cur_time);
+        last_ckpt_update_time = cur_time;
     release_segment_lock();
 }
 

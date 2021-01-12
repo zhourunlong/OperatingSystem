@@ -20,25 +20,12 @@ int count_inode;
 int cur_segment, cur_block;
 int next_checkpoint, next_imap_index;
 struct timespec last_ckpt_update_time;
-std::mutex global_lock, io_lock;
-
-std::mutex segment_lock;
-std::mutex counter_lock;
-std::mutex disk_lock;
-std::mutex inode_lock[MAX_NUM_INODE];
-
-std::mutex num_opt_lock;
-
-int num_opt = 0;
-bool trigger_gc = false;
 
 segment_summary cached_segsum[TOT_SEGMENTS];
 inode cached_inode_array[MAX_NUM_INODE];
 
 int cur_garbcol_level;
 int last_garbcol_time;
-
-int active_blocks, active_inodes;
 
 /** **************************************
  * Block operations
@@ -52,13 +39,8 @@ int active_blocks, active_inodes;
 int read_block(void* buf, int block_addr) {
     int file_handle = open(lfs_path, O_RDWR);
     int file_offset = block_addr * BLOCK_SIZE;
-    
-    acquire_disk_lock();
-    release_lock();
     int read_length = pread(file_handle, buf, BLOCK_SIZE, file_offset);
     close(file_handle);
-    acquire_lock();
-    release_disk_lock();
     
     return read_length;
 }
@@ -67,13 +49,8 @@ int read_block(void* buf, int block_addr) {
 int write_block(void* buf, int block_addr) {
     int file_handle = open(lfs_path, O_RDWR);
     int file_offset = block_addr * BLOCK_SIZE;
-    
-    acquire_disk_lock();
-    release_lock();
     int write_length = pwrite(file_handle, buf, BLOCK_SIZE, file_offset);
     close(file_handle);
-    acquire_lock();
-    release_disk_lock();
     
     return write_length;
 }
@@ -82,12 +59,8 @@ int write_block(void* buf, int block_addr) {
 int read_segment(void* buf, int segment_addr) {
     int file_handle = open(lfs_path, O_RDWR);
     int file_offset = segment_addr * SEGMENT_SIZE;
-    
-    acquire_disk_lock();
-    release_lock();
     int read_length = pread(file_handle, buf, SEGMENT_SIZE, file_offset);
     close(file_handle);
-    release_disk_lock();
     
     return read_length;
 }
@@ -96,13 +69,8 @@ int read_segment(void* buf, int segment_addr) {
 int write_segment(void* buf, int segment_addr) {
     int file_handle = open(lfs_path, O_RDWR);
     int file_offset = segment_addr * SEGMENT_SIZE;
-    
-    acquire_disk_lock();
-    release_lock();
     int write_length = pwrite(file_handle, buf, SEGMENT_SIZE, file_offset);
     close(file_handle);
-    acquire_lock();
-    release_disk_lock();
     
     return write_length;
 }
@@ -234,70 +202,37 @@ bool verify_permission(int mode, struct inode* f_inode, struct fuse_context* u_i
 /** **************************************
  * Public variable locks.
  * ***************************************/
+std::mutex global_lock, io_lock;
+std::mutex segment_lock;
+std::mutex counter_lock;
+std::mutex disk_lock;
+std::mutex inode_lock[MAX_NUM_INODE];
+std::mutex num_opt_lock;
 
-void acquire_lock() {
-    // printf("global_lock.lock()\n");
-    // global_lock.lock();
-    return;
-};
+int num_opt = 0;
+bool trigger_gc = false;
 
-void release_lock() {
-    // printf("global_lock.unlock();\n");
-    // global_lock.unlock();
-    return;
-};
-
-void acquire_reader_lock() {
-    //global_lock.lock();
-    return;
-};
-
-void release_reader_lock() {
-    //global_lock.unlock();
-    return;
-};
-
-void acquire_writer_lock() {
-    //global_lock.lock();
-    return;
-};
-
-void release_writer_lock() {
-    //global_lock.unlock();
-    return;
-};
 
 void acquire_segment_lock() {
-    // printf("segment_lock.lock();\n");
     segment_lock.lock();
 };
 
 void release_segment_lock() {
-    // printf("segment_lock.unlock();\n");
     segment_lock.unlock();
 };
 
 void acquire_counter_lock() {
-    // printf("counter_lock.lock();\n");
     counter_lock.lock();
 }
 
 void release_counter_lock() {
-    // printf("counter_lock.unlock();\n");
     counter_lock.unlock();
 }
 
-void acquire_disk_lock() {
-    // printf("disk_lock.lock();\n");
-    // disk_lock.lock();
-}
 
-void release_disk_lock() {
-    // printf("disk_lock.unlock();\n");
-    // disk_lock.unlock();
-}
-
-void start_operation() {
+/** Maintain a counter of threads that are currently alive.
+ * Invoked after acquiring all inode locks in an o_xxx() function. */
+opt_lock_holder::opt_lock_holder() {
     while (true) {
         num_opt_lock.lock();
         if (trigger_gc == true) num_opt_lock.unlock();
@@ -307,13 +242,17 @@ void start_operation() {
     num_opt_lock.unlock();
 }
 
-void end_operation() {
+/** Maintain a counter of threads that are currently alive.
+ * Invoked before an o_xxx() function exits. */
+opt_lock_holder::~opt_lock_holder() {
     num_opt_lock.lock();
     num_opt -= 1;
     num_opt_lock.unlock();
 }
 
-void start_gc() {
+/** Maintain a flag indicating whether a GC is on-going.
+ * Invoked at the beginning of garbage_collection(). */
+gc_lock_holder::gc_lock_holder() {
     while (true) {
         num_opt_lock.lock();
         if (num_opt > 1) num_opt_lock.unlock();  // One thread must remain alive to do garbage collection.
@@ -323,24 +262,10 @@ void start_gc() {
     num_opt_lock.unlock();
 }
 
-void end_gc() {
+/** Maintain a flag indicating whether a GC is on-going.
+ * Invoked at the end of garbage_collection(). */
+gc_lock_holder::~gc_lock_holder() {
     num_opt_lock.lock();
     trigger_gc = false;
     num_opt_lock.unlock();
-}
-
-opt_lock_holder::opt_lock_holder() {
-    start_operation();
-}
-
-opt_lock_holder::~opt_lock_holder() {
-    end_operation();
-}
-
-gc_lock_holder::gc_lock_holder() {
-    start_gc();
-}
-
-gc_lock_holder::~gc_lock_holder() {
-    end_gc();
 }

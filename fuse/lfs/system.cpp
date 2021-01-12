@@ -160,7 +160,6 @@ void initialize_disk_file() {
 /** Load LFS structure data from an existing disk file. */
 void load_from_disk_file() {
     /* (A) Read the (newer) checkpoint. */
-    acquire_lock();
     checkpoints ckpt;
     read_checkpoints(&ckpt);
     print(ckpt);
@@ -288,5 +287,4 @@ void load_from_disk_file() {
     
     /* (F) Generate a checkpoint for easier recovery. */
     generate_checkpoint();
-    release_lock();
 }

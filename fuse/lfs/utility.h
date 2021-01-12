@@ -188,7 +188,6 @@ extern inode cached_inode_array[MAX_NUM_INODE];     // In-memory inode array.
 const long long FILE_SIZE = 1ll * SEGMENT_SIZE * TOT_SEGMENTS + 2 * BLOCK_SIZE;
 const int ROOT_DIR_INUMBER = 1;
 
-extern int active_blocks, active_inodes;
 
 /** **************************************
  * Debug and error-reporting flags.
@@ -244,24 +243,13 @@ extern std::mutex num_opt_lock;
 extern int num_opt;
 extern bool trigger_gc;
 
-void acquire_lock();
-void release_lock();
-void acquire_reader_lock();
-void release_reader_lock();
-void acquire_writer_lock();
-void release_writer_lock();
 void acquire_segment_lock();
 void release_segment_lock();
 void acquire_counter_lock();
 void release_counter_lock();
-void acquire_disk_lock();
-void release_disk_lock();
 
-void start_operation();
-void end_operation();
-void start_gc();
-void end_gc();
-
+/* Use lock holder classes, so that on all exit paths,
+ * locks are automatically released by destructors. */
 class opt_lock_holder {
 public:
     opt_lock_holder();
