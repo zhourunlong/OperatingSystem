@@ -278,7 +278,7 @@ public:
 /** **************************************
  * Garbage collection.
  * ***************************************/
-const int CLEAN_THRESHOLD   = (int) (0.15*TOT_SEGMENTS);  // 0.80
+const int CLEAN_THRESHOLD   = (int) (0.80*TOT_SEGMENTS);
 const int CLEAN_THORO_THRES = (int) (0.96*TOT_SEGMENTS);
 const int CLEAN_NUM         = (int) (0.3*TOT_SEGMENTS);
 const int CLEAN_BELOW_UTIL  = (int) (0.01*BLOCKS_IN_SEGMENT);
@@ -296,7 +296,7 @@ const int GARBCOL_LEVEL_96  = 2;
 const int GARBCOL_LEVEL_100 = 3;
 const int GARBCOL_INTERVAL  = 60;
 
-const int CLEAN_NORM_FAIL   = (int) (0.10*TOT_SEGMENTS);  // 0.65
+const int CLEAN_NORM_FAIL   = (int) (0.65*TOT_SEGMENTS);
 const int CLEAN_THORO_FAIL  = (int) (0.85*TOT_SEGMENTS);
 
 

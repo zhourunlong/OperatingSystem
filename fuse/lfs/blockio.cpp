@@ -21,7 +21,6 @@
  * @param  block_addr: block address.
  * Note that the block may be in segment buffer, or in disk file. */
 void get_block(void* data, int block_addr) {
-    // printf("get_block(void* data, int block_addr)\n");
     acquire_segment_lock();
     int segment = block_addr / BLOCKS_IN_SEGMENT;
     int block = block_addr % BLOCKS_IN_SEGMENT;
@@ -219,13 +218,14 @@ void move_to_segment() {
 
 /** Create a new data block into the segment buffer.
  * @param  data: pointer of data to be appended.
- * @param  i_number: i_number of the file (that the data belongs to).
+ * @param  data_inode: inode that the data belongs to (may be head or non-head inodes).
  * @param  direct_index: the index of direct[] in that inode, pointing to the new block.
- * @return block_addr: global block address of the new block.
- * Note that when the segment buffer is full, we have to write it back into disk file. */
-int new_data_block(void* data, int i_number, int direct_index) {
-    // printf("new_data_block(void* data, int i_number, int direct_index)\n");
+ * Note that when the segment buffer is full, we have to write it back into disk file. 
+ * This function does not return block_addr, because block_addr should be updated before
+ * potential garbage collection triggered by move_to_segment(), where addresses are changed. */
+void new_data_block(void* data, struct inode* data_inode, int direct_index) {
     acquire_segment_lock();
+    int i_number = data_inode->i_number;
     int buffer_offset = cur_block * BLOCK_SIZE;
     int block_addr = cur_segment * BLOCKS_IN_SEGMENT + cur_block;
 
@@ -239,23 +239,23 @@ int new_data_block(void* data, int i_number, int direct_index) {
 
             // Append segment summary for this block.
             add_segbuf_summary(cur_block, i_number, direct_index);
+            data_inode->direct[direct_index] = block_addr;
             
             // Write back segment buffer if necessary.
             move_to_segment();
         }
     release_writer_lock();
     release_segment_lock();
-    
-    return block_addr;
 }
 
 
 /** Create a new inode block into the segment buffer.
  * @param  data: pointer of the inode to be appended.
  * @return block_addr: global block address of the new block.
- * Note that when the segment buffer is full, we have to write it back into disk file. */
-int new_inode_block(struct inode* data) {
-    // printf("new_inode_block(struct inode* data)\n");
+ * Note that when the segment buffer is full, we have to write it back into disk file.
+ * This function does not return block_addr, because block_addr should be updated before
+ * potential garbage collection triggered by move_to_segment(), where addresses are changed. */
+void new_inode_block(struct inode* data) {
     acquire_segment_lock();
     int i_number = data->i_number;
     int buffer_offset = cur_block * BLOCK_SIZE;
@@ -267,7 +267,7 @@ int new_inode_block(struct inode* data) {
     if (is_full) {
         logger(WARN, "[WARNING] The file system is already full: please expand the disk size.\n");
         logger(WARN, "* Garbage collection fails because it cannot release any blocks.\n");
-        return -1;
+        return;
     }
 
     acquire_writer_lock();
@@ -289,7 +289,6 @@ int new_inode_block(struct inode* data) {
         }
     release_writer_lock();
     release_segment_lock();
-    return block_addr;
 }
 
 
@@ -344,7 +343,6 @@ void add_segbuf_metadata() {
  * @param  _permission: using UGO x RWX format in base-8 (e.g., 0777). 
  * [CAUTION] It is required to use malloc to create cur_inode (see file_add_data() below). */
 void file_initialize(struct inode* &cur_inode, int _mode, int _permission) {
-    // printf("file_initialize(struct inode* &cur_inode, int _mode, int _permission)\n");
     acquire_segment_lock();
     acquire_counter_lock();
     acquire_writer_lock();
@@ -410,9 +408,8 @@ void file_add_data(struct inode* &cur_inode, void* data) {
         // Release current inode by replacing the pointer.
         cur_inode = next_inode;
     }
-    
-    int block_addr = new_data_block(data, cur_inode->i_number, cur_inode->num_direct);
-    cur_inode->direct[cur_inode->num_direct] = block_addr;
+
+    new_data_block(data, cur_inode, cur_inode->num_direct);
     cur_inode->fsize_block++;
     cur_inode->num_direct++;
 }
@@ -428,15 +425,13 @@ void file_modify(struct inode* cur_inode, int direct_index, void* data) {
         logger(ERROR, "[ERROR] Cannot modify a block that does not exist yet. Request ind: %d\n", direct_index);
     }
     
-    int block_addr = new_data_block(data, cur_inode->i_number, direct_index);
-    cur_inode->direct[direct_index] = block_addr;
+    new_data_block(data, cur_inode, direct_index);
 }
 
 
 /** Remove an existing inode.
  * @param  i_number: i_number of an existing inode. */
 void remove_inode(int i_number) {
-    // printf("remove_inode(int i_number)\n");
     acquire_writer_lock();
     acquire_segment_lock();
         if (DEBUG_BLOCKIO)

@@ -153,8 +153,7 @@ int append_parent_dir_entry(struct inode* head_inode, const char* new_name, int 
                 if (block_dir[j].i_number == 0) {
                     block_dir[j].i_number = new_inum;
                     memcpy(block_dir[j].filename, new_name, strlen(new_name) * sizeof(char));
-                    int new_block_addr = new_data_block(&block_dir, block_inode->i_number, i);
-                    block_inode->direct[i] = new_block_addr;
+                    new_data_block(&block_dir, block_inode, i);
                     
                     if (firblk) {
                         if (FUNC_ATIME_DIR)
@@ -192,8 +191,7 @@ int append_parent_dir_entry(struct inode* head_inode, const char* new_name, int 
     if (rec_avail_for_ins) {
         for (int i = 0; i < NUM_INODE_DIRECT; ++i)
             if (avail_for_ins->direct[i] == -1) {
-                int new_block_addr = new_data_block(&block_dir, avail_for_ins->i_number, i);
-                avail_for_ins->direct[i] = new_block_addr;
+                new_data_block(&block_dir, avail_for_ins, i);
                 ++avail_for_ins->num_direct;
                 if (afi_firblk) {
                     if (FUNC_ATIME_DIR)
@@ -217,8 +215,7 @@ int append_parent_dir_entry(struct inode* head_inode, const char* new_name, int 
 
     inode* append_inode;
     file_initialize(append_inode, MODE_MID_INODE, 0);
-    int new_block_addr = new_data_block(&block_dir, append_inode->i_number, 0);
-    append_inode->direct[0] = new_block_addr;
+    new_data_block(&block_dir, append_inode, 0);
     append_inode->num_direct = 1;
     new_inode_block(append_inode);
     tail_inode->next_indirect = append_inode->i_number;
@@ -533,8 +530,8 @@ int remove_object(struct inode* head_inode, const char* del_name, int del_mode) 
                     } else {
                         block_dir[j].i_number = 0;
                         memset(block_dir[j].filename, 0, sizeof(block_dir[j].filename));
-                        int new_block_addr = new_data_block(&block_dir, block_inode->i_number, i);
-                        block_inode->direct[i] = new_block_addr;
+                        new_data_block(&block_dir, block_inode, i);
+
                         if (firblk) {
                             if (FUNC_ATIME_DIR)
                                 update_atime(block_inode, cur_time);

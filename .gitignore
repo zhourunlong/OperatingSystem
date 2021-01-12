@@ -6,7 +6,7 @@ fuse/lfs/*.o
 fuse/lfs/*.sh
 fuse/lfs/.sconsign.dblite
 fuse/lfs/fuse
-fuse/lfs/testGC/*
+fuse/lfs/testQC/*
 fuse/lfs/lfs.data
 .vscode/*.json
 fuse/lfs/test/*
@@ -14,12 +14,3 @@ fuse/lfs/test/*
 *.log
 *.synctex.gz
 disk100Mi
-fuse/lfs/testQC/20470.txt
-fuse/lfs/testQC/20470a.txt
-fuse/lfs/testQC/20470b.txt
-fuse/lfs/testQC/20470c.txt
-fuse/lfs/testQC/20470d.txt
-fuse/lfs/testQC/check
-fuse/lfs/testQC/check.cpp
-fuse/lfs/testQC/generate
-fuse/lfs/testQC/generate.cpp

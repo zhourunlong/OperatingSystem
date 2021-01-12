@@ -295,7 +295,7 @@ void print_inode_table() {
     
     int count = 0, col = 0;
     for (int i=0; i<MAX_NUM_INODE; i++) {
-        if (inode_table[i] >= 0) {
+        if (inode_table[i] >= 0 || inode_table[i] == -2) {
             logger(DEBUG, "%6d %6d  ", i, inode_table[i]);
             count++;
             col++;
