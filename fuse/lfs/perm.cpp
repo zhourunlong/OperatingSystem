@@ -34,7 +34,9 @@ int o_chmod(const char* path, mode_t mode, struct fuse_file_info* fi) {
     std::set <int> get_inodes;
     get_inodes.insert(fh);
 
+    /* The inode-level fine-grained lock is added by a lock_guard. */
     std::lock_guard <std::mutex> guard(inode_lock[fh]);
+    /* This will be automatically released on each exit path. */
 
     inode* block_inode;
     get_inode_from_inum(block_inode, fh);
@@ -70,7 +72,9 @@ int o_chown(const char* path, uid_t uid, gid_t gid, struct fuse_file_info* fi) {
     std::set <int> get_inodes;
     get_inodes.insert(fh);
 
+    /* The inode-level fine-grained lock is added by a lock_guard. */
     std::lock_guard <std::mutex> guard(inode_lock[fh]);
+    /* This will be automatically released on each exit path. */
 
     inode* block_inode;
     get_inode_from_inum(block_inode, fh);

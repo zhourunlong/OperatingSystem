@@ -32,10 +32,10 @@ int o_getattr(const char* path, struct stat* sbuf, struct fuse_file_info* fi) {
             logger(ERROR, "[ERROR] Cannot access the path (error #%d).\n", locate_error);
         return locate_error;
     }
-    std::set <int> get_inodes;
-    get_inodes.insert(i_number);
 
+    /* The inode-level fine-grained lock is added by a lock_guard. */
     std::lock_guard <std::mutex> guard(inode_lock[i_number]);
+    /* This will be automatically released on each exit path. */
 
     // Since getattr() is very fundamental, we shall always allow attribute reading.
     // Otherwise, commands like chmod, chown, etc. do not work correctly.
@@ -117,7 +117,9 @@ int o_access(const char* path, int mode) {
     std::set <int> get_inodes;
     get_inodes.insert(i_number);
 
+    /* The inode-level fine-grained lock is added by a lock_guard. */
     std::lock_guard <std::mutex> guard(inode_lock[i_number]);
+    /* This will be automatically released on each exit path. */
     
     /* Mode 1~7 (in base-8): test file permissions; may be ORed toghether. */ 
     struct inode* f_inode;

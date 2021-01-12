@@ -196,19 +196,15 @@ int o_open(const char* path, struct fuse_file_info* fi) {
     clock_gettime(CLOCK_REALTIME, &cur_time);
     int inode_num;
     int flag = locate(path, inode_num);
-    std::set <int> get_inodes;
-    get_inodes.insert(inode_num);
-
-    for (auto it:get_inodes)
-        inode_lock[it].lock();
-
     if (flag != 0) {
         if (ERROR_FILE)
             logger(ERROR, "[ERROR] Cannot open the file (error #%d).\n", flag);
-        for (auto it:get_inodes)
-            inode_lock[it].unlock();
         return flag;
     }
+
+    /* The inode-level fine-grained lock is added by a lock_guard. */
+    std::lock_guard <std::mutex> guard(inode_lock[inode_num]);
+    /* This will be automatically released on each exit path. */
 
     // Retrieve open flags, the inode and current user info.
     int flags = fi -> flags;
@@ -221,15 +217,11 @@ int o_open(const char* path, struct fuse_file_info* fi) {
     if (((open_perm == O_RDONLY) || (open_perm == O_RDWR)) && (!verify_permission(PERM_READ, cur_inode, user_info, ENABLE_PERMISSION))) {
         if (ERROR_PERM)
             logger(ERROR, "[ERROR] Permission denied: not allowed to read.\n");
-        for (auto it:get_inodes)
-            inode_lock[it].unlock();
         return -EACCES;
     }
     if (((open_perm == O_WRONLY) || (open_perm == O_RDWR)) && (!verify_permission(PERM_WRITE, cur_inode, user_info, ENABLE_PERMISSION))) {
         if (ERROR_PERM)
             logger(ERROR, "[ERROR] Permission denied: not allowed to write.\n");
-        for (auto it:get_inodes)
-            inode_lock[it].unlock();
         return -EACCES;
     }
     
@@ -241,8 +233,6 @@ int o_open(const char* path, struct fuse_file_info* fi) {
         if (is_full) {
             logger(WARN, "[WARNING] The file system is already full: please expand the disk size.\n* Garbage collection fails because it cannot release any blocks.\n");
             logger(WARN, "====> Cannot proceed to truncate the file: flag O_TRUNC is omitted.\n");
-            for (auto it:get_inodes)
-                inode_lock[it].unlock();
             return 0;
         }
 
@@ -252,8 +242,6 @@ int o_open(const char* path, struct fuse_file_info* fi) {
             cur_inode->ctime = cur_time;
         new_inode_block(cur_inode);
     }
-    for (auto it:get_inodes)
-        inode_lock[it].unlock();
     return 0;
 }
 
@@ -291,19 +279,16 @@ int o_read(const char* path, char *buf, size_t size, off_t offset, struct fuse_f
         }
     }
     int inode_num = fi->fh;
-    std::set <int> get_inodes;
-    get_inodes.insert(inode_num);
-
-    for (auto it:get_inodes)
-        inode_lock[it].lock();
+    
+    /* The inode-level fine-grained lock is added by a lock_guard. */
+    std::lock_guard <std::mutex> guard(inode_lock[inode_num]);
+    /* This will be automatically released on each exit path. */
     
     inode* cur_inode;
     get_inode_from_inum(cur_inode, inode_num);
     if (!verify_permission(PERM_READ, cur_inode, user_info, ENABLE_PERMISSION)) {
         if (ERROR_PERM)
             logger(ERROR, "[ERROR] Permission denied: not allowed to read.\n");
-        for (auto it:get_inodes)
-            inode_lock[it].unlock();
         return 0;
     }
     
@@ -312,8 +297,6 @@ int o_read(const char* path, char *buf, size_t size, off_t offset, struct fuse_f
     if (cur_inode->mode != MODE_FILE) {
         if (ERROR_FILE)
             logger(ERROR, "[ERROR] %s is not a file.\n", path);
-        for (auto it:get_inodes)
-            inode_lock[it].unlock();
         return 0;
     }
     if (offset < len) {
@@ -322,8 +305,6 @@ int o_read(const char* path, char *buf, size_t size, off_t offset, struct fuse_f
     } else {
         if (ERROR_FILE)
             logger(ERROR, "[ERROR] Cannot read from an offset larger than file length.\n", path);
-        for (auto it:get_inodes)
-            inode_lock[it].unlock();
         return 0;
     }
 
@@ -374,8 +355,6 @@ int o_read(const char* path, char *buf, size_t size, off_t offset, struct fuse_f
     if (is_full) {
         logger(WARN, "[WARNING] The file system is already full: please expand the disk size.\n* Garbage collection fails because it cannot release any blocks.\n");
         logger(WARN, "====> Cannot proceed to update timestamps, but the file is still accessible.\n");
-        for (auto it:get_inodes)
-            inode_lock[it].unlock();
         return 0;
     } else {
         timespec cur_time;
@@ -384,8 +363,6 @@ int o_read(const char* path, char *buf, size_t size, off_t offset, struct fuse_f
         update_atime(cur_inode, cur_time);
         new_inode_block(cur_inode);
     }
-    for (auto it:get_inodes)
-        inode_lock[it].unlock();
     return size;
 }
 
@@ -418,11 +395,10 @@ int o_write(const char* path, const char* buf, size_t size, off_t offset, struct
         }
     }
     int inode_num = fi->fh;
-    std::set <int> get_inodes;
-    get_inodes.insert(inode_num);
 
-    for (auto it:get_inodes)
-            inode_lock[it].lock();
+    /* The inode-level fine-grained lock is added by a lock_guard. */
+    std::lock_guard <std::mutex> guard(inode_lock[inode_num]);
+    /* This will be automatically released on each exit path. */
 
     inode* cur_inode;
     int perm_flag = 0;
@@ -430,8 +406,6 @@ int o_write(const char* path, const char* buf, size_t size, off_t offset, struct
     if (!verify_permission(PERM_WRITE, cur_inode, user_info, ENABLE_PERMISSION)) {
         if (ERROR_PERM)
             logger(ERROR, "[ERROR] Permission denied: not allowed to write.\n");
-        for (auto it:get_inodes)
-            inode_lock[it].unlock();
         return 0;
     }
 
@@ -444,8 +418,6 @@ int o_write(const char* path, const char* buf, size_t size, off_t offset, struct
     }
 
     int write_len = write_in_file(path, buf, size, offset, fi);
-    for (auto it:get_inodes)
-        inode_lock[it].unlock();
     return write_len;
 }
 
@@ -519,11 +491,9 @@ int o_create(const char *path, mode_t mode, struct fuse_file_info *fi) {
         return -EEXIST;
     }
 
-    std::set <int> get_inodes;
-    get_inodes.insert(par_inum);
-
-    for (auto it:get_inodes)
-        inode_lock[it].unlock();
+    /* The inode-level fine-grained lock is added by a lock_guard. */
+    std::lock_guard <std::mutex> guard(inode_lock[par_inum]);
+    /* This will be automatically released on each exit path. */
     
     inode* file_inode;
     file_initialize(file_inode, MODE_FILE, mode);
@@ -532,9 +502,6 @@ int o_create(const char *path, mode_t mode, struct fuse_file_info *fi) {
     int flag = append_parent_dir_entry(head_inode, dirname, file_inode->i_number);
     new_inode_block(file_inode);
     free(parent_dir); free(dirname);
-
-    for (auto it:get_inodes)
-        inode_lock[it].unlock();
     return flag;
 }
 
@@ -602,6 +569,7 @@ int o_rename(const char* from, const char* to, unsigned int flags) {
 
     locate_err = locate(to, to_inum);  // This is not necessarily an error.
 
+    /* The inode-level fine-grained lock is added manually. */
     std::set <int> get_inodes;
     get_inodes.insert(from_par_inum);
     get_inodes.insert(to_par_inum);
@@ -611,13 +579,14 @@ int o_rename(const char* from, const char* to, unsigned int flags) {
 
     for (auto it:get_inodes)
         inode_lock[it].lock();
+    /* This has to be manually released on each exit path. */
 
     if (locate_err == 0) {  // Destination file already exists.
         if (flags == RENAME_NOREPLACE) {
             logger(ERROR, "[ERROR] Destination file already exists, and cannot be overwritten.\n");
             free(from_parent_dir); free(to_parent_dir); free(from_name); free(to_name);
-            for (auto it:get_inodes)
-                inode_lock[it].unlock();
+            /* Manually release inode locks */
+            for (auto it:get_inodes) inode_lock[it].unlock();
             return -EEXIST;
         }
 
@@ -630,8 +599,8 @@ int o_rename(const char* from, const char* to, unsigned int flags) {
             if (ERROR_PERM)
                 logger(ERROR, "[ERROR] Permission denied: not allowed to write source dir inode.\n");
             free(from_parent_dir); free(to_parent_dir); free(from_name); free(to_name);
-            for (auto it:get_inodes)
-                inode_lock[it].unlock();
+            /* Manually release inode locks */
+            for (auto it:get_inodes) inode_lock[it].unlock();
             return -EACCES;
         }
 
@@ -644,8 +613,8 @@ int o_rename(const char* from, const char* to, unsigned int flags) {
             if (ERROR_PERM)
                 logger(ERROR, "[ERROR] Permission denied: not allowed to write dest dir inode.\n");
             free(from_parent_dir); free(to_parent_dir); free(from_name); free(to_name);
-            for (auto it:get_inodes)
-                inode_lock[it].unlock();
+            /* Manually release inode locks */
+            for (auto it:get_inodes) inode_lock[it].unlock();
             return -EACCES;
         }
         
@@ -681,8 +650,8 @@ int o_rename(const char* from, const char* to, unsigned int flags) {
             get_inode_from_inum(head_inode, from_par_inum);
             int flag = append_parent_dir_entry(head_inode, to_name, to_inum);
             free(from_parent_dir); free(to_parent_dir); free(from_name); free(to_name);
-            for (auto it:get_inodes)
-                inode_lock[it].unlock();
+            /* Manually release inode locks */
+            for (auto it:get_inodes) inode_lock[it].unlock();
             return flag;
         }
         
@@ -699,8 +668,8 @@ int o_rename(const char* from, const char* to, unsigned int flags) {
         if (ERROR_PERM)
             logger(ERROR, "[ERROR] Permission denied: not allowed to write source dir inode.\n");
         free(from_parent_dir); free(to_parent_dir); free(from_name); free(to_name);
-        for (auto it:get_inodes)
-            inode_lock[it].unlock();
+        /* Manually release inode locks */
+        for (auto it:get_inodes) inode_lock[it].unlock();
         return -EACCES;
     }
     
@@ -721,14 +690,14 @@ int o_rename(const char* from, const char* to, unsigned int flags) {
         if (ERROR_PERM)
             logger(ERROR, "[ERROR] Permission denied: not allowed to dest dir inode.\n");
         free(from_parent_dir); free(to_parent_dir); free(from_name); free(to_name);
-        for (auto it:get_inodes)
-            inode_lock[it].unlock();
+        /* Manually release inode locks */
+        for (auto it:get_inodes) inode_lock[it].unlock();
         return -EACCES;
     }
     int flag = append_parent_dir_entry(head_inode, to_name, from_inum);
     free(from_parent_dir); free(to_parent_dir); free(from_name); free(to_name);
-    for (auto it:get_inodes)
-        inode_lock[it].unlock();
+    /* Manually release inode locks */
+    for (auto it:get_inodes) inode_lock[it].unlock();
     return flag;
 }
 
@@ -785,17 +754,19 @@ int o_unlink(const char* path) {
     int delete_inum;
     locate_err = locate(delete_dir, delete_inum);
 
+    /* The inode-level fine-grained lock is added manually. */
     std::set <int> get_inodes;
     get_inodes.insert(par_inum);
     get_inodes.insert(delete_inum);
 
     for (auto it:get_inodes)
         inode_lock[it].lock();
+    /* This has to be manually released on each exit path. */
 
     int flag = remove_object(head_inode, file_name, MODE_FILE);
     free(parent_dir); free(file_name);
-    for (auto it:get_inodes)
-        inode_lock[it].unlock();
+    /* Manually release inode locks */
+    for (auto it:get_inodes) inode_lock[it].unlock();
     return flag;
 }
 
@@ -874,6 +845,7 @@ int o_link(const char* src, const char* dest) {
         return -EEXIST;
     }
 
+    /* The inode-level fine-grained lock is added manually. */
     std::set <int> get_inodes;
     get_inodes.insert(dest_par_inum);
     get_inodes.insert(dest_inum);
@@ -881,6 +853,7 @@ int o_link(const char* src, const char* dest) {
 
     for (auto it:get_inodes)
         inode_lock[it].lock();
+    /* This has to be manually released on each exit path. */
 
     inode* dest_par_inode;
     get_inode_from_inum(dest_par_inode, dest_par_inum);
@@ -888,8 +861,8 @@ int o_link(const char* src, const char* dest) {
         if (ERROR_PERM)
             logger(ERROR, "[ERROR] Permission denied: not allowed to write dest directory.\n");
         free(src_parent_dir); free(dest_parent_dir); free(src_name); free(dest_name);
-        for (auto it:get_inodes)
-            inode_lock[it].unlock();
+        /* Manually release inode locks */
+        for (auto it:get_inodes) inode_lock[it].unlock();
         return -EACCES;
     }
     int flag = append_parent_dir_entry(dest_par_inode, dest_name, src_inum);
@@ -899,8 +872,8 @@ int o_link(const char* src, const char* dest) {
         src_inode->ctime = cur_time;
     new_inode_block(src_inode);
     free(src_parent_dir); free(dest_parent_dir); free(src_name); free(dest_name);
-    for (auto it:get_inodes)
-        inode_lock[it].unlock();
+    /* Manually release inode locks */
+    for (auto it:get_inodes) inode_lock[it].unlock();
     return flag;
 }
 
@@ -936,34 +909,25 @@ int o_truncate(const char* path, off_t size, struct fuse_file_info *fi) {
     }
     int inode_num = fi->fh;
 
-    std::set <int> get_inodes;
-    get_inodes.insert(inode_num);
-
-    for (auto it:get_inodes)
-        inode_lock[it].lock();
+    /* The inode-level fine-grained lock is added by a lock_guard. */
+    std::lock_guard <std::mutex> guard(inode_lock[inode_num]);
+    /* This will be automatically released on each exit path. */
 
     inode* cur_inode;
     get_inode_from_inum(cur_inode, inode_num);
     if (!verify_permission(PERM_WRITE, cur_inode, user_info, ENABLE_PERMISSION)) {
         if (ERROR_PERM)
             logger(ERROR, "[ERROR] Permission denied: not allowed to write.\n");
-        for (auto it:get_inodes)
-            inode_lock[it].unlock();
         return -EACCES;
     }
     if (cur_inode->mode == MODE_DIR) {
         if (ERROR_FILE)
             logger(ERROR, "[ERROR] %s is not a file.\n", path);
-        for (auto it:get_inodes)
-            inode_lock[it].unlock();
         return -EISDIR;
     }
     
     int len = cur_inode->fsize_byte;
-    if (size >= len)    // Do not need to truncate.
-    {
-        for (auto it:get_inodes)
-            inode_lock[it].unlock();
+    if (size >= len) {    // Do not need to truncate.
         return 0;
     }
     
@@ -986,7 +950,5 @@ int o_truncate(const char* path, off_t size, struct fuse_file_info *fi) {
     cur_block_offset -= cur_block_ind * BLOCK_SIZE;
     truncate_inode(cur_inode, cur_block_ind);
     new_inode_block(cur_inode);
-    for (auto it:get_inodes)
-        inode_lock[it].unlock();
     return 0;
 }

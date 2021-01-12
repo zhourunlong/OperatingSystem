@@ -241,8 +241,8 @@ extern std::mutex inode_lock[MAX_NUM_INODE];
 extern std::mutex gc_lock;
 extern std::mutex num_opt_lock;
 
-int num_opt;
-bool trigger_gc;
+extern int num_opt;
+extern bool trigger_gc;
 
 void acquire_lock();
 void release_lock();

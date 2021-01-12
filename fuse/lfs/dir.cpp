@@ -24,12 +24,15 @@ int o_opendir(const char* path, struct fuse_file_info* fi) {
     int fh;
     int locate_err = locate(path, fh);
     fi->fh = fh;
-    std::lock_guard <std::mutex> guard(inode_lock[fh]);
     if (locate_err != 0) {
         if (ERROR_DIRECTORY)
             logger(ERROR, "[ERROR] Cannot open the directory (error #%d).\n", locate_err);
         return locate_err;
     }
+
+    /* The inode-level fine-grained lock is added by a lock_guard. */
+    std::lock_guard <std::mutex> guard(inode_lock[fh]);
+    /* This will be automatically released on each exit path. */
 
     inode* block_inode;
     get_inode_from_inum(block_inode, fh);
@@ -65,12 +68,15 @@ int o_readdir(const char* path, void* buf, fuse_fill_dir_t filler, off_t offset,
     int fh;
     int locate_err = locate(path, fh);
     fi->fh = fh;
-    std::lock_guard <std::mutex> guard(inode_lock[fh]);
     if (locate_err != 0) {
         if (ERROR_DIRECTORY)
             logger(ERROR, "[ERROR] Cannot open the directory (error #%d).\n", locate_err);
         return locate_err;
     }
+
+    /* The inode-level fine-grained lock is added by a lock_guard. */
+    std::lock_guard <std::mutex> guard(inode_lock[fh]);
+    /* This will be automatically released on each exit path. */
 
     filler(buf, ".", NULL, 0, (fuse_fill_dir_flags) 0);
     filler(buf, "..", NULL, 0, (fuse_fill_dir_flags) 0);
@@ -370,21 +376,14 @@ int o_mkdir(const char* path, mode_t mode) {
         return -EEXIST;
     }
 
-    std::set <int> get_inodes;
-    get_inodes.insert(par_inum);
-
-    for (auto it:get_inodes)
-        inode_lock[it].lock();
-
-    //printf("mkdir path = %s, acquire lock %d and %d.\n", path, par_inum, tmp_inum);
-
+    /* The inode-level fine-grained lock is added by a lock_guard. */
+    std::lock_guard <std::mutex> guard(inode_lock[par_inum]);
+    /* This will be automatically released on each exit path. */
 
     if (!verify_permission(PERM_WRITE, head_inode, user_info, ENABLE_PERMISSION)) {
         if (ERROR_PERM)
             logger(ERROR, "[ERROR] Permission denied: not allowed to write.\n");
         free(parent_dir); free(dirname);
-        for (auto it:get_inodes)
-            inode_lock[it].unlock();
         return -EACCES;
     }
 
@@ -396,13 +395,9 @@ int o_mkdir(const char* path, mode_t mode) {
     int flag = append_parent_dir_entry(head_inode, dirname, dir_inode->i_number);
     free(parent_dir); free(dirname);
 
-
     int print_inum;
     //printf("mkdir path = %s, release lock %d and %d.\n", path, par_inum, tmp_inum);
     //printf("locate %s error = %d.\n", path, locate("/2", print_inum));
-    
-    for (auto it:get_inodes)
-        inode_lock[it].unlock();
 
     return flag;
 }
@@ -626,12 +621,14 @@ int o_rmdir(const char* path) {
     int delete_inum;
     locate_err = locate(delete_dir, delete_inum);
 
+    /* The inode-level fine-grained lock is added manually. */
     std::set <int> get_inodes;
     get_inodes.insert(par_inum);
     get_inodes.insert(delete_inum);
 
     for (auto it:get_inodes)
         inode_lock[it].lock();
+    /* This has to be manually released on each exit path. */
 
     inode* head_inode;
     get_inode_from_inum(head_inode, par_inum);
@@ -639,8 +636,8 @@ int o_rmdir(const char* path) {
         if (ERROR_PERM)
             logger(ERROR, "[ERROR] Permission denied: not allowed to write.\n");
         free(parent_dir); free(dirname);
-        for (auto it:get_inodes)
-            inode_lock[it].unlock();
+        /* Manually release inode locks */
+        for (auto it:get_inodes) inode_lock[it].unlock();
         return -EACCES;
     }
 
@@ -648,14 +645,14 @@ int o_rmdir(const char* path) {
         if (ERROR_DIRECTORY)
             logger(ERROR, "[ERROR] %s is not a directory.\n", parent_dir);
         free(parent_dir); free(dirname);
-        for (auto it:get_inodes)
-            inode_lock[it].unlock();
+        /* Manually release inode locks */
+        for (auto it:get_inodes) inode_lock[it].unlock();
         return -ENOTDIR;
     }
 
     int flag = remove_object(head_inode, dirname, MODE_DIR);
     free(parent_dir); free(dirname);
-    for (auto it:get_inodes)
-        inode_lock[it].unlock();
+    /* Manually release inode locks */
+    for (auto it:get_inodes) inode_lock[it].unlock();
     return flag;
 }
