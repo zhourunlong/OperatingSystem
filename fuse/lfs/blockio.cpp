@@ -355,6 +355,10 @@ void file_initialize(struct inode* &cur_inode, int _mode, int _permission) {
         count_inode++;
         cur_inode = cached_inode_array + count_inode;
         cur_inode->i_number = count_inode;
+
+        // "-2" means a transient state, where an inode is created but not yet written to disk.
+        // Note that this will never appear on disk (if LFS crashes before commitment, the inode is lost).
+        inode_table[count_inode] = -2;
     release_writer_lock();
 
     cur_inode->mode         = _mode;
@@ -441,7 +445,7 @@ void remove_inode(int i_number) {
         add_segbuf_imap(i_number, -1);
 
         // Caution: we cannot set the inode to 0 here due to synchronization problems.
-        // However, inode_table should be set to 0 for correct book-keeping.
+        // However, inode_table should be cleared for correct book-keeping.
         // memset(cached_inode_array+i_number, 0, sizeof(struct inode));
         
         // Imap modification may also trigger segment writeback.

@@ -1,6 +1,7 @@
 #include "print.h"
 
 #include "blockio.h"
+#include "wbcache.h"
 #include "logger.h"
 
 /** **************************************
@@ -364,6 +365,22 @@ void print_time_stat(struct time_entry* ts) {
 }
 
 
+void debugger_get_block(void* data, int block_addr) {
+    int segment = block_addr / BLOCKS_IN_SEGMENT;
+    int block = block_addr % BLOCKS_IN_SEGMENT;
+
+    if (segment == cur_segment) {    // Data in segment buffer.
+        int buffer_offset = block * BLOCK_SIZE;
+
+        memcpy(data, segment_buffer + buffer_offset, BLOCK_SIZE);
+    } else {    // Data in disk file.
+        if (USE_CACHE)
+            read_block_through_cache(data, block_addr);
+        else
+            read_block(data, block_addr);
+    }
+}
+
 void interactive_debugger() {
     logger(DEBUG, "\n********************************************************************************\n");
     logger(DEBUG, "***************************** INTERACTIVE DEBUGGER *****************************\n");
@@ -383,12 +400,12 @@ void interactive_debugger() {
         } else if (token == 'f') {
             scanf("%d", &op_num);
             block _block;
-            get_block(_block, op_num);
+            debugger_get_block(_block, op_num);
             print(_block, DISP_BYTE_CHAR);
         } else if (token == 'd') {
             scanf("%d", &op_num);
             directory _block;
-            get_block(&_block, op_num);
+            debugger_get_block(&_block, op_num);
             print(_block);
         } else if (token == 't') {
             print_inode_table();

@@ -219,12 +219,21 @@ void gc_compact_data_blocks(summary_entry* seg_sum, int seg, std::set<int> &modi
 
         // Caution: use a stronger test criterion for validity.
         // Note that segment summary may be wrong sometimes.
-        if ((i_number <= 0) || (i_number >=MAX_NUM_INODE) || (inode_table[i_number] == -1)) continue;
+        if ((i_number <= 0) || (i_number >= MAX_NUM_INODE) || (inode_table[i_number] == -1)) continue;
         
-        if (dir_index == -1) {  // Block j is an inode block.
+        if (inode_table[i_number] == -2) {
+            // Block j is a data block, but its inode is in transient state.
+            // Caution: no on-disk inode block can ever be in transient state!
+            get_inode_from_inum(cur_inode, i_number);
+            if (cur_inode->direct[dir_index] == block_addr) {
+                // Do not add a transient inode to modified_inum, but update the datablock only.
+                gc_get_block(&data, block_addr);
+                gc_cached_inode_array[i_number].direct[dir_index] = gc_new_data_block(&data, i_number, dir_index);
+            }
+        } else if (dir_index == -1) {  // Block j is an inode block.
             if (inode_table[i_number] == block_addr)
                 modified_inum.insert(i_number);
-        } else {                // Block j is a data block.
+        } else {                      // Block j is a data block.
             get_inode_from_inum(cur_inode, i_number);
             if (cur_inode->direct[dir_index] == block_addr) {
                 modified_inum.insert(i_number);
@@ -242,6 +251,7 @@ void gc_compact_data_blocks(summary_entry* seg_sum, int seg, std::set<int> &modi
 // * Write data to GC data structures only (especially, never change global cache).
 void collect_garbage(bool clean_thoroughly) {
     gc_lock_holder zhymoyu;
+
     // Must flush and re-initialize cache in the first hand.
     flush_cache();
     init_cache();
