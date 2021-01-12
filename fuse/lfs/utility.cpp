@@ -316,7 +316,7 @@ void end_operation() {
 void start_gc() {
     while (true) {
         num_opt_lock.lock();
-        if (num_opt != 0) num_opt_lock.lock();
+        if (num_opt != 1) num_opt_lock.unlock();  // One thread must remain alive to do garbage collection.
         else break;
     }
     trigger_gc = true;
