@@ -294,7 +294,7 @@ void collect_garbage(bool clean_thoroughly) {
 
 
     /* Calculate segment utilization (only for normal garbage collection). */
-    if (!clean_thoroughly) {
+    if (!_clean_thoroughly) {
         for (int i=0; i<TOT_SEGMENTS; i++) {
             utilization[i].segment_number = i;
             if (segment_bitmap[i] == 0) {  // Free blocks are marked with -1 utilization.
@@ -308,7 +308,7 @@ void collect_garbage(bool clean_thoroughly) {
 
                     // Caution: use a stronger test criterion for validity.
                     // Note that segment summary may be wrong sometimes.
-                    if ((i_number <= 0) || (i_number >=MAX_NUM_INODE) || (inode_table[i_number] == -1)) continue;
+                    if ((i_number <= 0) || (i_number >= MAX_NUM_INODE) || (inode_table[i_number] == -1)) continue;
 
                     if (dir_index == -1) {  // Block j is an inode block.
                         if (inode_table[i_number] == block_addr)
@@ -333,7 +333,7 @@ void collect_garbage(bool clean_thoroughly) {
      * Here we directly access the inode array, and record all modified inodes. */
     std::set<int> modified_inum;
     modified_inum.clear();
-    if ((!clean_thoroughly) && (utilization[0].count == -1)) {
+    if ((!_clean_thoroughly) && (utilization[0].count == -1)) {
         // If there are still free segments, we shall only clean segments with low utilizations.
         gc_cur_segment = utilization[0].segment_number;
         gc_cur_block = 0;
