@@ -27,6 +27,11 @@ std::mutex counter_lock;
 std::mutex disk_lock;
 std::mutex inode_lock[MAX_NUM_INODE];
 
+std::mutex num_opt_lock;
+
+int num_opt = 0;
+bool trigger_gc = false;
+
 segment_summary cached_segsum[TOT_SEGMENTS];
 inode cached_inode_array[MAX_NUM_INODE];
 
@@ -290,4 +295,52 @@ void acquire_disk_lock() {
 void release_disk_lock() {
     // printf("disk_lock.unlock();\n");
     // disk_lock.unlock();
+}
+
+void start_operation() {
+    while (true) {
+        num_opt_lock.lock();
+        if (trigger_gc == true) num_opt_lock.unlock();
+        else break;
+    }
+    num_opt += 1;
+    num_opt_lock.unlock();
+}
+
+void end_operation() {
+    num_opt_lock.lock();
+    num_opt -= 1;
+    num_opt_lock.unlock();
+}
+
+void start_gc() {
+    while (true) {
+        num_opt_lock.lock();
+        if (num_opt != 0) num_opt_lock.lock();
+        else break;
+    }
+    trigger_gc = true;
+    num_opt_lock.unlock();
+}
+
+void end_gc() {
+    num_opt_lock.lock();
+    trigger_gc = false;
+    num_opt_lock.unlock();
+}
+
+opt_lock_holder::opt_lock_holder() {
+    start_operation();
+}
+
+opt_lock_holder::~opt_lock_holder() {
+    end_operation();
+}
+
+gc_lock_holder::gc_lock_holder() {
+    start_gc();
+}
+
+gc_lock_holder::~gc_lock_holder() {
+    end_gc();
 }

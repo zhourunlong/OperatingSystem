@@ -238,6 +238,12 @@ bool verify_permission(int mode, struct inode* f_inode, struct fuse_context* u_i
 extern std::mutex global_lock, io_lock;
 extern std::mutex inode_lock[MAX_NUM_INODE];
 
+extern std::mutex gc_lock;
+extern std::mutex num_opt_lock;
+
+int num_opt;
+bool trigger_gc;
+
 void acquire_lock();
 void release_lock();
 void acquire_reader_lock();
@@ -250,6 +256,23 @@ void acquire_counter_lock();
 void release_counter_lock();
 void acquire_disk_lock();
 void release_disk_lock();
+
+void start_operation();
+void end_operation();
+void start_gc();
+void end_gc();
+
+class opt_lock_holder {
+public:
+    opt_lock_holder();
+    ~opt_lock_holder();
+};
+
+class gc_lock_holder {
+public:
+    gc_lock_holder();
+    ~gc_lock_holder();
+};
 
 
 /** **************************************
