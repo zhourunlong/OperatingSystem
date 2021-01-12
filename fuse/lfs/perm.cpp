@@ -13,7 +13,6 @@
 int o_chmod(const char* path, mode_t mode, struct fuse_file_info* fi) {
     // Never try to access "fi": it causes segmentation fault.
 // std::lock_guard <std::mutex> guard(global_lock);
-    opt_lock_holder zhymoyu;
     if (DEBUG_PRINT_COMMAND)
         logger(DEBUG, "CHMOD, %s, %d, %p\n",
                resolve_prefix(path).c_str(), mode, fi);
@@ -31,11 +30,10 @@ int o_chmod(const char* path, mode_t mode, struct fuse_file_info* fi) {
             logger(ERROR, "[ERROR] Cannot access the path (error #%d).\n", locate_err);
         return locate_err;
     }
-    std::set <int> get_inodes;
-    get_inodes.insert(fh);
 
     /* The inode-level fine-grained lock is added by a lock_guard. */
     std::lock_guard <std::mutex> guard(inode_lock[fh]);
+    opt_lock_holder zhymoyu;    // Only mark itself alive after getting all inode locks.
     /* This will be automatically released on each exit path. */
 
     inode* block_inode;
@@ -50,7 +48,6 @@ int o_chmod(const char* path, mode_t mode, struct fuse_file_info* fi) {
 int o_chown(const char* path, uid_t uid, gid_t gid, struct fuse_file_info* fi) { //libreoffice may invoke the func and set uid -1
     // Never try to access "fi": it causes segmentation fault.
 // std::lock_guard <std::mutex> guard(global_lock);
-    opt_lock_holder zhymoyu;
     if (DEBUG_PRINT_COMMAND)
         logger(DEBUG, "CHOWN, %s, %d, %d, %p\n",
                resolve_prefix(path).c_str(), uid, gid, fi);
@@ -69,11 +66,9 @@ int o_chown(const char* path, uid_t uid, gid_t gid, struct fuse_file_info* fi) {
         return locate_err;
     }
 
-    std::set <int> get_inodes;
-    get_inodes.insert(fh);
-
     /* The inode-level fine-grained lock is added by a lock_guard. */
     std::lock_guard <std::mutex> guard(inode_lock[fh]);
+    opt_lock_holder zhymoyu;    // Only mark itself alive after getting all inode locks.
     /* This will be automatically released on each exit path. */
 
     inode* block_inode;

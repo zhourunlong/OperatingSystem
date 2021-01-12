@@ -11,7 +11,6 @@
 
 int o_statfs(const char* path, struct statvfs* stbuf) {
 // std::lock_guard <std::mutex> guard(global_lock);
-    opt_lock_holder zhymoyu;
     if (DEBUG_PRINT_COMMAND)
         logger(DEBUG, "STATFS, %s, %p\n", resolve_prefix(path).c_str(), stbuf);
     
@@ -23,11 +22,9 @@ int o_statfs(const char* path, struct statvfs* stbuf) {
         return locate_err;
     }
 
-    std::set <int> get_inodes;
-    get_inodes.insert(inum);
-
     /* The inode-level fine-grained lock is added by a lock_guard. */
     std::lock_guard <std::mutex> guard(inode_lock[inum]);
+    opt_lock_holder zhymoyu;    // Only mark itself alive after getting all inode locks.
     /* This will be automatically released on each exit path. */
 
     stbuf->f_bsize = stbuf->f_frsize = BLOCK_SIZE;
@@ -44,7 +41,6 @@ int o_statfs(const char* path, struct statvfs* stbuf) {
 
 int o_utimens(const char* path, const struct timespec ts[2], struct fuse_file_info *fi) {
 // std::lock_guard <std::mutex> guard(global_lock);
-    opt_lock_holder zhymoyu;
     if (DEBUG_PRINT_COMMAND)
         logger(DEBUG, "UTIMENS, %s, %p, %p\n",
                resolve_prefix(path).c_str(), &ts, fi);
@@ -63,11 +59,9 @@ int o_utimens(const char* path, const struct timespec ts[2], struct fuse_file_in
         return locate_err;
     }
 
-    std::set <int> get_inodes;
-    get_inodes.insert(inum);
-
     /* The inode-level fine-grained lock is added by a lock_guard. */
     std::lock_guard <std::mutex> guard(inode_lock[inum]);
+    opt_lock_holder zhymoyu;    // Only mark itself alive after getting all inode locks.
     /* This will be automatically released on each exit path. */
 
     inode* block_inode;
