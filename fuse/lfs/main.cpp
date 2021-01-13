@@ -2,7 +2,7 @@
 #include "logger.h"
 #include "path.h"
 
-/* Project 3 Final Version */
+/* Project 4 Final Version */
 int main(int argc, char** argv) {
     set_log_level(DEBUG);
     set_log_output(stdout);

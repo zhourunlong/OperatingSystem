@@ -84,10 +84,10 @@ void o_destroy(void* private_data) {
 
     flush_cache();
 
-    // Debug
-    print_inode_table();
-    interactive_debugger();
-    // Debug
+    /* For debugging purposes only.
+        print_inode_table();
+        interactive_debugger();
+    For debugging purposes only. */
     
     logger(DEBUG, "[INFO] Successfully saved current state to disk and exited.\n");
 }

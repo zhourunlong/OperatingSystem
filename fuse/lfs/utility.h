@@ -219,7 +219,7 @@ const bool DEBUG_PATH           = 0;    // Print debug information in path.cpp.
 const bool DEBUG_BLOCKIO        = 0;    // Print (seg, blk) for each appended block.
 const bool DEBUG_LOCATE_REPORT  = 0;    // Generate report for each locate() (in path.cpp).
 const bool DEBUG_CKPT_REPORT    = 1;    // Print checkpoint after each storation.
-const bool DEBUG_GARBAGE_COL    = 1;    // Print debug information for garbage collection utilities.
+const bool DEBUG_GARBAGE_COL    = 0;    // Print debug information for garbage collection utilities.
 const bool DEBUG_GC_BLOCKIO     = 0;    // Print GC buffer block I/O information.
 
 const bool ERROR_METADATA       = 0;    // Report errors in metadata.cpp assoc. with locate().
@@ -287,4 +287,4 @@ const int CLEAN_NORM_FAIL   = (int) (0.65*TOT_SEGMENTS);
 const int CLEAN_THORO_FAIL  = (int) (0.85*TOT_SEGMENTS);
 
 const bool USE_CACHE        = true;
-const bool GC_CONCURRENCY   = true;
+const bool GC_CONCURRENCY   = false;
