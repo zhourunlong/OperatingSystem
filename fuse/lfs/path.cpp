@@ -259,8 +259,8 @@ int locate(const char* _path, int &i_number) {
         logger(DEBUG, "PATH = %s\n", _path);
         logger(DEBUG, "I_NUMBER = %d\n", i_number);
         logger(DEBUG, "INODE_BLOCK_ADDR = %d\n", inode_table[i_number]);
-        if (inode_table[i_number] <= 0)
-            logger(DEBUG, "* Probabyly an error: file has been deleted, but entry in directory remains.\n");
+        if (inode_table[i_number] == -1)
+            logger(DEBUG, "* Probably an error: file has been deleted, but entry in directory remains.\n");
 
         logger(DEBUG, "INODE INFORMATION:\n");
         struct inode* node;

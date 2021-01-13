@@ -187,7 +187,6 @@ int write_in_file(const char* path, const char* buf, size_t size,
 
 
 int o_open(const char* path, struct fuse_file_info* fi) {
-// std::lock_guard <std::mutex> guard(global_lock);
     if (DEBUG_PRINT_COMMAND)
         logger(DEBUG, "OPEN, %s, %p\n", resolve_prefix(path).c_str(), fi);
 
@@ -203,7 +202,6 @@ int o_open(const char* path, struct fuse_file_info* fi) {
 
     /* The inode-level fine-grained lock is added by a lock_guard. */
     std::lock_guard <std::mutex> guard(inode_lock[inode_num]);
-    opt_lock_holder zhymoyu;    // Only mark itself alive after getting all inode locks.
     /* This will be automatically released on each exit path. */
 
     // Retrieve open flags, the inode and current user info.
@@ -246,8 +244,6 @@ int o_open(const char* path, struct fuse_file_info* fi) {
 }
 
 int o_release(const char* path, struct fuse_file_info* fi) {
-// std::lock_guard <std::mutex> guard(global_lock);
-    opt_lock_holder zhymoyu;
     if (DEBUG_PRINT_COMMAND)
         logger(DEBUG, "RELEASE, %s, %p\n", resolve_prefix(path).c_str(), fi);
 
@@ -257,7 +253,6 @@ int o_release(const char* path, struct fuse_file_info* fi) {
 }
 
 int o_read(const char* path, char *buf, size_t size, off_t offset, struct fuse_file_info* fi) {
-// std::lock_guard <std::mutex> guard(global_lock);
     if (DEBUG_PRINT_COMMAND)
         logger(DEBUG, "READ, %s, %p, %d, %d, %p\n",
                resolve_prefix(path).c_str(), buf, size, offset, fi);
@@ -281,7 +276,6 @@ int o_read(const char* path, char *buf, size_t size, off_t offset, struct fuse_f
     
     /* The inode-level fine-grained lock is added by a lock_guard. */
     std::lock_guard <std::mutex> guard(inode_lock[inode_num]);
-    opt_lock_holder zhymoyu;    // Only mark itself alive after getting all inode locks.
     /* This will be automatically released on each exit path. */
     
     inode* cur_inode;
@@ -367,7 +361,6 @@ int o_read(const char* path, char *buf, size_t size, off_t offset, struct fuse_f
 }
 
 int o_write(const char* path, const char* buf, size_t size, off_t offset, struct fuse_file_info* fi) {
-// std::lock_guard <std::mutex> guard(global_lock);
     if (DEBUG_PRINT_COMMAND)
         logger(DEBUG, "WRITE, %s, %p, %d, %d, %p\n",
                resolve_prefix(path).c_str(), buf, size, offset, fi);
@@ -397,7 +390,6 @@ int o_write(const char* path, const char* buf, size_t size, off_t offset, struct
 
     /* The inode-level fine-grained lock is added by a lock_guard. */
     std::lock_guard <std::mutex> guard(inode_lock[inode_num]);
-    opt_lock_holder zhymoyu;    // Only mark itself alive after getting all inode locks.
     /* This will be automatically released on each exit path. */
 
     inode* cur_inode;
@@ -422,7 +414,6 @@ int o_write(const char* path, const char* buf, size_t size, off_t offset, struct
 }
 
 int o_create(const char *path, mode_t mode, struct fuse_file_info *fi) {
-// std::lock_guard <std::mutex> guard(global_lock);
     if (DEBUG_PRINT_COMMAND)
         logger(DEBUG, "CREATE, %s, %o, %p\n",
                resolve_prefix(path).c_str(), mode, fi);
@@ -492,7 +483,6 @@ int o_create(const char *path, mode_t mode, struct fuse_file_info *fi) {
 
     /* The inode-level fine-grained lock is added by a lock_guard. */
     std::lock_guard <std::mutex> guard(inode_lock[par_inum]);
-    opt_lock_holder zhymoyu;    // Only mark itself alive after getting all inode locks.
     /* This will be automatically released on each exit path. */
     
     inode* file_inode;
@@ -506,7 +496,6 @@ int o_create(const char *path, mode_t mode, struct fuse_file_info *fi) {
 }
 
 int o_rename(const char* from, const char* to, unsigned int flags) {
-// std::lock_guard <std::mutex> guard(global_lock);
     if (DEBUG_PRINT_COMMAND)
         logger(DEBUG, "RENAME, %s, %s, %d\n",
                resolve_prefix(from).c_str(), resolve_prefix(to).c_str(), flags);
@@ -578,8 +567,6 @@ int o_rename(const char* from, const char* to, unsigned int flags) {
 
     for (auto it:get_inodes)
         inode_lock[it].lock();
-    
-    opt_lock_holder zhymoyu;    // Only mark itself alive after getting all inode locks.
     /* This has to be manually released on each exit path. */
 
     if (locate_err == 0) {  // Destination file already exists.
@@ -703,7 +690,6 @@ int o_rename(const char* from, const char* to, unsigned int flags) {
 }
 
 int o_unlink(const char* path) {
-// std::lock_guard <std::mutex> guard(global_lock);
     if (DEBUG_PRINT_COMMAND)
         logger(DEBUG, "UNLINK, %s\n", resolve_prefix(path).c_str());
     
@@ -761,8 +747,6 @@ int o_unlink(const char* path) {
 
     for (auto it:get_inodes)
         inode_lock[it].lock();
-    
-    opt_lock_holder zhymoyu;    // Only mark itself alive after getting all inode locks.
     /* This has to be manually released on each exit path. */
 
     int flag = remove_object(head_inode, file_name, MODE_FILE);
@@ -773,7 +757,6 @@ int o_unlink(const char* path) {
 }
 
 int o_link(const char* src, const char* dest) {
-// std::lock_guard <std::mutex> guard(global_lock);
     if (DEBUG_PRINT_COMMAND)
         logger(DEBUG, "LINK, %s, %s\n", resolve_prefix(src).c_str(), resolve_prefix(dest).c_str());
     
@@ -854,8 +837,6 @@ int o_link(const char* src, const char* dest) {
 
     for (auto it:get_inodes)
         inode_lock[it].lock();
-    
-    opt_lock_holder zhymoyu;    // Only mark itself alive after getting all inode locks.
     /* This has to be manually released on each exit path. */
 
     inode* dest_par_inode;
@@ -881,7 +862,6 @@ int o_link(const char* src, const char* dest) {
 }
 
 int o_truncate(const char* path, off_t size, struct fuse_file_info *fi) {
-// std::lock_guard <std::mutex> guard(global_lock);
     if (DEBUG_PRINT_COMMAND)
         logger(DEBUG, "TRUNCATE, %s, %d, %p\n",
                resolve_prefix(path).c_str(), size, fi);
@@ -913,7 +893,6 @@ int o_truncate(const char* path, off_t size, struct fuse_file_info *fi) {
 
     /* The inode-level fine-grained lock is added by a lock_guard. */
     std::lock_guard <std::mutex> guard(inode_lock[inode_num]);
-    opt_lock_holder zhymoyu;    // Only mark itself alive after getting all inode locks.
     /* This will be automatically released on each exit path. */
 
     inode* cur_inode;

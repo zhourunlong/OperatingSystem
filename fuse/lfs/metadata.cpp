@@ -16,7 +16,6 @@
 extern struct options options;
 
 int o_getattr(const char* path, struct stat* sbuf, struct fuse_file_info* fi) {
-// std::lock_guard <std::mutex> guard(global_lock);
     if (DEBUG_PRINT_COMMAND)
         logger(DEBUG, "GETATTR, %s, %p, %p\n", resolve_prefix(path).c_str(), sbuf, fi);
     
@@ -34,7 +33,6 @@ int o_getattr(const char* path, struct stat* sbuf, struct fuse_file_info* fi) {
 
     /* The inode-level fine-grained lock is added by a lock_guard. */
     std::lock_guard <std::mutex> guard(inode_lock[i_number]);
-    opt_lock_holder zhymoyu;    // Only mark itself alive after getting all inode locks.
     /* This will be automatically released on each exit path. */
 
     // Since getattr() is very fundamental, we shall always allow attribute reading.
@@ -98,7 +96,6 @@ int o_getattr(const char* path, struct stat* sbuf, struct fuse_file_info* fi) {
 
 
 int o_access(const char* path, int mode) {
-// std::lock_guard <std::mutex> guard(global_lock);
     if (DEBUG_PRINT_COMMAND)
         logger(DEBUG, "ACCESS, %s, %d\n", resolve_prefix(path).c_str(), mode);
 
@@ -116,7 +113,6 @@ int o_access(const char* path, int mode) {
 
     /* The inode-level fine-grained lock is added by a lock_guard. */
     std::lock_guard <std::mutex> guard(inode_lock[i_number]);
-    opt_lock_holder zhymoyu;    // Only mark itself alive after getting all inode locks.
     /* This will be automatically released on each exit path. */
     
     /* Mode 1~7 (in base-8): test file permissions; may be ORed toghether. */ 

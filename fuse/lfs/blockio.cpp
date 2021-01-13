@@ -21,6 +21,11 @@
  * @param  block_addr: block address.
  * Note that the block may be in segment buffer, or in disk file. */
 void get_block(void* data, int block_addr) {
+    /* if (block_addr <= -3) {
+        memcpy(data, pending_block_buffer[-block_addr-3], BLOCK_SIZE);
+        return;
+    } */
+
     acquire_segment_lock();
         int segment = block_addr / BLOCKS_IN_SEGMENT;
         int block = block_addr % BLOCKS_IN_SEGMENT;
@@ -222,6 +227,19 @@ void move_to_segment() {
  * This function does not return block_addr, because block_addr should be updated before
  * potential garbage collection triggered by move_to_segment(), where addresses are changed. */
 void new_data_block(void* data, struct inode* data_inode, int direct_index) {
+    // If in the process of GC, we should redirect the writing request to pending block buffer.
+    /* if (trigger_gc) {
+        struct pending_block pblock;
+        pblock.i_number = data_inode->i_number;
+        pblock.direct_index = direct_index;
+        pblock.is_remove = false;
+        memcpy(pblock.data, data, BLOCK_SIZE);
+
+        pending_block_buffer.push_back(pblock);
+        data_inode->direct[direct_index] = -pending_block_buffer.size()-2;
+        return;
+    } */
+
     acquire_segment_lock();
         int i_number = data_inode->i_number;
         int buffer_offset = cur_block * BLOCK_SIZE;
@@ -252,6 +270,19 @@ void new_data_block(void* data, struct inode* data_inode, int direct_index) {
  * This function does not return block_addr, because block_addr should be updated before
  * potential garbage collection triggered by move_to_segment(), where addresses are changed. */
 void new_inode_block(struct inode* data) {
+    // If in the process of GC, we should redirect the writing request to pending block buffer.
+    /* if (trigger_gc) {
+        struct pending_block pblock;
+        pblock.i_number = data->i_number;
+        pblock.direct_index = -1;
+        pblock.is_remove = false;
+        memcpy(pblock.data, data, BLOCK_SIZE);
+
+        pending_block_buffer.push_back(pblock);
+        inode_table[data->i_number] = -pending_block_buffer.size()-2;
+        return;
+    } */
+
     acquire_segment_lock();
         int i_number = data->i_number;
         int buffer_offset = cur_block * BLOCK_SIZE;
@@ -424,6 +455,19 @@ void file_modify(struct inode* cur_inode, int direct_index, void* data) {
 /** Remove an existing inode.
  * @param  i_number: i_number of an existing inode. */
 void remove_inode(int i_number) {
+    // If in the process of GC, we should redirect the writing request to pending block buffer.
+    /* if (trigger_gc) {
+        struct pending_block pblock;
+        pblock.i_number = i_number;
+        pblock.direct_index = -1;
+        pblock.is_remove = true;
+        memset(pblock.data, 0, BLOCK_SIZE);
+
+        pending_block_buffer.push_back(pblock);
+        inode_table[i_number] = -pending_block_buffer.size()-2;
+        return;
+    } */
+
     acquire_segment_lock();
         if (DEBUG_BLOCKIO)
             logger(DEBUG, "Remove inode block. Written to imap: #%d.\n", next_imap_index);

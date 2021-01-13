@@ -3,6 +3,7 @@
 #include <sys/stat.h>   /* struct timespec */
 #include <fuse.h>       /* sturct fuse_context */
 #include <mutex>
+#include <vector>
 #include <set>
 #include <condition_variable>
 
@@ -191,6 +192,20 @@ const int ROOT_DIR_INUMBER = 1;
 
 
 /** **************************************
+ * Pending blocks buffer.
+ * Caution: the logical index starts at -3 (to avoid conflicts in inode_table).
+ * To save space, we should always minus 3 to get "physical" vector index.
+ * ***************************************/
+struct pending_block {
+    int i_number;           // The inumber of the pending block.
+    int direct_index;       // The index within direct[] of that inode.
+    bool is_remove;         // Whether the block represents an inode deletion.
+    block data;             // The actual data block (if it is not an inode deletion).
+};
+extern std::vector<pending_block> pending_block_buffer;
+
+
+/** **************************************
  * Debug and error-reporting flags.
  * ***************************************/
 const bool DEBUG_PRINT_COMMAND  = 0;    // Print the name of each command.
@@ -235,36 +250,13 @@ bool verify_permission(int mode, struct inode* f_inode, struct fuse_context* u_i
 /** **************************************
  * Public variable locks.
  * ***************************************/
-extern std::mutex global_lock, io_lock;
+extern std::mutex io_lock;
 extern std::mutex inode_lock[MAX_NUM_INODE];
-
-extern std::mutex gc_lock;
-extern std::mutex num_opt_lock;
-
-extern std::condition_variable cond_gc;
-extern std::condition_variable cond_opt;
-
-extern int num_opt;
-extern bool trigger_gc;
 
 void acquire_segment_lock();
 void release_segment_lock();
 void acquire_counter_lock();
 void release_counter_lock();
-
-/* Use lock holder classes, so that on all exit paths,
- * locks are automatically released by destructors. */
-class opt_lock_holder {
-public:
-    opt_lock_holder();
-    ~opt_lock_holder();
-};
-
-class gc_lock_holder {
-public:
-    gc_lock_holder();
-    ~gc_lock_holder();
-};
 
 
 /** **************************************
@@ -290,7 +282,5 @@ const int GARBCOL_INTERVAL  = 60;
 
 const int CLEAN_NORM_FAIL   = (int) (0.65*TOT_SEGMENTS);
 const int CLEAN_THORO_FAIL  = (int) (0.85*TOT_SEGMENTS);
-
-
 
 const bool USE_CACHE        = true;

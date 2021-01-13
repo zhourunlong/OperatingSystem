@@ -16,7 +16,6 @@
 const int SC = sizeof(char);
 
 int o_opendir(const char* path, struct fuse_file_info* fi) {
-// std::lock_guard <std::mutex> guard(global_lock);
     if (DEBUG_PRINT_COMMAND)
         logger(DEBUG, "OPENDIR, %s, %p\n", resolve_prefix(path).c_str(), fi);
 
@@ -31,7 +30,6 @@ int o_opendir(const char* path, struct fuse_file_info* fi) {
 
     /* The inode-level fine-grained lock is added by a lock_guard. */
     std::lock_guard <std::mutex> guard(inode_lock[fh]);
-    opt_lock_holder zhymoyu;    // Only mark itself alive after getting all inode locks.
     /* This will be automatically released on each exit path. */
 
     inode* block_inode;
@@ -45,8 +43,6 @@ int o_opendir(const char* path, struct fuse_file_info* fi) {
 }
 
 int o_releasedir(const char* path, struct fuse_file_info* fi) {
-// std::lock_guard <std::mutex> guard(global_lock);
-    opt_lock_holder zhymoyu;
     if (DEBUG_PRINT_COMMAND)
         logger(DEBUG, "RELEASEDIR, %s, %p\n", resolve_prefix(path).c_str(), fi);
 
@@ -56,7 +52,6 @@ int o_releasedir(const char* path, struct fuse_file_info* fi) {
 
 int o_readdir(const char* path, void* buf, fuse_fill_dir_t filler, off_t offset,
     struct fuse_file_info* fi, enum fuse_readdir_flags flags) {
-// std::lock_guard <std::mutex> guard(global_lock);
     if (DEBUG_PRINT_COMMAND)
         logger(DEBUG, "READDIR, %s, %p, %p, %d, %p, %d\n",
                resolve_prefix(path).c_str(), buf, &filler, offset, fi, flags);
@@ -75,7 +70,6 @@ int o_readdir(const char* path, void* buf, fuse_fill_dir_t filler, off_t offset,
 
     /* The inode-level fine-grained lock is added by a lock_guard. */
     std::lock_guard <std::mutex> guard(inode_lock[fh]);
-    opt_lock_holder zhymoyu;    // Only mark itself alive after getting all inode locks.
     /* This will be automatically released on each exit path. */
 
     filler(buf, ".", NULL, 0, (fuse_fill_dir_flags) 0);
@@ -302,7 +296,6 @@ bool remove_parent_dir_entry(struct inode* block_inode, int del_inum, const char
 }
 
 int o_mkdir(const char* path, mode_t mode) {
-// std::lock_guard <std::mutex> guard(global_lock);
     if (DEBUG_PRINT_COMMAND)
         logger(DEBUG, "MKDIR, %s, %o\n", resolve_prefix(path).c_str(), mode);
     
@@ -371,7 +364,6 @@ int o_mkdir(const char* path, mode_t mode) {
 
     /* The inode-level fine-grained lock is added by a lock_guard. */
     std::lock_guard <std::mutex> guard(inode_lock[par_inum]);
-    opt_lock_holder zhymoyu;    // Only mark itself alive after getting all inode locks.
     /* This will be automatically released on each exit path. */
 
     if (!verify_permission(PERM_WRITE, head_inode, user_info, ENABLE_PERMISSION)) {
@@ -561,7 +553,6 @@ int remove_object(struct inode* head_inode, const char* del_name, int del_mode) 
 }
 
 int o_rmdir(const char* path) {
-// std::lock_guard <std::mutex> guard(global_lock);
     if (DEBUG_PRINT_COMMAND)
         logger(DEBUG, "RMDIR, %s\n", resolve_prefix(path).c_str());
     
@@ -613,7 +604,6 @@ int o_rmdir(const char* path) {
     for (auto it:get_inodes)
         inode_lock[it].lock();
 
-    opt_lock_holder zhymoyu;    // Only mark itself alive after getting all inode locks.
     /* This has to be manually released on each exit path. */
 
     inode* head_inode;

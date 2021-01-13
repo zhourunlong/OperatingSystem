@@ -250,8 +250,6 @@ void gc_compact_data_blocks(summary_entry* seg_sum, int seg, std::set<int> &modi
 // * Read data using non-GC APIs (from the original file or cache).
 // * Write data to GC data structures only (especially, never change global cache).
 void collect_garbage(bool clean_thoroughly) {
-    gc_lock_holder zhymoyu;
-
     // Must flush and re-initialize cache in the first hand.
     flush_cache();
     init_cache();

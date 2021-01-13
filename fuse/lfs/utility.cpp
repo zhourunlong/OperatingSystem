@@ -27,6 +27,9 @@ inode cached_inode_array[MAX_NUM_INODE];
 int cur_garbcol_level;
 int last_garbcol_time;
 
+std::vector<pending_block> pending_block_buffer;
+
+
 /** **************************************
  * Block operations
  * @param  buf: buffer of any type, but should be of length BLOCK_SIZE;
@@ -202,26 +205,27 @@ bool verify_permission(int mode, struct inode* f_inode, struct fuse_context* u_i
 /** **************************************
  * Public variable locks.
  * ***************************************/
-std::mutex global_lock, io_lock;
-std::mutex segment_lock;
+std::mutex io_lock;
 std::mutex counter_lock;
-std::mutex disk_lock;
 std::mutex inode_lock[MAX_NUM_INODE];
-std::mutex gc_lock;
-std::mutex num_opt_lock;
-std::condition_variable cond_gc;
-std::condition_variable cond_opt;
 
-int num_opt = 0;
-bool trigger_gc = false;
+std::mutex segment_lock;
+std::condition_variable cond_segment;
+bool segment_busy = false;
 
 
 void acquire_segment_lock() {
-    segment_lock.lock();
+    std::unique_lock<std::mutex> u_segment_lock(segment_lock);
+    while (segment_busy) {
+        cond_segment.wait(u_segment_lock);
+    }
+    segment_busy = true;
 };
 
 void release_segment_lock() {
-    segment_lock.unlock();
+    std::unique_lock<std::mutex> u_segment_lock(segment_lock);
+    segment_busy = false;
+    cond_segment.notify_one();
 };
 
 void acquire_counter_lock() {
@@ -230,49 +234,4 @@ void acquire_counter_lock() {
 
 void release_counter_lock() {
     counter_lock.unlock();
-}
-
-
-/** Maintain a counter of threads that are currently alive.
- * Invoked after acquiring all inode locks in an o_xxx() function. */
-opt_lock_holder::opt_lock_holder() {
-    printf("opt_lock_holder\n");
-    std::unique_lock<std::mutex> u_gc_lock(gc_lock);
-    
-    while (trigger_gc == true) {
-        cond_gc.wait(u_gc_lock);
-    }
-    num_opt += 1;
-    printf("%d\n", num_opt);
-    // cond_gc.notify_all();
-}
-
-/** Maintain a counter of threads that are currently alive.
- * Invoked before an o_xxx() function exits. */
-opt_lock_holder::~opt_lock_holder() {
-    printf("~opt_lock_holder()\n");
-    std::unique_lock<std::mutex> u_gc_lock(gc_lock);
-    num_opt -= 1;
-    cond_gc.notify_all();
-}
-
-/** Maintain a flag indicating whether a GC is on-going.
- * Invoked at the beginning of garbage_collection(). */
-gc_lock_holder::gc_lock_holder() {
-    printf("gc_lock_holder\n");
-    std::unique_lock<std::mutex> u_gc_lock(gc_lock);
-    while (num_opt >= 1) {
-        cond_gc.wait(u_gc_lock);
-    }
-    trigger_gc = true;
-    // cond_gc.notify_all();
-}
-
-/** Maintain a flag indicating whether a GC is on-going.
- * Invoked at the end of garbage_collection(). */
-gc_lock_holder::~gc_lock_holder() {
-    printf("~gc_lock_holder()\n");
-    std::unique_lock<std::mutex> u_gc_lock(gc_lock);
-    trigger_gc = false;
-    cond_gc.notify_all();
 }
