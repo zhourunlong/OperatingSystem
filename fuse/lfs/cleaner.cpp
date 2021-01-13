@@ -219,9 +219,9 @@ void gc_compact_data_blocks(summary_entry* seg_sum, int seg, std::set<int> &modi
 
         // Caution: use a stronger test criterion for validity.
         // Note that segment summary may be wrong sometimes.
-        if ((i_number <= 0) || (i_number >= MAX_NUM_INODE) || (inode_table[i_number] == -1)) continue;
+        if ((i_number <= 0) || (i_number >= MAX_NUM_INODE) || (gc_inode_table[i_number] == -1)) continue;
         
-        if (inode_table[i_number] == -2) {
+        if (gc_inode_table[i_number] == -2) {
             // Block j is a data block, but its inode is in transient state.
             // Caution: no on-disk inode block can ever be in transient state!
             get_inode_from_inum(cur_inode, i_number);
@@ -231,7 +231,7 @@ void gc_compact_data_blocks(summary_entry* seg_sum, int seg, std::set<int> &modi
                 gc_cached_inode_array[i_number].direct[dir_index] = gc_new_data_block(&data, i_number, dir_index);
             }
         } else if (dir_index == -1) {  // Block j is an inode block.
-            if (inode_table[i_number] == block_addr)
+            if (gc_inode_table[i_number] == block_addr)
                 modified_inum.insert(i_number);
         } else {                      // Block j is a data block.
             get_inode_from_inum(cur_inode, i_number);
@@ -250,6 +250,9 @@ void gc_compact_data_blocks(summary_entry* seg_sum, int seg, std::set<int> &modi
 // * Read data using non-GC APIs (from the original file or cache).
 // * Write data to GC data structures only (especially, never change global cache).
 void collect_garbage(bool clean_thoroughly) {
+    // When entering GC, first set a flag, and then release segment lock.
+    is_doing_gc = true;
+
     // Must flush and re-initialize cache in the first hand.
     flush_cache();
     init_cache();
@@ -317,10 +320,10 @@ void collect_garbage(bool clean_thoroughly) {
 
                     // Caution: use a stronger test criterion for validity.
                     // Note that segment summary may be wrong sometimes.
-                    if ((i_number <= 0) || (i_number >= MAX_NUM_INODE) || (inode_table[i_number] == -1)) continue;
+                    if ((i_number <= 0) || (i_number >= MAX_NUM_INODE) || (gc_inode_table[i_number] == -1)) continue;
 
                     if (dir_index == -1) {  // Block j is an inode block.
-                        if (inode_table[i_number] == block_addr)
+                        if (gc_inode_table[i_number] == block_addr)
                             utilization[i].count++;
                     } else {                // Block j is a data block.
                         get_inode_from_inum(cur_inode, i_number);
@@ -390,7 +393,7 @@ void collect_garbage(bool clean_thoroughly) {
         std::set<int>::iterator iter = modified_inum.begin();
         while (iter != modified_inum.end()) {
             int i_number = *iter;
-            if (inode_table[i_number] == -1) {
+            if (gc_inode_table[i_number] == -1) {
                 gc_remove_inode(i_number);
             } else {
                 cur_inode = &gc_cached_inode_array[i_number];
@@ -447,7 +450,7 @@ void collect_garbage(bool clean_thoroughly) {
         std::set<int>::iterator iter = modified_inum.begin();
         while (iter != modified_inum.end()) {
             int i_number = *iter;
-            if (inode_table[i_number] != -1) {    // Only append undeleted inodes.
+            if (gc_inode_table[i_number] != -1) {    // Only append undeleted inodes.
                 cur_inode = &gc_cached_inode_array[i_number];
                 gc_inode_table[i_number] = gc_new_inode_block(cur_inode);
             }
@@ -458,6 +461,10 @@ void collect_garbage(bool clean_thoroughly) {
     }
 
     /* Write back to disk file */
+    // (0) We should set the flag "is_doing_gc" first, since we want to use blockio.h.
+    // This should not be problematic, because we have acquired the segment lock.
+    is_doing_gc = false;
+
     // (1) force the last segment into file buffer.
     gc_add_segbuf_metadata();    
     gc_write_segment(gc_segment_buffer, gc_cur_segment);
@@ -491,4 +498,38 @@ void collect_garbage(bool clean_thoroughly) {
 
     if (DEBUG_GARBAGE_COL)
         logger(DEBUG, "* Current buffer pointer at (segment %d, block %d), with next_imap_index = %d.\n", cur_segment, cur_block, next_imap_index);
+    
+
+    if (GC_CONCURRENCY) {
+        /* Write back all data in the pending buffer. */
+        // Note that the inode_table and cached_inode_array have been replaced, so we have to repeat completely.
+        // But we do not have to worry about the remaining "negative block addresses" in inodes,
+        // since all data block addresses will be updated BEFORE the inode block gets written back.
+        allow_gc    = false;    // Block recursive GC triggered by pending block writebacks.
+
+        pending_block pblock;
+        for (int i=0; i<pending_block_buffer.size(); i++) {
+            if (DEBUG_GARBAGE_COL)
+                logger(DEBUG, "Rewriting pending block #%d: direct[%d] of inode #%d [is_remove = %d].\n", i, pblock.direct_index, pblock.i_number, pblock.is_remove);
+            
+            pblock = pending_block_buffer[i];
+            if (pblock.is_remove) {
+                // Removing an inode.
+                remove_inode(pblock.i_number);
+            } else if (pblock.direct_index == -1) {
+                // Adding an inode.
+                new_inode_block((struct inode*) pblock.data);
+            } else {
+                // Adding a data block.
+                struct inode* pblock_inode;
+                get_inode_from_inum(pblock_inode, pblock.i_number);
+                new_data_block(pblock.data, pblock_inode, pblock.direct_index);
+            }
+        }
+        if (DEBUG_GARBAGE_COL)
+            logger(DEBUG, "* Successfully written back all pending blocks.\n");
+        
+        pending_block_buffer.clear();
+        allow_gc = true;        // Allow GC again on exiting GC.
+    }
 }

@@ -187,6 +187,9 @@ extern struct timespec last_ckpt_update_time;       // Record the last time to u
 extern segment_summary cached_segsum[TOT_SEGMENTS]; // In-memory segment summary.
 extern inode cached_inode_array[MAX_NUM_INODE];     // In-memory inode array.
 
+extern bool is_doing_gc;                            // Whether a GC is on-going.
+extern bool allow_gc;                               // Whether GC is allowed (no recursive GC).
+
 const long long FILE_SIZE = 1ll * SEGMENT_SIZE * TOT_SEGMENTS + 2 * BLOCK_SIZE;
 const int ROOT_DIR_INUMBER = 1;
 
@@ -284,3 +287,4 @@ const int CLEAN_NORM_FAIL   = (int) (0.65*TOT_SEGMENTS);
 const int CLEAN_THORO_FAIL  = (int) (0.85*TOT_SEGMENTS);
 
 const bool USE_CACHE        = true;
+const bool GC_CONCURRENCY   = true;

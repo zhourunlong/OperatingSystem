@@ -211,7 +211,10 @@ int locate(const char* _path, int &i_number) {
                         logger(ERROR, "[FATAL ERROR] Corrupt file system on disk: invalid direct[%d] of inode #%d.\n", i, block_inode->i_number);
                         exit(-1);
                     }
-                    if (ERROR_PATH) logger(ERROR, "[ERROR] Inode not correctly initialized: invalid direct[%d] of inode #%d.\n", i, block_inode->i_number);
+                    if (ERROR_PATH) {
+                        logger(ERROR, "[ERROR] Inode not correctly initialized: invalid direct[%d] of inode #%d.\n", i, block_inode->i_number);
+                        logger(ERROR, "* When locating path \'%s\', at inode #%d.\n", _path, block_inode->i_number);
+                    }
                     continue;
                 }
                 get_block(block_dir, block_inode->direct[i]);
@@ -219,9 +222,11 @@ int locate(const char* _path, int &i_number) {
                 for (int j=0; j<MAX_DIR_ENTRIES; j++) {
                     if (block_dir[j].i_number <= 0)
                         continue;
-                    if ((block_dir[j].i_number > MAX_NUM_INODE) && ERROR_PATH)
-                        logger(ERROR, "[ERROR] Inode not correctly initialized: invalid i_number #%d.\n", block_dir[j].i_number);
-                    
+                    if ((block_dir[j].i_number > MAX_NUM_INODE) && ERROR_PATH) {
+                        logger(ERROR, "[ERROR] Directory block not correctly initialized: invalid i_number #%d in entry %d.\n", block_dir[j].i_number, j);
+                        logger(ERROR, "* When locating path \'%s\', at directory (inode %d, block %d).\n", _path, block_inode->i_number, i);
+                    }
+
                     if (block_dir[j].filename == target) {
                         cur_inumber = block_dir[j].i_number;
                         flag = true;

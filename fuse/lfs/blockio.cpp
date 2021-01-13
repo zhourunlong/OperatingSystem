@@ -21,12 +21,22 @@
  * @param  block_addr: block address.
  * Note that the block may be in segment buffer, or in disk file. */
 void get_block(void* data, int block_addr) {
-    /* if (block_addr <= -3) {
-        memcpy(data, pending_block_buffer[-block_addr-3], BLOCK_SIZE);
+    if (GC_CONCURRENCY && is_doing_gc) { 
+        // When doing GC, retrieve from either disk file (addr > 0) or pending buffer (addr <= -3).
+        // Note that GC is only triggered when segment buffer is empty, and when cache is disabled.
+        if (block_addr >= 0) {
+            read_block(data, block_addr);
+        } else if (block_addr <= -3) {
+            memcpy(data, pending_block_buffer[-block_addr-3].data, BLOCK_SIZE);
+        } else {
+            logger(DEBUG, "[Fatal Error] Invalid block address %d (addresses -1 and -2 are reserved).\n", block_addr);
+            exit(-1);
+        }
         return;
-    } */
+    }
 
     acquire_segment_lock();
+        // When not doing GC, retrieve from either segment buffer or disk file (maybe through cache).
         int segment = block_addr / BLOCKS_IN_SEGMENT;
         int block = block_addr % BLOCKS_IN_SEGMENT;
 
@@ -89,96 +99,100 @@ bool get_garbcol_status(int level) {
  * We also try to do garbage collection if full segments exceed CLEAN_THRESHOLD (80%).
  * @return flag: true if the disk is not full, and false otherwise. */
 void get_next_free_segment() {
-    // Count full segments for potential garbage collection.
-    int count_full_segment = 0;
-    for (int i=0; i<TOT_SEGMENTS; i++)
-        count_full_segment += segment_bitmap[i];
-    
-    bool isSequentialNext = false;
-    if (count_full_segment == TOT_SEGMENTS) {
-        if (is_full) {
-            logger(WARN, "\n[WARNING] The file system is full, and cannot make any further space.\n");
-            logger(WARN, "[INFO] You may format the disk by deleting the disk file (lfs.data).\n");
-            return;
-        } else {
-            get_garbcol_status(GARBCOL_LEVEL_100);
-            logger(WARN, "\n\n[WARNING] The file system is completely full (100%% occpuied).\n");
-            logger(WARN, "[INFO] We will run thorough garbage collection now for more disk space.\n");
-            collect_garbage(true);
-            generate_checkpoint();
+    bool isSequentialNext = true;
+    if (allow_gc) {
+        // Only check the possibility of GC when it is allowed (no recursive GC).
 
-            /* Recount the number of full segments to determine whether it is full. */
-            int recount_full_segment = 0;
-            for (int i=0; i<TOT_SEGMENTS; i++)
-                recount_full_segment += segment_bitmap[i];
-            if ((recount_full_segment == TOT_SEGMENTS) && (cur_block >= BLOCKS_IN_SEGMENT / 2)) {
-                is_full = true;
+        // Count full segments for potential garbage collection.
+        int count_full_segment = 0;
+        for (int i=0; i<TOT_SEGMENTS; i++)
+            count_full_segment += segment_bitmap[i];
+        
+        isSequentialNext = false;
+        if (count_full_segment == TOT_SEGMENTS) {
+            if (is_full) {
                 logger(WARN, "\n[WARNING] The file system is full, and cannot make any further space.\n");
                 logger(WARN, "[INFO] You may format the disk by deleting the disk file (lfs.data).\n");
                 return;
-            }
-        }
-    } else if (count_full_segment >= CLEAN_THORO_THRES) {
-        bool isNecessary = get_garbcol_status(GARBCOL_LEVEL_96);
-        if (isNecessary) {
-            logger(WARN, "\n\n[WARNING] The file system is almost full (exceeding the 96%% threshold).\n");
-            logger(WARN, "[INFO] We will run thorough garbage collection now for more disk space.\n");
-            collect_garbage(true);
-            generate_checkpoint();
+            } else {
+                get_garbcol_status(GARBCOL_LEVEL_100);
+                logger(WARN, "\n\n[WARNING] The file system is completely full (100%% occpuied).\n");
+                logger(WARN, "[INFO] We will run thorough garbage collection now for more disk space.\n");
+                collect_garbage(true);
+                generate_checkpoint();
 
-            /* Recount the number of full segments to determine whether it is full. */
-            int recount_full_segment = 0;
-            for (int i=0; i<TOT_SEGMENTS; i++)
-                recount_full_segment += segment_bitmap[i];
-            if (recount_full_segment >= CLEAN_THORO_FAIL) {
-                cur_garbcol_level = GARBCOL_LEVEL_100;
-                logger(WARN, "\n[WARNING] Thorough garbage collection fails to release much space (still >= 85%% full).\n");
-                logger(WARN, "[INFO] It is advisable to use a larger disk file for better performance.\n");
-            }
-        } else {
-            isSequentialNext = true;
-            logger(WARN, "\n\n[WARNING] The file system is almost full (exceeding the 96%% threshold).\n");
-            logger(WARN, "[WARNING] However, garbage collection is unnecessary because it does not work well.\n");
-        }
-    } else if (count_full_segment >= CLEAN_THRESHOLD) {
-        bool isNecessary = get_garbcol_status(GARBCOL_LEVEL_80);
-        if (isNecessary) {
-            logger(WARN, "\n\n[WARNING] The file system is largely full (exceeding the 80%% threshold).\n");
-            logger(WARN, "[INFO] We will run normal garbage collection now for better performance.\n");
-
-            try {
-                collect_garbage(false);
-            } catch (int e) {
-                if (e == -1) {
-                    logger(WARN, "\n[WARNING] The file system is highly utilized, so that normal garbage collection fails.\n");
-                    logger(WARN, "[INFO] We will try to perform a thorough garbage collection instead.\n");
-
-                    collect_garbage(true);
+                /* Recount the number of full segments to determine whether it is full. */
+                int recount_full_segment = 0;
+                for (int i=0; i<TOT_SEGMENTS; i++)
+                    recount_full_segment += segment_bitmap[i];
+                if ((recount_full_segment == TOT_SEGMENTS) && (cur_block >= BLOCKS_IN_SEGMENT / 2)) {
+                    is_full = true;
+                    logger(WARN, "\n[WARNING] The file system is full, and cannot make any further space.\n");
+                    logger(WARN, "[INFO] You may format the disk by deleting the disk file (lfs.data).\n");
+                    return;
                 }
             }
-            generate_checkpoint();
+        } else if (count_full_segment >= CLEAN_THORO_THRES) {
+            bool isNecessary = get_garbcol_status(GARBCOL_LEVEL_96);
+            if (isNecessary) {
+                logger(WARN, "\n\n[WARNING] The file system is almost full (exceeding the 96%% threshold).\n");
+                logger(WARN, "[INFO] We will run thorough garbage collection now for more disk space.\n");
+                collect_garbage(true);
+                generate_checkpoint();
 
-            /* Recount the number of full segments to determine whether it is full. */
-            int recount_full_segment = 0;
-            for (int i=0; i<TOT_SEGMENTS; i++)
-                recount_full_segment += segment_bitmap[i];
-            if (recount_full_segment >= CLEAN_NORM_FAIL) {
-                cur_garbcol_level = GARBCOL_LEVEL_96;
-                logger(WARN, "\n[WARNING] Normal garbage collection fails to release much space (still >= 60%% full).\n");
-                logger(WARN, "[INFO] It is advisable to use a larger disk file for better performance.\n");
+                /* Recount the number of full segments to determine whether it is full. */
+                int recount_full_segment = 0;
+                for (int i=0; i<TOT_SEGMENTS; i++)
+                    recount_full_segment += segment_bitmap[i];
+                if (recount_full_segment >= CLEAN_THORO_FAIL) {
+                    cur_garbcol_level = GARBCOL_LEVEL_100;
+                    logger(WARN, "\n[WARNING] Thorough garbage collection fails to release much space (still >= 85%% full).\n");
+                    logger(WARN, "[INFO] It is advisable to use a larger disk file for better performance.\n");
+                }
+            } else {
+                isSequentialNext = true;
+                logger(WARN, "\n\n[WARNING] The file system is almost full (exceeding the 96%% threshold).\n");
+                logger(WARN, "[WARNING] However, garbage collection is unnecessary because it does not work well.\n");
+            }
+        } else if (count_full_segment >= CLEAN_THRESHOLD) {
+            bool isNecessary = get_garbcol_status(GARBCOL_LEVEL_80);
+            if (isNecessary) {
+                logger(WARN, "\n\n[WARNING] The file system is largely full (exceeding the 80%% threshold).\n");
+                logger(WARN, "[INFO] We will run normal garbage collection now for better performance.\n");
+
+                try {
+                    collect_garbage(false);
+                } catch (int e) {
+                    if (e == -1) {
+                        logger(WARN, "\n[WARNING] The file system is highly utilized, so that normal garbage collection fails.\n");
+                        logger(WARN, "[INFO] We will try to perform a thorough garbage collection instead.\n");
+
+                        collect_garbage(true);
+                    }
+                }
+                generate_checkpoint();
+
+                /* Recount the number of full segments to determine whether it is full. */
+                int recount_full_segment = 0;
+                for (int i=0; i<TOT_SEGMENTS; i++)
+                    recount_full_segment += segment_bitmap[i];
+                if (recount_full_segment >= CLEAN_NORM_FAIL) {
+                    cur_garbcol_level = GARBCOL_LEVEL_96;
+                    logger(WARN, "\n[WARNING] Normal garbage collection fails to release much space (still >= 60%% full).\n");
+                    logger(WARN, "[INFO] It is advisable to use a larger disk file for better performance.\n");
+                }
+            } else {
+                isSequentialNext = true;
+                logger(WARN, "\n\n[WARNING] The file system is almost full (exceeding the 80%% threshold).\n");
+                logger(WARN, "[WARNING] However, garbage collection is unnecessary because it will not work well.\n");
             }
         } else {
             isSequentialNext = true;
-            logger(WARN, "\n\n[WARNING] The file system is almost full (exceeding the 80%% threshold).\n");
-            logger(WARN, "[WARNING] However, garbage collection is unnecessary because it will not work well.\n");
         }
-    } else {
-        isSequentialNext = true;
     }
-    
 
     if (isSequentialNext) {
-        // If the function proceeds here, the disk is not full yet.
+        // If the function proceeds here, the disk may still be full.
         // We have to select next free segment (whether we did garbage collection or not).
         int next_free_segment = -1;
         for (int i=(cur_segment+1)%TOT_SEGMENTS; i!=cur_segment; i=(i+1)%TOT_SEGMENTS)
@@ -186,6 +200,13 @@ void get_next_free_segment() {
                 next_free_segment = i;
                 break;
             }
+        
+        if (next_free_segment == -1) {
+            is_full = true;
+            logger(WARN, "\n[WARNING] The file system is full, and cannot make any further space.\n");
+            logger(WARN, "[INFO] You may format the disk by deleting the disk file (lfs.data).\n");
+            return;
+        }
         
         // Initialize segment buffer.
         memset(segment_buffer, 0, sizeof(segment_buffer));
@@ -227,8 +248,8 @@ void move_to_segment() {
  * This function does not return block_addr, because block_addr should be updated before
  * potential garbage collection triggered by move_to_segment(), where addresses are changed. */
 void new_data_block(void* data, struct inode* data_inode, int direct_index) {
-    // If in the process of GC, we should redirect the writing request to pending block buffer.
-    /* if (trigger_gc) {
+    if (GC_CONCURRENCY && is_doing_gc) {
+        // When doing GC, we should redirect the writing request to pending block buffer.
         struct pending_block pblock;
         pblock.i_number = data_inode->i_number;
         pblock.direct_index = direct_index;
@@ -238,9 +259,10 @@ void new_data_block(void* data, struct inode* data_inode, int direct_index) {
         pending_block_buffer.push_back(pblock);
         data_inode->direct[direct_index] = -pending_block_buffer.size()-2;
         return;
-    } */
+    }
 
-    acquire_segment_lock();
+    if (allow_gc) acquire_segment_lock();
+        // When not doing GC, we should write to segment buffer as normal.
         int i_number = data_inode->i_number;
         int buffer_offset = cur_block * BLOCK_SIZE;
         int block_addr = cur_segment * BLOCKS_IN_SEGMENT + cur_block;
@@ -259,7 +281,7 @@ void new_data_block(void* data, struct inode* data_inode, int direct_index) {
             // Write back segment buffer if necessary.
             move_to_segment();
         }
-    release_segment_lock();
+    if (allow_gc) release_segment_lock();
 }
 
 
@@ -270,8 +292,8 @@ void new_data_block(void* data, struct inode* data_inode, int direct_index) {
  * This function does not return block_addr, because block_addr should be updated before
  * potential garbage collection triggered by move_to_segment(), where addresses are changed. */
 void new_inode_block(struct inode* data) {
-    // If in the process of GC, we should redirect the writing request to pending block buffer.
-    /* if (trigger_gc) {
+    if (GC_CONCURRENCY && is_doing_gc) {
+        // When doing GC, we should redirect the writing request to pending block buffer.
         struct pending_block pblock;
         pblock.i_number = data->i_number;
         pblock.direct_index = -1;
@@ -281,9 +303,10 @@ void new_inode_block(struct inode* data) {
         pending_block_buffer.push_back(pblock);
         inode_table[data->i_number] = -pending_block_buffer.size()-2;
         return;
-    } */
+    }
 
-    acquire_segment_lock();
+    if (allow_gc) acquire_segment_lock();
+        // When not doing GC, we should write to segment buffer as normal.
         int i_number = data->i_number;
         int buffer_offset = cur_block * BLOCK_SIZE;
         int block_addr = cur_segment * BLOCKS_IN_SEGMENT + cur_block;
@@ -294,6 +317,7 @@ void new_inode_block(struct inode* data) {
         if (is_full) {
             logger(WARN, "[WARNING] The file system is already full: please expand the disk size.\n");
             logger(WARN, "* Garbage collection fails because it cannot release any blocks.\n");
+            if (allow_gc) release_segment_lock();
             return;
         }
 
@@ -313,7 +337,7 @@ void new_inode_block(struct inode* data) {
             // Write back segment buffer if necessary.
             move_to_segment();
         }
-    release_segment_lock();
+    if (allow_gc) release_segment_lock();
 }
 
 
@@ -372,6 +396,8 @@ void file_initialize(struct inode* &cur_inode, int _mode, int _permission) {
     acquire_counter_lock();
         if (count_inode >= MAX_NUM_INODE-1) {
             is_full = true;
+            release_counter_lock();
+            release_segment_lock();
             return;
         }
         count_inode++;
@@ -455,8 +481,8 @@ void file_modify(struct inode* cur_inode, int direct_index, void* data) {
 /** Remove an existing inode.
  * @param  i_number: i_number of an existing inode. */
 void remove_inode(int i_number) {
-    // If in the process of GC, we should redirect the writing request to pending block buffer.
-    /* if (trigger_gc) {
+    if (GC_CONCURRENCY && is_doing_gc) {
+        // When doing GC, we should redirect the writing request to pending block buffer.
         struct pending_block pblock;
         pblock.i_number = i_number;
         pblock.direct_index = -1;
@@ -464,11 +490,12 @@ void remove_inode(int i_number) {
         memset(pblock.data, 0, BLOCK_SIZE);
 
         pending_block_buffer.push_back(pblock);
-        inode_table[i_number] = -pending_block_buffer.size()-2;
+        inode_table[i_number] = -1;
         return;
-    } */
-
-    acquire_segment_lock();
+    }
+    
+    if (allow_gc) acquire_segment_lock();
+        // When not doing GC, we should write to segment buffer as normal.
         if (DEBUG_BLOCKIO)
             logger(DEBUG, "Remove inode block. Written to imap: #%d.\n", next_imap_index);
         inode_table[i_number] = -1;
@@ -491,7 +518,7 @@ void remove_inode(int i_number) {
             get_next_free_segment();
             segment_bitmap[cur_segment] = 1;
         }
-    release_segment_lock();
+    if (allow_gc) release_segment_lock();
 }
 
 

@@ -27,6 +27,8 @@ inode cached_inode_array[MAX_NUM_INODE];
 int cur_garbcol_level;
 int last_garbcol_time;
 
+bool is_doing_gc = false;
+bool allow_gc    = true;
 std::vector<pending_block> pending_block_buffer;
 
 
