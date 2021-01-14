@@ -877,20 +877,15 @@ int o_truncate(const char* path, off_t size, struct fuse_file_info *fi) {
     
     timespec cur_time;
     clock_gettime(CLOCK_REALTIME, &cur_time);
-    
-    // In case the file is not open yet.
-    if (fi->fh == 0) {
-        int first_flag = 0, fh = 0;
-        first_flag = locate(path, fh);
-        fi->fh = fh;
-        if (first_flag != 0) {
-            if (ERROR_FILE)
-                logger(ERROR, "[ERROR] Cannot open the file. \n");
-            return first_flag;
-        }
-    }
-    int inode_num = fi->fh;
 
+    int inode_num;
+    int first_flag = locate(path, inode_num);
+    if (first_flag != 0) {
+        if (ERROR_FILE)
+            logger(ERROR, "[ERROR] Cannot open the file. \n");
+        return first_flag;
+    }
+    
     /* The inode-level fine-grained lock is added by a lock_guard. */
     std::lock_guard <std::mutex> guard(inode_lock[inode_num]);
     /* This will be automatically released on each exit path. */

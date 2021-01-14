@@ -14,3 +14,4 @@ fuse/lfs/test/*
 *.log
 *.synctex.gz
 disk100Mi
+fuse/lfs/yanshou/
